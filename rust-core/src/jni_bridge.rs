@@ -41,21 +41,21 @@ impl<T: Serialize> JniEnvelope<T> {
 pub fn handle_validate_access_key(access_key: &str) -> String {
     match validate_access_key(access_key) {
         Ok(()) => JniEnvelope::success(true),
-        Err(e) => JniEnvelope::failure(e),
+        Err(e) => JniEnvelope::<bool>::failure(e),
     }
 }
 
 pub fn handle_generate_reverse_alias(alias_email: &str, target_email: &str) -> String {
     match generate_reverse_alias(alias_email, target_email) {
         Ok(addr) => JniEnvelope::success(addr),
-        Err(e) => JniEnvelope::failure(e),
+        Err(e) => JniEnvelope::<String>::failure(e),
     }
 }
 
 pub fn handle_generate_wildcard(wildcard_alias: &str, prefix: &str) -> String {
     match generate_wildcard_on_the_fly(wildcard_alias, prefix) {
         Ok(addr) => JniEnvelope::success(addr),
-        Err(e) => JniEnvelope::failure(e),
+        Err(e) => JniEnvelope::<String>::failure(e),
     }
 }
 
