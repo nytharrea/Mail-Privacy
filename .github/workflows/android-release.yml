@@ -91,17 +91,16 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/release-signing.jks"
-          cat <<EOF > android-app/keystore.properties
-          storeFile=${RUNNER_TEMP}/release-signing.jks
-          storePassword=${KEYSTORE_PASSWORD}
-          keyAlias=${KEY_ALIAS}
-          keyPassword=${KEY_PASSWORD}
-          EOF
+          printf "storeFile=%s/release-signing.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n" \
+            "${RUNNER_TEMP}" "${KEYSTORE_PASSWORD}" "${KEY_ALIAS}" "${KEY_PASSWORD}" > android-app/keystore.properties
 
       - name: Build Release APKs (Universal + ABI Splits: arm64-v8a, armeabi-v7a, x86_64, x86)
         working-directory: android-app
         run: |
-          chmod +x gradlew || gradle wrapper --gradle-version 8.9
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.9
+          fi
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Verify 16 KB APK Page Alignment (zipalign -P 16) & Signature Certificate

@@ -24,11 +24,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-
-        // 16 KB page size desteği için NDK ABI filtreleri
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-        }
     }
 
     // Android 15/16+ 16 KB sayfa boyutu zorunluluğu:

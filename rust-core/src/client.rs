@@ -79,7 +79,9 @@ impl MailxClient {
             *ak = access_key.filter(|s| !s.is_empty()).map(SecretString::new);
         }
         if let Ok(mut bt) = self.bearer_token.write() {
-            *bt = bearer_token.filter(|s| !s.is_empty()).map(SecretString::new);
+            *bt = bearer_token
+                .filter(|s| !s.is_empty())
+                .map(SecretString::new);
         }
     }
 
@@ -119,7 +121,7 @@ impl MailxClient {
             .timeout(std::time::Duration::from_secs(10))
             .call();
         match resp {
-            Ok(r) => Ok(r.status() >= 200 && r.status() < 300),
+            Ok(r) => Ok((200..300).contains(&r.status())),
             Err(ureq::Error::Status(code, r)) => {
                 let body = r.into_string().unwrap_or_default();
                 Err(Self::parse_error_body(code, &body))
@@ -247,11 +249,7 @@ impl MailxClient {
     }
 
     #[cfg(feature = "network")]
-    pub fn pin_alias(
-        &self,
-        alias_id: &str,
-        pinned: bool,
-    ) -> Result<serde_json::Value, MailxError> {
+    pub fn pin_alias(&self, alias_id: &str, pinned: bool) -> Result<serde_json::Value, MailxError> {
         let body = serde_json::to_string(&AliasPinRequest { pinned })
             .map_err(|e| MailxError::SerializationError(e.to_string()))?;
         let path = format!("/v1/api/alias/{}/pin", alias_id);

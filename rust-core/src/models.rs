@@ -123,12 +123,7 @@ impl AliasRequest {
     /// Mevcut bir `Alias` nesnesini koruyarak güvenli kısmi güncelleme (`PUT /v1/api/alias/:id`)
     /// için tam nesne oluşturur (`PUT` uç noktası tüm alanları bekler).
     pub fn from_existing(alias: &Alias) -> Self {
-        let domain = alias
-            .name
-            .split('@')
-            .nth(1)
-            .unwrap_or_default()
-            .to_string();
+        let domain = alias.name.split('@').nth(1).unwrap_or_default().to_string();
         Self {
             description: alias.description.clone(),
             enabled: alias.enabled,

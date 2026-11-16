@@ -6,9 +6,7 @@
 
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
-use crate::utils::{
-    generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key,
-};
+use crate::utils::{generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -89,10 +87,7 @@ pub fn handle_fetch_aliases(
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
     };
-    client.set_credentials(
-        Some(access_key.to_string()),
-        Some(bearer_token.to_string()),
-    );
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
     let filter = AliasFilter {
         page: page.max(1),
         limit: 50,
@@ -123,10 +118,7 @@ pub fn handle_create_alias(
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
     };
-    client.set_credentials(
-        Some(access_key.to_string()),
-        Some(bearer_token.to_string()),
-    );
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
     let req: AliasRequest = match serde_json::from_str(request_json) {
         Ok(r) => r,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -150,10 +142,7 @@ pub fn handle_update_alias(
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
     };
-    client.set_credentials(
-        Some(access_key.to_string()),
-        Some(bearer_token.to_string()),
-    );
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
     let req: AliasRequest = match serde_json::from_str(request_json) {
         Ok(r) => r,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -177,10 +166,7 @@ pub fn handle_pin_alias(
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
     };
-    client.set_credentials(
-        Some(access_key.to_string()),
-        Some(bearer_token.to_string()),
-    );
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
     match client.pin_alias(alias_id, pinned) {
         Ok(res) => JniEnvelope::success(res),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
@@ -199,10 +185,7 @@ pub fn handle_delete_alias(
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
     };
-    client.set_credentials(
-        Some(access_key.to_string()),
-        Some(bearer_token.to_string()),
-    );
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
     match client.delete_alias(alias_id) {
         Ok(res) => JniEnvelope::success(res),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
@@ -218,9 +201,7 @@ mod android_exports {
     use jni::JNIEnv;
 
     fn jstring_to_rust(env: &mut JNIEnv, input: JString) -> String {
-        env.get_string(&input)
-            .map(|s| s.into())
-            .unwrap_or_default()
+        env.get_string(&input).map(|s| s.into()).unwrap_or_default()
     }
 
     fn rust_to_jstring(env: &mut JNIEnv, output: String) -> jstring {

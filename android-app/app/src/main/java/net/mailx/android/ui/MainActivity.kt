@@ -512,8 +512,7 @@ fun MailxAppScreen(prefs: EncryptedPrefsManager) {
                         singleLine = true
                     )
                     if (generated.isNotEmpty()) {
-                        Text("Bu adrese e-posta gönderin:
-$generated", fontFamily = FontFamily.Monospace)
+                        Text("Bu adrese e-posta gönderin:\n$generated", fontFamily = FontFamily.Monospace)
                     }
                 }
             },
