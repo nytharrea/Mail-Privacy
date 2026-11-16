@@ -1,0 +1,134 @@
+name: Android Multi-ABI 16KB Build & Sign
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Yayınlanacak etiket (boş bırakılırsa rolling nightly güncellenir)'
+        required: false
+        default: 'nightly'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '17'
+  NDK_VERSION: '28.0.12674087'
+  BUILD_TOOLS_VERSION: '35.0.0'
+
+jobs:
+  build-and-sign:
+    name: Build Rust JNI (4 ABIs, 16KB) & Sign APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Install Rust & Android ABI targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - name: Cache Rust & Gradle
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Android NDK r28+ & Build-Tools 35.0.0
+        run: |
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "ndk;${NDK_VERSION}" "build-tools;${BUILD_TOOLS_VERSION}" "platforms;android-35"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> $GITHUB_ENV
+
+      - name: Install cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: Compile Rust Core (.so) for all 4 Android ABIs with 16 KB alignment
+        run: |
+          cargo ndk \
+            -t arm64-v8a \
+            -t armeabi-v7a \
+            -t x86_64 \
+            -t x86 \
+            -o android-app/app/src/main/jniLibs \
+            build --release -p mailx-core --features "network,jni"
+
+      - name: Verify 16 KB (0x4000 / 2**14) ELF Page Alignment on all .so libraries
+        run: |
+          OBJDUMP="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objdump"
+          for so_file in $(find android-app/app/src/main/jniLibs -name "libmailx_core.so"); do
+            echo "Checking 16 KB ELF LOAD alignment for: $so_file"
+            "$OBJDUMP" -p "$so_file" | grep "LOAD"
+            if "$OBJDUMP" -p "$so_file" | grep "LOAD" | grep -v -E "2\*\*(14|15|16)"; then
+              echo "ERROR: $so_file is NOT 16 KB aligned!"
+              exit 1
+            fi
+          done
+
+      - name: Decode User Signing Keystore from GitHub Secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "ERROR: KEYSTORE_BASE64 secret tanımlı değil! Lütfen GitHub repo Settings -> Secrets and variables -> Actions altına KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS ve KEY_PASSWORD ekleyin."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "${RUNNER_TEMP}/release-signing.jks"
+          cat <<EOF > android-app/keystore.properties
+          storeFile=${RUNNER_TEMP}/release-signing.jks
+          storePassword=${KEYSTORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+
+      - name: Build Release APKs (Universal + ABI Splits: arm64-v8a, armeabi-v7a, x86_64, x86)
+        working-directory: android-app
+        run: |
+          chmod +x gradlew || gradle wrapper --gradle-version 8.9
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify 16 KB APK Page Alignment (zipalign -P 16) & Signature Certificate
+        run: |
+          ZIPALIGN="${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}/zipalign"
+          APKSIGNER="${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}/apksigner"
+          mkdir -p dist-apks
+          for apk in android-app/app/build/outputs/apk/release/*.apk; do
+            echo "=== Verifying 16 KB zipalign for $apk ==="
+            "$ZIPALIGN" -c -v -P 16 4 "$apk"
+            echo "=== Verifying APK Signature & Printing Certificate SHA-256 ==="
+            "$APKSIGNER" verify --verbose --print-certs "$apk"
+            cp "$apk" dist-apks/
+          done
+
+      - name: Upload Signed APKs to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag || 'nightly' }}"
+          if [ "$TAG_NAME" = "nightly" ]; then
+            gh release create nightly dist-apks/*.apk \
+              --title "Mailx Android Rust (Nightly Build)" \
+              --notes "16 KB hizalamalı ve çoklu ABI (arm64-v8a, armeabi-v7a, x86_64, x86) imzalı otomatik derleme." \
+              --prerelease || gh release upload nightly dist-apks/*.apk --clobber
+          else
+            gh release create "$TAG_NAME" dist-apks/*.apk \
+              --title "Mailx Android Rust $TAG_NAME" \
+              --generate-notes || gh release upload "$TAG_NAME" dist-apks/*.apk --clobber
+          fi
