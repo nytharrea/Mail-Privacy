@@ -1,4 +1,16 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Go backend (`fiber.Map` / `gorm`) nil slice veya boş değerleri JSON `null` olarak
+/// döndürdüğünde (`"custom_domains": null`, `"recipients": null`, `"aliases": null` vb.)
+/// `serde_json`'ın hata vermesini önleyip `Default::default()` değerine dönüştürür.
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let opt = Option::<T>::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
+}
 
 /// Mailx API'sinin desteklediği alias oluşturma formatları (`api/internal/model/alias_name.go`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,53 +35,56 @@ impl AliasFormat {
     }
 }
 
-/// Alias yönlendirme ve engelleme istatistikleri (`model.AliasStats`)
+/// Alias yönlendirme ve engelleme istatistikleri (`model.AliasStats` - `api/internal/model/alias.go`)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasStats {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub forwards: i64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub blocks: i64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub replies: i64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub sends: i64,
 }
 
 /// Mailx Alias veri modeli (`api/internal/model/alias.go` & `wxt/lib/types.ts`)
-/// Bilinmeyen yeni alanları tolere etmek için varsayılanlar tanımlanmıştır.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Alias {
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub id: String,
     #[serde(default)]
     pub created_at: Option<String>,
     #[serde(default)]
     pub updated_at: Option<String>,
     #[serde(default)]
-    pub deleted_at: Option<String>,
+    pub deleted_at: Option<serde_json::Value>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub enabled: bool,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub description: String,
     /// Virgülle ayrılmış alıcı e-posta adresleri (örn: "user@example.com,backup@example.com")
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipients: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from_name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub wildcard: bool,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub origin: i32,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub pinned: bool,
     #[serde(default)]
     pub paused_until: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub stats: AliasStats,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub is_custom_domain: bool,
     #[serde(default)]
     pub is_domain_verified: Option<bool>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub is_domain_enabled: bool,
 }
 
@@ -92,24 +107,30 @@ impl Alias {
     }
 }
 
-/// `GET /v1/api/aliases` yanıt modeli (`model.AliasList`)
+/// `GET /v1/api/aliases` yanıt modeli (`model.AliasList` - `api/internal/model/alias.go`)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasListResponse {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub aliases: Vec<Alias>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub total: usize,
 }
 
-/// `POST /v1/api/alias` ve `PUT /v1/api/alias/:id` istek gövdesi (`api.AliasReq`)
+/// `POST /v1/api/alias` ve `PUT /v1/api/alias/:id` istek gövdesi (`api.AliasReq` - `api/internal/transport/api/req.go`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasRequest {
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub description: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub enabled: bool,
     /// Virgülle ayrılmış doğrulanmış alıcı e-postaları (zorunlu)
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipients: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub format: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub domain: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wildcard_local_part: Option<String>,
@@ -120,8 +141,8 @@ pub struct AliasRequest {
 }
 
 impl AliasRequest {
-    /// Mevcut bir `Alias` nesnesini koruyarak güvenli kısmi güncelleme (`PUT /v1/api/alias/:id`)
-    /// için tam nesne oluşturur (`PUT` uç noktası tüm alanları bekler).
+    /// Mevcut bir `Alias` nesnesini koruyarak güvenli güncelleme (`PUT /v1/api/alias/:id`)
+    /// için tam nesne oluşturur (`api/internal/transport/api/alias.go` -> `UpdateAlias`).
     pub fn from_existing(alias: &Alias) -> Self {
         let domain = alias.name.split('@').nth(1).unwrap_or_default().to_string();
         Self {
@@ -142,9 +163,10 @@ impl AliasRequest {
     }
 }
 
-/// `POST /v1/api/alias` başarılı yanıtı
+/// `POST /v1/api/alias` başarılı yanıtı (`201 Created`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreateAliasResponse {
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub message: String,
     pub alias: Alias,
 }
@@ -155,13 +177,25 @@ pub struct AliasPinRequest {
     pub pinned: bool,
 }
 
-/// Özel alan adı modeli (`wxt/lib/types.ts` -> `CustomDomain`)
+/// Özel alan adı modeli (`model.Domain` - `api/internal/model/domain.go` & `wxt/lib/types.ts`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CustomDomain {
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub id: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub description: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub recipient: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub from_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub enabled: bool,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub catch_all: bool,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub create_alias: bool,
     #[serde(default)]
     pub owner_verified_at: Option<String>,
     #[serde(default)]
@@ -170,50 +204,51 @@ pub struct CustomDomain {
     pub send_verified_at: Option<String>,
 }
 
-/// `POST /v1/api/authenticate` yanıtı
+/// `POST /v1/api/authenticate` yanıtı (`api/internal/transport/api/access_key.go` satır 248-256)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuthResponse {
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub token: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub domain: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub domains: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub custom_domains: Vec<CustomDomain>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipient: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipients: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub alias_format: String,
 }
 
-/// `GET /v1/api/defaults` yanıtı
+/// `GET /v1/api/defaults` yanıtı (`api/internal/transport/api/access_key.go` satır 309-322)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DefaultsResponse {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub id: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub domain: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub domains: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub custom_domains: Vec<CustomDomain>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipient: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipients: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub alias_format: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from_name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub log_issues: bool,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub remove_header: bool,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub list_unsubscribe_behaviour: i32,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub block_trackers: bool,
 }
 
@@ -232,7 +267,7 @@ pub struct AliasFilter {
     pub status: String,
     /// `"true"`, `"false"` veya `""`
     pub wildcard: String,
-    /// Arama metni
+    /// Arama metni (`^[-a-zA-Z0-9 ._+@]+$`)
     pub search: String,
 }
 
@@ -255,5 +290,6 @@ impl Default for AliasFilter {
 pub struct OfflineCache {
     pub updated_at_epoch_ms: u64,
     pub defaults: Option<DefaultsResponse>,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub aliases: Vec<Alias>,
 }

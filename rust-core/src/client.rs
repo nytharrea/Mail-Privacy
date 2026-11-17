@@ -40,6 +40,8 @@ struct ApiErrorBody {
 
 /// Mailx REST API İstemcisi
 ///
+/// - Resmi `https://mailx.net` web arayüzü (Nginx statik Vue SPA) girildiğinde otomatik olarak
+///   Go + Fiber API sunucusu olan `https://api.mailx.net` adresine yönlendirir.
 /// - Varsayılan olarak yalnızca `https://` kabul eder (`allow_insecure_localhost` yalnızca yerel test içindir).
 /// - `401 Unauthorized` alındığında saklanan `AccessKey` ile **yalnızca 1 kez** sessizce yeniden
 ///   `POST /v1/api/authenticate` dener (5 deneme / 10 dk rate-limit döngüsüne girmemek için).
@@ -51,8 +53,39 @@ pub struct MailxClient {
 }
 
 impl MailxClient {
+    /// Kullanıcı `https://mailx.net` gibi web arayüzü adresini veya sonunda `/v1/api` bulunan
+    /// bir adresi girdiğinde otomatik olarak temiz API kök adresine (`https://api.mailx.net`) dönüştürür.
+    pub fn normalize_base_url(raw: &str) -> String {
+        let mut s = raw.trim().trim_end_matches('/').to_string();
+        for suffix in [
+            "/v1/api/authenticate",
+            "/api/v1/authenticate",
+            "/v1/api",
+            "/api/v1",
+            "/v1",
+            "/api",
+            "/login",
+        ] {
+            if s.to_ascii_lowercase().ends_with(suffix) {
+                let new_len = s.len() - suffix.len();
+                s.truncate(new_len);
+                s = s.trim_end_matches('/').to_string();
+            }
+        }
+
+        match s.to_ascii_lowercase().as_str() {
+            "https://mailx.net" | "https://www.mailx.net" | "https://app.mailx.net" => {
+                "https://api.mailx.net".to_string()
+            }
+            "http://mailx.net" | "http://www.mailx.net" | "http://app.mailx.net" => {
+                "http://api.mailx.net".to_string()
+            }
+            _ => s,
+        }
+    }
+
     pub fn new(base_url: &str, allow_insecure_localhost: bool) -> Result<Self, MailxError> {
-        let trimmed = base_url.trim().trim_end_matches('/').to_string();
+        let trimmed = Self::normalize_base_url(base_url);
         if !trimmed.starts_with("https://") {
             let is_localhost = trimmed.starts_with("http://localhost")
                 || trimmed.starts_with("http://127.0.0.1")
@@ -92,15 +125,93 @@ impl MailxClient {
             .and_then(|g| g.as_ref().map(|s| s.expose().to_string()))
     }
 
+    /// Self-host veya farklı reverse-proxy kurulumlarında `/v1/api/...` 404/405 döndürürse
+    /// denenecek alternatif tam URL adaylarını üretir.
+    fn candidate_urls(&self, path: &str) -> Vec<String> {
+        let mut urls = Vec::new();
+        let primary = format!("{}{}", self.base_url, path);
+        urls.push(primary);
+
+        // Eğer alan adı `api.` ile başlamıyorsa `https://api.<host>` adayını da ekle
+        if let Some(rest) = self.base_url.strip_prefix("https://") {
+            if !rest.starts_with("api.") && !rest.starts_with("localhost") && !rest.starts_with("127.") {
+                let host_without_www = rest.strip_prefix("www.").unwrap_or(rest);
+                let api_base = format!("https://api.{}", host_without_www);
+                let candidate = format!("{}{}", api_base, path);
+                if !urls.contains(&candidate) {
+                    urls.push(candidate);
+                }
+            }
+        }
+
+        // `/v1/api/...` yerine `/api/v1/...` kullanan reverse-proxy kurulumları için alternatif yol
+        if let Some(tail) = path.strip_prefix("/v1/api/") {
+            let alt_path = format!("/api/v1/{}", tail);
+            let alt_primary = format!("{}{}", self.base_url, alt_path);
+            if !urls.contains(&alt_primary) {
+                urls.push(alt_primary);
+            }
+            if let Some(rest) = self.base_url.strip_prefix("https://") {
+                if !rest.starts_with("api.") && !rest.starts_with("localhost") && !rest.starts_with("127.") {
+                    let host_without_www = rest.strip_prefix("www.").unwrap_or(rest);
+                    let alt_api = format!("https://api.{}{}", host_without_www, alt_path);
+                    if !urls.contains(&alt_api) {
+                        urls.push(alt_api);
+                    }
+                }
+            }
+        }
+
+        urls
+    }
+
+    fn strip_html_tags(input: &str) -> String {
+        let mut out = String::with_capacity(input.len());
+        let mut in_tag = false;
+        for ch in input.chars() {
+            match ch {
+                '<' => in_tag = true,
+                '>' => {
+                    in_tag = false;
+                    out.push(' ');
+                }
+                _ if !in_tag => out.push(ch),
+                _ => {}
+            }
+        }
+        out.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    fn is_html_body(raw: &str) -> bool {
+        let lower = raw.trim_start().to_ascii_lowercase();
+        lower.starts_with("<!doctype html")
+            || lower.starts_with("<html")
+            || lower.contains("<head>")
+            || lower.contains("<body>")
+    }
+
     fn parse_error_body(status: u16, raw: &str) -> MailxError {
         let parsed = serde_json::from_str::<ApiErrorBody>(raw)
             .ok()
             .and_then(|b| b.error.or(b.message))
             .unwrap_or_else(|| {
-                if raw.trim().is_empty() {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
                     format!("HTTP {}", status)
+                } else if Self::is_html_body(trimmed) {
+                    let clean_text = Self::strip_html_tags(trimmed);
+                    if status == 405 {
+                        format!(
+                            "Sunucu POST isteğini reddetti ({}). Web arayüzü yerine API sunucu adresini (https://api.mailx.net) kullandığınızdan emin olun.",
+                            if clean_text.is_empty() { "405 Not Allowed" } else { &clean_text }
+                        )
+                    } else if clean_text.is_empty() {
+                        format!("HTTP {}", status)
+                    } else {
+                        clean_text
+                    }
                 } else {
-                    raw.trim().to_string()
+                    trimmed.to_string()
                 }
             });
 
@@ -134,30 +245,60 @@ impl MailxClient {
     pub fn authenticate(&self, access_key_raw: &str) -> Result<AuthResponse, MailxError> {
         validate_access_key(access_key_raw).map_err(MailxError::InvalidAccessKey)?;
         let clean_key = access_key_raw.trim().to_string();
-        let url = format!("{}/v1/api/authenticate", self.base_url);
-        let payload = serde_json::json!({ "access_key": clean_key });
+        let payload = serde_json::json!({ "access_key": clean_key }).to_string();
+        let candidates = self.candidate_urls("/v1/api/authenticate");
+        let mut last_err: Option<MailxError> = None;
 
-        let resp = ureq::post(&url)
-            .set("Content-Type", "application/json")
-            .timeout(std::time::Duration::from_secs(15))
-            .send_string(&payload.to_string());
+        for (idx, url) in candidates.iter().enumerate() {
+            let resp = ureq::post(url)
+                .set("Content-Type", "application/json")
+                .set("Accept", "application/json")
+                .timeout(std::time::Duration::from_secs(15))
+                .send_string(&payload);
 
-        match resp {
-            Ok(r) => {
-                let text = r
-                    .into_string()
-                    .map_err(|e| MailxError::NetworkError(e.to_string()))?;
-                let auth_res: AuthResponse = serde_json::from_str(&text)
-                    .map_err(|e| MailxError::SerializationError(e.to_string()))?;
-                self.set_credentials(Some(clean_key), Some(auth_res.token.clone()));
-                Ok(auth_res)
+            match resp {
+                Ok(r) => {
+                    let text = r
+                        .into_string()
+                        .map_err(|e| MailxError::NetworkError(e.to_string()))?;
+                    match serde_json::from_str::<AuthResponse>(&text) {
+                        Ok(auth_res) => {
+                            self.set_credentials(Some(clean_key), Some(auth_res.token.clone()));
+                            return Ok(auth_res);
+                        }
+                        Err(e) => {
+                            last_err = Some(MailxError::SerializationError(e.to_string()));
+                            if idx + 1 < candidates.len() && Self::is_html_body(&text) {
+                                continue;
+                            }
+                            return Err(last_err.unwrap());
+                        }
+                    }
+                }
+                Err(ureq::Error::Status(code, r)) => {
+                    let body = r.into_string().unwrap_or_default();
+                    let err = Self::parse_error_body(code, &body);
+                    // 404 veya 405 (Nginx statik SPA yanıtı) durumunda sıradaki aday API adresini dene
+                    if idx + 1 < candidates.len() && (code == 404 || code == 405) {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+                Err(e) => {
+                    let err = MailxError::NetworkError(e.to_string());
+                    if idx + 1 < candidates.len() {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
             }
-            Err(ureq::Error::Status(code, r)) => {
-                let body = r.into_string().unwrap_or_default();
-                Err(Self::parse_error_body(code, &body))
-            }
-            Err(e) => Err(MailxError::NetworkError(e.to_string())),
         }
+
+        Err(last_err.unwrap_or_else(|| {
+            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+        }))
     }
 
     #[cfg(feature = "network")]
@@ -172,50 +313,78 @@ impl MailxClient {
             .current_token()
             .ok_or_else(|| MailxError::Unauthorized("Oturum anahtarı bulunamadı.".to_string()))?;
 
-        let url = format!("{}{}", self.base_url, path);
-        let req = ureq::request(method, &url)
-            .set("Authorization", &format!("Bearer {}", token))
-            .set("Accept", "application/json")
-            .timeout(std::time::Duration::from_secs(15));
+        let candidates = self.candidate_urls(path);
+        let mut last_err: Option<MailxError> = None;
 
-        let resp = if let Some(body) = json_body {
-            req.set("Content-Type", "application/json")
-                .send_string(body)
-        } else {
-            req.call()
-        };
+        for (idx, url) in candidates.iter().enumerate() {
+            let req = ureq::request(method, url)
+                .set("Authorization", &format!("Bearer {}", token))
+                .set("Accept", "application/json")
+                .timeout(std::time::Duration::from_secs(15));
 
-        match resp {
-            Ok(r) => {
-                let text = r
-                    .into_string()
-                    .map_err(|e| MailxError::NetworkError(e.to_string()))?;
-                serde_json::from_str::<T>(&text)
-                    .map_err(|e| MailxError::SerializationError(e.to_string()))
-            }
-            Err(ureq::Error::Status(401, r)) => {
-                let body = r.into_string().unwrap_or_default();
-                // 401 durumunda saklı Access Key varsa yalnızca 1 kez sessizce yenile
-                if allow_reauth {
-                    let saved_key = self
-                        .access_key
-                        .read()
-                        .ok()
-                        .and_then(|g| g.as_ref().map(|s| s.expose().to_string()));
-                    if let Some(key) = saved_key {
-                        if self.authenticate(&key).is_ok() {
-                            return self.execute_authenticated(method, path, json_body, false);
+            let resp = if let Some(body) = json_body {
+                req.set("Content-Type", "application/json")
+                    .send_string(body)
+            } else {
+                req.call()
+            };
+
+            match resp {
+                Ok(r) => {
+                    let text = r
+                        .into_string()
+                        .map_err(|e| MailxError::NetworkError(e.to_string()))?;
+                    match serde_json::from_str::<T>(&text) {
+                        Ok(parsed) => return Ok(parsed),
+                        Err(e) => {
+                            last_err = Some(MailxError::SerializationError(e.to_string()));
+                            if idx + 1 < candidates.len() && Self::is_html_body(&text) {
+                                continue;
+                            }
+                            return Err(last_err.unwrap());
                         }
                     }
                 }
-                Err(Self::parse_error_body(401, &body))
+                Err(ureq::Error::Status(401, r)) => {
+                    let body = r.into_string().unwrap_or_default();
+                    // 401 durumunda saklı Access Key varsa yalnızca 1 kez sessizce yenile
+                    if allow_reauth {
+                        let saved_key = self
+                            .access_key
+                            .read()
+                            .ok()
+                            .and_then(|g| g.as_ref().map(|s| s.expose().to_string()));
+                        if let Some(key) = saved_key {
+                            if self.authenticate(&key).is_ok() {
+                                return self.execute_authenticated(method, path, json_body, false);
+                            }
+                        }
+                    }
+                    return Err(Self::parse_error_body(401, &body));
+                }
+                Err(ureq::Error::Status(code, r)) => {
+                    let body = r.into_string().unwrap_or_default();
+                    let err = Self::parse_error_body(code, &body);
+                    if idx + 1 < candidates.len() && (code == 404 || code == 405) {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+                Err(e) => {
+                    let err = MailxError::NetworkError(e.to_string());
+                    if idx + 1 < candidates.len() {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
             }
-            Err(ureq::Error::Status(code, r)) => {
-                let body = r.into_string().unwrap_or_default();
-                Err(Self::parse_error_body(code, &body))
-            }
-            Err(e) => Err(MailxError::NetworkError(e.to_string())),
         }
+
+        Err(last_err.unwrap_or_else(|| {
+            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+        }))
     }
 
     #[cfg(feature = "network")]
@@ -275,10 +444,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_https_enforcement() {
-        assert!(MailxClient::new("https://mailx.net", false).is_ok());
+    fn test_https_enforcement_and_api_normalization() {
+        let client = MailxClient::new("https://mailx.net", false).unwrap();
+        assert_eq!(client.base_url(), "https://api.mailx.net");
+
+        let client_with_path = MailxClient::new("https://mailx.net/v1/api/", false).unwrap();
+        assert_eq!(client_with_path.base_url(), "https://api.mailx.net");
+
         assert!(MailxClient::new("http://mailx.net", false).is_err());
         assert!(MailxClient::new("http://localhost:3000", true).is_ok());
+    }
+
+    #[test]
+    fn test_html_error_body_sanitization() {
+        let nginx_405 = "<html>\r\n<head><title>405 Not Allowed</title></head>\r\n<body>\r\n<center><h1>405 Not Allowed</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>";
+        let err = MailxClient::parse_error_body(405, nginx_405);
+        let msg = err.to_string();
+        assert!(!msg.contains("<html>"));
+        assert!(msg.contains("405 Not Allowed"));
+        assert!(msg.contains("https://api.mailx.net"));
     }
 
     #[test]

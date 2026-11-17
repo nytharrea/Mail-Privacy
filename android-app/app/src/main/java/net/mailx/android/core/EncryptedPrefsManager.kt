@@ -43,9 +43,25 @@ class EncryptedPrefsManager(context: Context) {
         )
     }
 
+    private fun normalizeApiBaseUrl(raw: String): String {
+        val trimmed = raw.trim().trimEnd('/')
+        return when (trimmed.lowercase()) {
+            "", "https://mailx.net", "https://www.mailx.net", "https://app.mailx.net" ->
+                DEFAULT_API_BASE_URL
+            else -> trimmed
+        }
+    }
+
     var baseUrl: String
-        get() = prefs.getString(KEY_BASE_URL, "https://mailx.net") ?: "https://mailx.net"
-        set(value) = prefs.edit().putString(KEY_BASE_URL, value.trim().trimEnd('/')).apply()
+        get() {
+            val saved = prefs.getString(KEY_BASE_URL, DEFAULT_API_BASE_URL) ?: DEFAULT_API_BASE_URL
+            val normalized = normalizeApiBaseUrl(saved)
+            if (normalized != saved) {
+                prefs.edit().putString(KEY_BASE_URL, normalized).apply()
+            }
+            return normalized
+        }
+        set(value) = prefs.edit().putString(KEY_BASE_URL, normalizeApiBaseUrl(value)).apply()
 
     var accessKey: String
         get() = prefs.getString(KEY_ACCESS_KEY, "") ?: ""
@@ -84,6 +100,37 @@ class EncryptedPrefsManager(context: Context) {
         }
     }
 
+    /**
+     * `POST /v1/api/authenticate` veya `GET /v1/api/defaults` yanıtındaki (`access_key.go`)
+     * `domain`, `domains`, `recipient`, `recipients` ve `alias_format` alanlarını WXT eklentisiyle
+     * (`wxt/components/popup/AliasCreate.vue` satır 57 ve 94) birebir aynı geri dönüş (fallback)
+     * mantığıyla kaydeder.
+     */
+    fun applyServerDefaults(data: org.json.JSONObject) {
+        val firstDomain = data.optJSONArray("domains")?.optString(0, "")?.trim().orEmpty()
+        val dom = data.optString("domain", "").trim().ifEmpty {
+            firstDomain.ifEmpty { defaultDomain.ifEmpty { "mailx.net" } }
+        }
+        if (dom.isNotEmpty()) {
+            defaultDomain = dom
+        }
+
+        val firstRecipient = data.optJSONArray("recipients")?.optString(0, "")?.trim().orEmpty()
+        val rec = data.optString("recipient", "").trim().ifEmpty {
+            firstRecipient.ifEmpty { defaultRecipient }
+        }
+        if (rec.isNotEmpty()) {
+            defaultRecipient = rec
+        }
+
+        val fmt = data.optString("alias_format", "").trim().ifEmpty {
+            defaultFormat.ifEmpty { "words" }
+        }
+        if (fmt.isNotEmpty()) {
+            defaultFormat = fmt
+        }
+    }
+
     fun clearSession() {
         prefs.edit()
             .remove(KEY_ACCESS_KEY)
@@ -94,6 +141,7 @@ class EncryptedPrefsManager(context: Context) {
 
     companion object {
         private const val PREFS_FILE_NAME = "mailx_encrypted_prefs"
+        const val DEFAULT_API_BASE_URL = "https://api.mailx.net"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_ACCESS_KEY = "access_key"
         private const val KEY_BEARER_TOKEN = "bearer_token"

@@ -196,7 +196,7 @@ fun MailxAppScreen(prefs: EncryptedPrefsManager) {
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
-                label = { Text("Sunucu Adresi (Self-Host veya Resmi)") },
+                label = { Text("API Sunucu Adresi (Resmi: https://api.mailx.net)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -232,11 +232,10 @@ fun MailxAppScreen(prefs: EncryptedPrefsManager) {
                             val data = authRes.optJSONObject("data") ?: JSONObject()
                             val token = data.optString("token")
                             prefs.baseUrl = baseUrl
+                            baseUrl = prefs.baseUrl
                             prefs.accessKey = accessKeyInput
                             prefs.bearerToken = token
-                            prefs.defaultDomain = data.optString("domain", "mailx.net").ifBlank { "mailx.net" }
-                            prefs.defaultRecipient = data.optString("recipient", "")
-                            prefs.defaultFormat = data.optString("alias_format", "words").ifBlank { "words" }
+                            prefs.applyServerDefaults(data)
 
                             // Sunucu varsayılan ayarlarını (/v1/api/defaults) çekerek eksiksiz senkronize et
                             val defaultsRes = MailxRustBridge.fetchDefaults(
@@ -247,12 +246,7 @@ fun MailxAppScreen(prefs: EncryptedPrefsManager) {
                             prefs.syncRefreshedTokenIfPresent(defaultsRes)
                             if (defaultsRes.optBoolean("ok", false)) {
                                 defaultsRes.optJSONObject("data")?.let { defObj ->
-                                    val dom = defObj.optString("domain", "")
-                                    val rec = defObj.optString("recipient", "")
-                                    val fmt = defObj.optString("alias_format", "")
-                                    if (dom.isNotBlank()) prefs.defaultDomain = dom
-                                    if (rec.isNotBlank()) prefs.defaultRecipient = rec
-                                    if (fmt.isNotBlank()) prefs.defaultFormat = fmt
+                                    prefs.applyServerDefaults(defObj)
                                 }
                             }
                             isLoading = false
