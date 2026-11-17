@@ -120,6 +120,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
     private var searchJob: Job? = null
+    private var hasLoadedInitialData = false
+    private var hasLoadedDeletedAliases = false
 
     init {
         if (prefs.cachedAliasesJson.isNotEmpty()) {
@@ -128,7 +130,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             }
         }
         if (prefs.isConfigured()) {
-            refreshAllData()
+            hasLoadedInitialData = true
+            refreshAllData(showIndicator = _aliases.value.isEmpty())
         }
     }
 
@@ -141,25 +144,33 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 
     fun selectTab(tab: MainNavTab) {
+        if (_currentTab.value == tab) return
         _currentTab.value = tab
+        if (!prefs.isConfigured()) return
         when (tab) {
             MainNavTab.HOME -> {
-                refreshAliases()
-                fetchUserStats()
+                if (!hasLoadedInitialData) {
+                    hasLoadedInitialData = true
+                    refreshAllData(showIndicator = _aliases.value.isEmpty())
+                }
             }
-            MainNavTab.ALIASES -> refreshAliases()
+            MainNavTab.ALIASES -> {
+                if (!hasLoadedInitialData) {
+                    hasLoadedInitialData = true
+                    refreshAliases(showIndicator = _aliases.value.isEmpty())
+                }
+            }
             MainNavTab.RECIPIENTS -> {
-                fetchRecipients()
-                fetchDomains()
+                if (_recipients.value.isEmpty()) fetchRecipients()
+                if (_customDomains.value.isEmpty()) fetchDomains()
             }
             MainNavTab.RULES -> {
-                fetchRecipients()
-                fetchRules()
-                fetchBlocklist()
+                if (_recipients.value.isEmpty()) fetchRecipients()
+                if (_rules.value.isEmpty()) fetchRules()
+                if (_blocklist.value.isEmpty()) fetchBlocklist()
             }
             MainNavTab.SETTINGS -> {
-                syncServerDefaults(silent = true)
-                fetchAccountAndSubscription()
+                if (_userAccount.value.id.isBlank()) fetchAccountAndSubscription()
             }
         }
     }
@@ -253,7 +264,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                         errorMessage = null
                     )
                 }
-                refreshAllData()
+                hasLoadedInitialData = true
+                hasLoadedDeletedAliases = false
+                refreshAllData(showIndicator = true)
             } else {
                 val errCode = loginRes.optInt("error_code", 0)
                 val errMsg = loginRes.optString("error", "Sign in failed")
@@ -302,7 +315,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                         errorMessage = null
                     )
                 }
-                refreshAllData()
+                hasLoadedInitialData = true
+                hasLoadedDeletedAliases = false
+                refreshAllData(showIndicator = true)
             } else {
                 _authState.update {
                     it.copy(
@@ -365,8 +380,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
-    fun refreshAllData() {
-        refreshAliases()
+    fun refreshAllData(showIndicator: Boolean = true) {
+        refreshAliases(showIndicator = showIndicator)
         syncServerDefaults(silent = true)
         fetchRecipients()
         fetchDomains()
@@ -380,20 +395,31 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _filterState.update { it.copy(searchQuery = query) }
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            if (query.isNotEmpty()) delay(260)
-            loadAliasesInternal()
+            if (query.isNotEmpty()) {
+                delay(300)
+                loadAliasesInternal(showIndicator = false)
+            } else if (_aliases.value.isEmpty() && prefs.cachedAliasesJson.isNotEmpty()) {
+                runCatching {
+                    _aliases.value = UiAlias.listFromJsonArray(JSONArray(prefs.cachedAliasesJson))
+                }
+            }
         }
     }
 
     fun selectFilterChip(chipKey: String) {
+        if (_filterState.value.selectedChip == chipKey) return
         _filterState.update { it.copy(selectedChip = chipKey) }
-        refreshAliases()
+        if (chipKey == "deleted" && !hasLoadedDeletedAliases) {
+            refreshAliases(showIndicator = false)
+        }
     }
 
     fun navigateToFilteredAliases(chipKey: String) {
         _filterState.update { it.copy(selectedChip = chipKey) }
         _currentTab.value = MainNavTab.ALIASES
-        refreshAliases()
+        if (chipKey == "deleted" && !hasLoadedDeletedAliases) {
+            refreshAliases(showIndicator = false)
+        }
     }
 
     fun applyFilterOptions(
@@ -402,7 +428,6 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         sortDescending: Boolean,
         pinnedFirst: Boolean
     ) {
-        val chipChanged = _filterState.value.selectedChip != chipKey
         _filterState.update {
             it.copy(
                 selectedChip = chipKey,
@@ -412,54 +437,67 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
         }
         _activeSheet.value = ActiveSheet.None
-        if (chipChanged) refreshAliases()
+        if (chipKey == "deleted" && !hasLoadedDeletedAliases) {
+            refreshAliases(showIndicator = false)
+        }
     }
 
     fun resetFilterOptions() {
         _filterState.value = FilterUiState()
         _activeSheet.value = ActiveSheet.None
-        refreshAliases()
     }
 
-    fun refreshAliases() {
+    fun refreshAliases(showIndicator: Boolean = true) {
         viewModelScope.launch {
-            loadAliasesInternal()
+            loadAliasesInternal(showIndicator = showIndicator)
         }
     }
 
-    private suspend fun loadAliasesInternal() {
+    private suspend fun loadAliasesInternal(showIndicator: Boolean = false) {
         if (!prefs.isConfigured()) return
-        _isLoadingAliases.value = true
-        val filter = _filterState.value
-
-        val serverStatus = when (filter.selectedChip) {
-            "active" -> "active"
-            "inactive" -> "inactive"
-            "deleted" -> "deleted"
-            else -> "active_inactive"
+        if (showIndicator) {
+            _isLoadingAliases.value = true
         }
-        val wildcardParam = if (filter.selectedChip == "wildcard_only") "true" else ""
+        try {
+            val filter = _filterState.value
+            val wantDeleted = filter.selectedChip == "deleted"
+            val serverStatus = if (wantDeleted) "deleted" else "active_inactive"
 
-        val res = MailxRustBridge.fetchAliases(
-            baseUrl = prefs.baseUrl,
-            accessKey = prefs.accessKey,
-            bearerToken = prefs.bearerToken,
-            search = filter.searchQuery,
-            status = serverStatus,
-            wildcard = wildcardParam
-        )
-        prefs.syncRefreshedTokenIfPresent(res)
-        if (res.optBoolean("ok", false)) {
-            val arr = res.optJSONObject("data")?.optJSONArray("aliases")
-            val parsed = UiAlias.listFromJsonArray(arr)
-            _aliases.value = parsed
-            if (arr != null && filter.searchQuery.isEmpty() && serverStatus == "active_inactive" && wildcardParam.isEmpty()) {
-                prefs.cachedAliasesJson = arr.toString()
+            val res = MailxRustBridge.fetchAliases(
+                baseUrl = prefs.baseUrl,
+                accessKey = prefs.accessKey,
+                bearerToken = prefs.bearerToken,
+                search = filter.searchQuery,
+                status = serverStatus,
+                wildcard = ""
+            )
+            prefs.syncRefreshedTokenIfPresent(res)
+            if (res.optBoolean("ok", false)) {
+                val arr = res.optJSONObject("data")?.optJSONArray("aliases")
+                val parsed = UiAlias.listFromJsonArray(arr)
+                if (wantDeleted) {
+                    hasLoadedDeletedAliases = true
+                    val activeAndInactive = _aliases.value.filter { it.deletedAt.isBlank() }
+                    _aliases.value = (activeAndInactive + parsed).distinctBy { it.id }
+                } else {
+                    val deletedItems = _aliases.value.filter { it.deletedAt.isNotBlank() }
+                    if (filter.searchQuery.isEmpty()) {
+                        _aliases.value = (parsed + deletedItems).distinctBy { it.id }
+                        if (arr != null) {
+                            prefs.cachedAliasesJson = arr.toString()
+                        }
+                    } else {
+                        _aliases.value = (parsed + _aliases.value).distinctBy { it.id }
+                    }
+                }
+            } else if (showIndicator) {
+                emitToast(res.optString("error", "Failed to fetch aliases"))
             }
-        } else {
-            emitToast(res.optString("error", "Failed to fetch aliases"))
+        } finally {
+            if (showIndicator) {
+                _isLoadingAliases.value = false
+            }
         }
-        _isLoadingAliases.value = false
     }
 
     fun syncServerDefaults(silent: Boolean = false) {
@@ -715,7 +753,6 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun createAlias(requestJson: String, onCreated: (String) -> Unit) {
         viewModelScope.launch {
-            _isLoadingAliases.value = true
             val res = MailxRustBridge.createAlias(
                 prefs.baseUrl,
                 prefs.accessKey,
@@ -724,14 +761,16 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             prefs.syncRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
-                val newName = res.optJSONObject("data")
-                    ?.optJSONObject("alias")
-                    ?.optString("name", "") ?: ""
+                val aliasObj = res.optJSONObject("data")?.optJSONObject("alias")
+                val newName = aliasObj?.optString("name", "") ?: ""
+                if (aliasObj != null) {
+                    val createdUi = UiAlias.fromJson(aliasObj)
+                    _aliases.update { listOf(createdUi) + it.filterNot { a -> a.id == createdUi.id } }
+                }
                 _activeSheet.value = ActiveSheet.None
                 if (newName.isNotEmpty()) onCreated(newName)
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
-                _isLoadingAliases.value = false
                 emitToast(res.optString("error", "Failed to create alias"))
             }
         }
@@ -761,7 +800,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (!res.optBoolean("ok", false)) {
                 emitToast(res.optString("error", "Failed to update alias status"))
             }
-            loadAliasesInternal()
+            loadAliasesInternal(showIndicator = false)
         }
     }
 
@@ -781,11 +820,20 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (!res.optBoolean("ok", false)) {
                 emitToast(res.optString("error", "Failed to update pin status"))
             }
-            loadAliasesInternal()
+            loadAliasesInternal(showIndicator = false)
         }
     }
 
     fun updateAliasMetadata(alias: UiAlias, description: String, fromName: String, recipients: String) {
+        _aliases.update { list ->
+            list.map {
+                if (it.id == alias.id) {
+                    it.copy(description = description, fromName = fromName, recipients = recipients)
+                } else {
+                    it
+                }
+            }
+        }
         viewModelScope.launch {
             val req = JSONObject().apply {
                 put("description", description)
@@ -805,7 +853,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             prefs.syncRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias updated")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Update failed"))
             }
@@ -824,7 +872,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias paused temporarily")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Failed to pause alias"))
             }
@@ -839,7 +887,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias unpaused")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Failed to unpause alias"))
             }
@@ -847,6 +895,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 
     fun restoreAlias(alias: UiAlias) {
+        _aliases.update { list ->
+            list.map { if (it.id == alias.id) it.copy(deletedAt = "") else it }
+        }
         viewModelScope.launch {
             val res = MailxRustBridge.apiRequest(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
@@ -855,7 +906,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias restored: ${alias.name}")
                 _activeSheet.value = ActiveSheet.None
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Failed to restore alias"))
             }
@@ -863,6 +914,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 
     fun forgetAlias(alias: UiAlias) {
+        _aliases.update { list -> list.filterNot { it.id == alias.id } }
         viewModelScope.launch {
             val res = MailxRustBridge.apiRequest(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
@@ -871,7 +923,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias permanently forgotten: ${alias.name}")
                 _activeSheet.value = ActiveSheet.None
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Operation failed"))
             }
@@ -880,6 +932,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deleteAliasConfirmed(alias: UiAlias) {
         _activeSheet.value = ActiveSheet.None
+        _aliases.update { list -> list.filterNot { it.id == alias.id } }
         viewModelScope.launch {
             val res = MailxRustBridge.deleteAlias(
                 prefs.baseUrl,
@@ -890,15 +943,21 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             prefs.syncRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias deleted: ${alias.name}")
-                loadAliasesInternal()
+                hasLoadedDeletedAliases = false
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Failed to delete alias"))
+                loadAliasesInternal(showIndicator = false)
             }
         }
     }
 
     fun bulkSetAliasesEnabled(ids: List<String>, enabled: Boolean) {
         if (ids.isEmpty()) return
+        val idSet = ids.toSet()
+        _aliases.update { list ->
+            list.map { if (it.id in idSet) it.copy(enabled = enabled) else it }
+        }
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().apply {
@@ -911,7 +970,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Updated ${ids.size} aliases")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Bulk update failed"))
             }
@@ -920,6 +979,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun bulkSetAliasesPinned(ids: List<String>, pinned: Boolean) {
         if (ids.isEmpty()) return
+        val idSet = ids.toSet()
+        _aliases.update { list ->
+            list.map { if (it.id in idSet) it.copy(pinned = pinned) else it }
+        }
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().apply {
@@ -932,7 +995,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Updated pin status for ${ids.size} aliases")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Bulk pin failed"))
             }
@@ -941,6 +1004,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun bulkDeleteAliases(ids: List<String>) {
         if (ids.isEmpty()) return
+        val idSet = ids.toSet()
+        _aliases.update { list -> list.filterNot { it.id in idSet } }
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
@@ -950,7 +1015,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Deleted ${ids.size} aliases")
-                loadAliasesInternal()
+                hasLoadedDeletedAliases = false
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Bulk delete failed"))
             }
@@ -959,6 +1025,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun bulkRestoreAliases(ids: List<String>) {
         if (ids.isEmpty()) return
+        val idSet = ids.toSet()
+        _aliases.update { list ->
+            list.map { if (it.id in idSet) it.copy(deletedAt = "") else it }
+        }
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
@@ -968,7 +1038,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Restored ${ids.size} aliases")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Bulk restore failed"))
             }
@@ -977,6 +1047,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun bulkForgetAliases(ids: List<String>) {
         if (ids.isEmpty()) return
+        val idSet = ids.toSet()
+        _aliases.update { list -> list.filterNot { it.id in idSet } }
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
@@ -986,7 +1058,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 emitToast("Permanently deleted ${ids.size} aliases")
-                loadAliasesInternal()
+                loadAliasesInternal(showIndicator = false)
             } else {
                 emitToast(res.optString("error", "Bulk forget failed"))
             }
@@ -1864,7 +1936,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             }
 
             emitToast("Imported $importedCount aliases ($skippedCount skipped)")
-            loadAliasesInternal()
+            loadAliasesInternal(showIndicator = false)
         }
     }
 
@@ -1910,6 +1982,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         val oldUrl = prefs.baseUrl
         val oldToken = prefs.bearerToken
         prefs.clearSession()
+        hasLoadedInitialData = false
+        hasLoadedDeletedAliases = false
         _aliases.value = emptyList()
         _recipients.value = emptyList()
         _customDomains.value = emptyList()

@@ -1,4 +1,4 @@
-name: Rust Core CI
+name: Mailx Privacy CI
 
 on:
   push:
@@ -10,23 +10,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  rust-check:
-    name: Format, Clippy & Unit Tests
+  mailx-rust-core:
+    name: "Mailx Rust Core CI"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: "Checkout Mail-Privacy"
         uses: actions/checkout@v5
 
-      - name: Install Rust stable toolchain
+      - name: "Install Rust Toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Cache Cargo registry and build artifacts
+      - name: "Cache Cargo Build"
         uses: Swatinem/rust-cache@v2
 
-      - name: Run Clippy lints
+      - name: "Run Clippy Lints"
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run unit tests
+      - name: "Run Mailx Core Tests"
         run: cargo test --workspace --all-features -- --nocapture

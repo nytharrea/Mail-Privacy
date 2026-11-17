@@ -255,14 +255,6 @@ fun MailxSectionHeader(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
             if (countBadge != null && countBadge > 0) {
                 Surface(
                     shape = CircleShape,

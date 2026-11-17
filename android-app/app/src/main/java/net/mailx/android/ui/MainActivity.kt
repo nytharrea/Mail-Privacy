@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -133,8 +132,9 @@ fun MailxAppScreen(vm: MailxViewModel) {
     }
 
     val displayedAliases = remember(aliases, filterState) {
+        val query = filterState.searchQuery.trim().lowercase()
         val filtered = aliases.filter { alias ->
-            when (filterState.selectedChip) {
+            val matchesChip = when (filterState.selectedChip) {
                 "pinned_only" -> alias.pinned && alias.deletedAt.isBlank()
                 "wildcard_only" -> alias.wildcard && alias.deletedAt.isBlank()
                 "active" -> alias.enabled && alias.deletedAt.isBlank()
@@ -142,6 +142,12 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 "deleted" -> alias.deletedAt.isNotBlank()
                 else -> alias.deletedAt.isBlank()
             }
+            val matchesQuery = query.isEmpty() ||
+                alias.name.lowercase().contains(query) ||
+                alias.description.lowercase().contains(query) ||
+                alias.recipients.lowercase().contains(query) ||
+                alias.fromName.lowercase().contains(query)
+            matchesChip && matchesQuery
         }
         val comparator = Comparator<UiAlias> { a, b ->
             if (filterState.pinnedFirst && a.pinned != b.pinned) {
@@ -198,7 +204,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         ?: "example.alias@${defaultsState.defaultDomain}"
                     vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                 },
-                onRefreshClick = vm::refreshAllData,
+                onRefreshClick = { vm.refreshAllData(showIndicator = true) },
                 onProfileClick = { vm.openSheet(ActiveSheet.ProfileMenu) }
             )
         },
@@ -270,16 +276,6 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AnimatedVisibility(visible = isLoading) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                )
-            }
-
             AnimatedContent(
                 targetState = currentTab,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -302,7 +298,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         blockTrackers = defaultsState.blockTrackers,
                         removeHeader = defaultsState.removeHeader,
                         pgpActive = recipients.any { it.hasPgpKey && it.pgpEnabled },
-                        onRefresh = vm::refreshAllData,
+                        onRefresh = { vm.refreshAllData(showIndicator = true) },
                         onNavigateToFilter = vm::navigateToFilteredAliases,
                         onNavigateToRecipients = { vm.selectTab(MainNavTab.RECIPIENTS) },
                         onNavigateToRules = { vm.selectTab(MainNavTab.RULES) },
@@ -330,7 +326,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         aliases = displayedAliases,
                         isLoading = isLoading,
                         filterState = filterState,
-                        onRefresh = vm::refreshAliases,
+                        onRefresh = { vm.refreshAliases(showIndicator = true) },
                         onSearchQueryChange = vm::updateSearchQuery,
                         onSelectFilterChip = vm::selectFilterChip,
                         onOpenFilterSheet = { vm.openSheet(ActiveSheet.FilterOptions) },

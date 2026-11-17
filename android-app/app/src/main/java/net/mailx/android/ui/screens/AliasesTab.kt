@@ -373,7 +373,6 @@ fun AliasesTab(
                 "Aliases"
             },
             countBadge = aliases.size,
-            isLoading = isLoading,
             actionText = "+ New Alias",
             onActionClick = onOpenCreateSheet,
             modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
