@@ -94,7 +94,7 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 --decode > "$KS_PATH"
             KS_PASS="${KEYSTORE_PASSWORD}"
             K_ALIAS="${KEY_ALIAS}"
-            K_PASS="${KEY_PASSWORD}"
+            K_PASS="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
           else
             echo "::warning::KEYSTORE_BASE64 secret tanımlı değil; otomatik PKCS12 4096-bit RSA imzalama anahtarı üretiliyor."
             KS_PASS="mailx_release_pass_2026"

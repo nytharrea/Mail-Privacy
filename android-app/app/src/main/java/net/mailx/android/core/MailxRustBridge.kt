@@ -25,6 +25,13 @@ object MailxRustBridge {
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
 
     @JvmStatic
+    external fun nativeFetchDefaults(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String
+    ): String
+
+    @JvmStatic
     external fun nativeFetchAliases(
         baseUrl: String,
         accessKey: String,
@@ -69,10 +76,24 @@ object MailxRustBridge {
         aliasId: String
     ): String
 
+    @JvmStatic
+    external fun nativeLogout(
+        baseUrl: String,
+        bearerToken: String
+    ): String
+
     suspend fun authenticate(baseUrl: String, accessKey: String): JSONObject =
         withContext(Dispatchers.IO) {
             JSONObject(nativeAuthenticate(baseUrl, accessKey))
         }
+
+    suspend fun fetchDefaults(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativeFetchDefaults(baseUrl, accessKey, bearerToken))
+    }
 
     suspend fun fetchAliases(
         baseUrl: String,
@@ -124,5 +145,12 @@ object MailxRustBridge {
         aliasId: String
     ): JSONObject = withContext(Dispatchers.IO) {
         JSONObject(nativeDeleteAlias(baseUrl, accessKey, bearerToken, aliasId))
+    }
+
+    suspend fun logout(
+        baseUrl: String,
+        bearerToken: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativeLogout(baseUrl, bearerToken))
     }
 }
