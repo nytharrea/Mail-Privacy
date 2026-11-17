@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
-import net.mailx.android.ui.theme.MailxAddyTheme
+import net.mailx.android.ui.theme.MailxTheme
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -54,242 +54,249 @@ class ReverseAliasSendActivity : ComponentActivity() {
                 else -> systemDark
             }
 
-            MailxAddyTheme(
+            MailxTheme(
                 darkTheme = isDark,
                 dynamicColor = prefs.dynamicColorEnabled,
                 amoledDark = prefs.amoledDarkEnabled
             ) {
-                var aliasEmail by remember { mutableStateOf(defaultAlias) }
-                var targetEmail by remember { mutableStateOf(initialTarget) }
-                var generatedSendAddress by remember { mutableStateOf("") }
-                var errorText by remember { mutableStateOf<String?>(null) }
-
-                fun recompute(aliasStr: String, targetStr: String) {
-                    if (targetStr.isBlank()) {
-                        generatedSendAddress = ""
-                        errorText = null
-                        return
-                    }
-                    val res = JSONObject(
-                        MailxRustBridge.nativeGenerateReverseAlias(aliasStr, targetStr)
-                    )
-                    if (res.optBoolean("ok", false)) {
-                        generatedSendAddress = res.optString("data", "")
-                        errorText = null
-                    } else {
-                        generatedSendAddress = ""
-                        errorText = res.optString("error", "Invalid email address")
-                    }
-                }
-
-                LaunchedEffect(Unit) {
-                    if (initialTarget.isNotBlank()) {
-                        recompute(aliasEmail, initialTarget)
-                    }
-                }
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(bottom = 20.dp)
-                    ) {
-                        Text(
-                            text = "Send from Alias",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp, bottom = 14.dp)
-                        )
-
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        )
-
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "Enter the destination email address to generate a reverse-alias forwarding address that hides your real email.",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            if (cachedAliases.isNotEmpty()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    cachedAliases.take(10).forEach { candidate ->
-                                        FilterChip(
-                                            selected = aliasEmail == candidate,
-                                            onClick = {
-                                                aliasEmail = candidate
-                                                recompute(candidate, targetEmail)
-                                            },
-                                            label = { Text(candidate) }
-                                        )
-                                    }
-                                }
-                            }
-
-                            OutlinedTextField(
-                                value = aliasEmail,
-                                onValueChange = {
-                                    aliasEmail = it
-                                    recompute(it, targetEmail)
-                                },
-                                label = { Text("Your Sender Alias") },
-                                leadingIcon = { Icon(Icons.Default.AlternateEmail, contentDescription = null) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            OutlinedTextField(
-                                value = targetEmail,
-                                onValueChange = {
-                                    targetEmail = it
-                                    recompute(aliasEmail, it)
-                                },
-                                label = { Text("Recipient Email Address") },
-                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            errorText?.let {
-                                Text(
-                                    text = it,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-
-                            if (generatedSendAddress.isNotEmpty()) {
-                                Card(
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "Generated Reverse-Alias Address:",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        SelectionContainer {
-                                            Text(
-                                                text = generatedSendAddress,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(onClick = { finish() }) {
-                                    Text("Close")
-                                }
-                                Spacer(modifier = Modifier.weight(1f))
-                                FilledTonalButton(
-                                    enabled = generatedSendAddress.isNotEmpty(),
-                                    shape = CircleShape,
-                                    onClick = {
-                                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(
-                                            ClipData.newPlainText("Mailx Send Address", generatedSendAddress)
-                                        )
-                                        Toast.makeText(
-                                            this@ReverseAliasSendActivity,
-                                            "Reverse-alias address copied",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Copy")
-                                }
-                                Button(
-                                    enabled = generatedSendAddress.isNotEmpty(),
-                                    shape = CircleShape,
-                                    onClick = {
-                                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(
-                                            ClipData.newPlainText("Mailx Send Address", generatedSendAddress)
-                                        )
-                                        val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generatedSendAddress"))
-                                        startActivity(Intent.createChooser(mailIntent, "Choose Email App"))
-                                        finish()
-                                    }
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Send Email")
-                                }
-                            }
+                ReverseAliasDialogCard(
+                    initialAlias = defaultAlias,
+                    availableAliases = cachedAliases,
+                    initialTargetEmail = initialTarget,
+                    onCopyAndClose = { generated ->
+                        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        cb.setPrimaryClip(ClipData.newPlainText("Mailx Reverse Alias", generated))
+                        Toast.makeText(
+                            this,
+                            "Reverse-alias copied: $generated",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        finish()
+                    },
+                    onOpenMailClient = { generated ->
+                        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        cb.setPrimaryClip(ClipData.newPlainText("Mailx Reverse Alias", generated))
+                        runCatching {
+                            val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generated"))
+                            startActivity(Intent.createChooser(mailIntent, "Send Email"))
                         }
-                    }
-                }
+                        finish()
+                    },
+                    onDismiss = { finish() }
+                )
             }
         }
-    }
-
-    private fun loadCachedAliasNames(rawJson: String): List<String> {
-        if (rawJson.isBlank()) return emptyList()
-        return runCatching {
-            val arr = JSONArray(rawJson)
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val obj = arr.optJSONObject(i) ?: continue
-                    if (obj.optBoolean("enabled", true) && !obj.optBoolean("wildcard", false)) {
-                        val name = obj.optString("name", "")
-                        if (name.isNotEmpty()) add(name)
-                    }
-                }
-            }
-        }.getOrDefault(emptyList())
     }
 
     private fun extractTargetEmail(intent: Intent?): String {
         if (intent == null) return ""
         if (intent.action == Intent.ACTION_SENDTO) {
-            return intent.data?.schemeSpecificPart?.substringBefore("?") ?: ""
+            val schemePart = intent.data?.schemeSpecificPart.orEmpty()
+            return schemePart.substringBefore("?").trim()
         }
         if (intent.action == Intent.ACTION_PROCESS_TEXT) {
-            return intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.trim() ?: ""
+            val selected = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty().trim()
+            if (selected.contains("@")) return selected
         }
         return ""
+    }
+
+    private fun loadCachedAliasNames(rawJson: String): List<String> {
+        return runCatching {
+            val arr = JSONArray(rawJson)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    val enabled = obj.optBoolean("enabled", true)
+                    val wildcard = obj.optBoolean("wildcard", false)
+                    val name = obj.optString("name")
+                    if (enabled && !wildcard && name.isNotBlank()) {
+                        add(name)
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+}
+
+@Composable
+private fun ReverseAliasDialogCard(
+    initialAlias: String,
+    availableAliases: List<String>,
+    initialTargetEmail: String,
+    onCopyAndClose: (String) -> Unit,
+    onOpenMailClient: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var senderAlias by remember { mutableStateOf(initialAlias) }
+    var targetEmail by remember { mutableStateOf(initialTargetEmail) }
+    var generatedAddress by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    fun recompute(aliasStr: String, targetStr: String) {
+        if (targetStr.isBlank()) {
+            generatedAddress = ""
+            errorMessage = null
+            return
+        }
+        val res = JSONObject(MailxRustBridge.nativeGenerateReverseAlias(aliasStr, targetStr))
+        if (res.optBoolean("ok", false)) {
+            generatedAddress = res.optString("data")
+            errorMessage = null
+        } else {
+            generatedAddress = ""
+            errorMessage = res.optString("error")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (initialTargetEmail.isNotBlank()) {
+            recompute(senderAlias, initialTargetEmail)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Send via Mailx Alias",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "Generate a relay address so your recipient only sees your alias.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (availableAliases.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        availableAliases.take(10).forEach { candidate ->
+                            FilterChip(
+                                selected = senderAlias == candidate,
+                                onClick = {
+                                    senderAlias = candidate
+                                    recompute(candidate, targetEmail)
+                                },
+                                label = { Text(candidate, maxLines = 1, fontSize = 11.sp) }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = senderAlias,
+                    onValueChange = {
+                        senderAlias = it
+                        recompute(it, targetEmail)
+                    },
+                    label = { Text("Sender Alias") },
+                    leadingIcon = { Icon(Icons.Default.AlternateEmail, contentDescription = null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = targetEmail,
+                    onValueChange = {
+                        targetEmail = it
+                        recompute(senderAlias, it)
+                    },
+                    label = { Text("Recipient Email") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                if (generatedAddress.isNotEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = generatedAddress,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        enabled = generatedAddress.isNotEmpty(),
+                        onClick = { onCopyAndClose(generatedAddress) },
+                        modifier = Modifier.weight(1f),
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Copy")
+                    }
+
+                    Button(
+                        enabled = generatedAddress.isNotEmpty(),
+                        onClick = { onOpenMailClient(generatedAddress) },
+                        modifier = Modifier.weight(1f),
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Compose")
+                    }
+                }
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
     }
 }

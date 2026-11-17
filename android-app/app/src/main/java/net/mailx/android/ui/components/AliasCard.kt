@@ -1,5 +1,6 @@
 package net.mailx.android.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -15,14 +16,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.formatIsoDateShort
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
 
 @Composable
 fun AliasCard(
@@ -39,173 +44,117 @@ fun AliasCard(
 
     LaunchedEffect(justCopied) {
         if (justCopied) {
-            delay(1400)
+            delay(1300)
             justCopied = false
         }
     }
 
-    val descriptionText = remember(alias) {
-        val parts = mutableListOf<String>()
-        if (alias.description.isNotBlank()) {
-            parts.add(alias.description)
-        }
-        if (alias.deletedAt.isNotBlank()) {
-            parts.add("Deleted: ${formatIsoDateShort(alias.deletedAt)}")
-            if (alias.description.isBlank()) {
-                parts.add("Created: ${formatIsoDateShort(alias.createdAt)}")
-            }
-        } else {
-            parts.add("Created: ${formatIsoDateShort(alias.createdAt)}")
-            if (alias.description.isBlank()) {
-                if (alias.updatedAt.isNotBlank()) {
-                    parts.add("Updated: ${formatIsoDateShort(alias.updatedAt)}")
-                } else if (alias.recipients.isNotBlank()) {
-                    parts.add("Recipient: ${alias.recipients}")
-                }
-            }
-        }
-        parts.joinToString("\n")
+    val statusColor = when {
+        alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose
+        alias.isPaused -> MailxPalette.PausedAmber
+        alias.enabled -> MailxPalette.ForwardEmerald
+        else -> MailxPalette.Slate500
     }
 
-    Card(
+    val subtitleText = remember(alias) {
+        when {
+            alias.description.isNotBlank() -> alias.description
+            alias.deletedAt.isNotBlank() -> "Deleted ${formatIsoDateShort(alias.deletedAt)}"
+            alias.recipients.isNotBlank() -> "→ ${alias.recipients} • ${formatIsoDateShort(alias.createdAt)}"
+            else -> "Created ${formatIsoDateShort(alias.createdAt)}"
+        }
+    }
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = if (selectionMode) onToggleSelect else onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(14.dp),
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        tonalElevation = 1.dp
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (selectionMode) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onToggleSelect() },
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
-                } else {
-                    AddyDonutChart(
-                        forwards = alias.forwards,
-                        replies = alias.replies,
-                        sends = alias.sends,
-                        blocks = alias.blocks,
-                        enabled = alias.enabled,
-                        size = 42.dp,
-                        strokeWidth = 6.5.dp
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(statusColor)
+            )
 
-                Column(
-                    modifier = Modifier.weight(1f)
+            Spacer(modifier = Modifier.width(10.dp))
+
+            if (selectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelect() },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            } else {
+                MailxActivityRing(
+                    forwards = alias.forwards,
+                    replies = alias.replies,
+                    sends = alias.sends,
+                    blocks = alias.blocks,
+                    enabled = alias.enabled,
+                    size = 36.dp,
+                    strokeWidth = 3.8.dp
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Text(
-                        text = alias.name,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(
-                            bottom = 2.dp,
-                            end = if (alias.pinned || alias.wildcard || alias.isPaused) 24.dp else 0.dp
-                        )
-                    )
-
-                    Text(
-                        text = descriptionText,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        maxLines = 2,
-                        minLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (!alias.enabled || alias.wildcard || alias.isCustomDomain || alias.isPaused) {
-                        Row(
-                            modifier = Modifier.padding(top = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (!alias.enabled) {
-                                AliasLabelBadge(
-                                    text = "Disabled",
-                                    color = AddyPalette.Grey500
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                            ) {
+                                append(alias.localPart)
                             }
-                            if (alias.isPaused) {
-                                AliasLabelBadge(
-                                    text = "Paused",
-                                    color = AddyPalette.PortalOrange
-                                )
-                            }
-                            if (alias.wildcard) {
-                                AliasLabelBadge(
-                                    text = "Wildcard",
+                            withStyle(
+                                SpanStyle(
+                                    fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
+                            ) {
+                                append("@${alias.domainPart}")
                             }
-                            if (alias.isCustomDomain) {
-                                AliasLabelBadge(
-                                    text = alias.domainPart,
-                                    color = AddyPalette.EasternBlue
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                IconButton(
-                    onClick = {
-                        if (!alias.wildcard) justCopied = true
-                        onCopyOrWildcard()
-                    }
-                ) {
-                    Icon(
-                        imageVector = when {
-                            justCopied -> Icons.Default.Check
-                            alias.wildcard -> Icons.Default.AutoAwesome
-                            else -> Icons.Default.ContentCopy
                         },
-                        contentDescription = "Copy alias",
-                        tint = if (justCopied) {
-                            AddyPalette.Green
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                }
-            }
 
-            if (alias.pinned || alias.wildcard || alias.isPaused) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (alias.isPaused) {
+                    if (alias.pinned) {
                         Icon(
-                            imageVector = Icons.Default.PauseCircleOutline,
-                            contentDescription = "Paused",
-                            tint = AddyPalette.PortalOrange,
-                            modifier = Modifier.size(14.dp)
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Pinned",
+                            tint = MailxPalette.PausedAmber,
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                     if (alias.wildcard) {
@@ -213,38 +162,125 @@ fun AliasCard(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = "Wildcard",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                     }
-                    if (alias.pinned) {
+                    if (alias.isPaused) {
                         Icon(
-                            imageVector = Icons.Default.PushPin,
-                            contentDescription = "Pinned",
-                            tint = AddyPalette.PortalOrange,
-                            modifier = Modifier.size(14.dp)
+                            imageVector = Icons.Default.PauseCircleOutline,
+                            contentDescription = "Paused",
+                            tint = MailxPalette.PausedAmber,
+                            modifier = Modifier.size(13.dp)
                         )
                     }
                 }
+
+                Text(
+                    text = subtitleText,
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    MiniMetricBadge(
+                        label = "↑${alias.forwards}",
+                        color = MailxPalette.ForwardEmerald
+                    )
+                    if (alias.blocks > 0) {
+                        MiniMetricBadge(
+                            label = "⊘${alias.blocks}",
+                            color = MailxPalette.BlockedRose
+                        )
+                    }
+                    if (alias.replies > 0 || alias.sends > 0) {
+                        MiniMetricBadge(
+                            label = "⇄${alias.replies + alias.sends}",
+                            color = MailxPalette.ReplySky
+                        )
+                    }
+                    if (!alias.enabled) {
+                        MiniMetricBadge(
+                            label = "Off",
+                            color = MailxPalette.Slate500
+                        )
+                    } else if (alias.isPaused) {
+                        MiniMetricBadge(
+                            label = "Paused",
+                            color = MailxPalette.PausedAmber
+                        )
+                    }
+                    if (alias.wildcard) {
+                        MiniMetricBadge(
+                            label = "Wildcard",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (alias.isCustomDomain) {
+                        MiniMetricBadge(
+                            label = "Custom",
+                            color = MailxPalette.SentIndigo
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            FilledTonalIconButton(
+                onClick = {
+                    if (!alias.wildcard) justCopied = true
+                    onCopyOrWildcard()
+                },
+                modifier = Modifier.size(34.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = if (justCopied) {
+                        MailxPalette.ForwardEmerald.copy(alpha = 0.2f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                    contentColor = if (justCopied) {
+                        MailxPalette.ForwardEmerald
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            ) {
+                Icon(
+                    imageVector = when {
+                        justCopied -> Icons.Default.Check
+                        alias.wildcard -> Icons.Default.AutoAwesome
+                        else -> Icons.Default.ContentCopy
+                    },
+                    contentDescription = "Copy alias",
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun AliasLabelBadge(
-    text: String,
-    color: androidx.compose.ui.graphics.Color
+private fun MiniMetricBadge(
+    label: String,
+    color: Color
 ) {
     Surface(
         shape = CircleShape,
-        color = color.copy(alpha = 0.18f)
+        color = color.copy(alpha = 0.14f)
     ) {
         Text(
-            text = text,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
             color = color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
         )
     }
 }

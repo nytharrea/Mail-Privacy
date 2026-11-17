@@ -19,13 +19,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.AddySectionHeader
-import net.mailx.android.ui.components.AddySectionView
+import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.model.DefaultsUiState
 import net.mailx.android.ui.model.MailxRuleCatalog
 import net.mailx.android.ui.model.ThemeUiState
 import net.mailx.android.ui.model.formatAliasTypeLabel
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,22 +62,22 @@ fun SettingsTab(
     val darkModeLabel = when (themeState.darkModeMode) {
         1 -> "Dark Mode: On"
         0 -> "Dark Mode: Off"
-        else -> "Dark Mode: System Default"
+        else -> "Dark Mode: System"
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 44.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "header_general") {
-            AddySectionHeader(title = "General & Appearance")
+            MailxSectionHeader(title = "Appearance & Privacy Tools")
         }
 
         item(key = "section_uiux_interface") {
-            AddySectionView(
-                title = "Appearance & Interface",
-                description = "$darkModeLabel • Customize theme and color options",
+            MailxSectionRow(
+                title = "Theme & Display Mode",
+                description = "$darkModeLabel • Material 3 palette & contrast",
                 startIcon = Icons.Default.Brightness6,
                 onClick = { showInterfaceSheet = true }
             )
@@ -85,9 +85,9 @@ fun SettingsTab(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             item(key = "section_dynamic_colors") {
-                AddySectionView(
-                    title = "Dynamic Colors",
-                    description = "Adapt application colors to your device wallpaper",
+                MailxSectionRow(
+                    title = "Material You Dynamic Color",
+                    description = "Derive surface and accent tones from system wallpaper",
                     startIcon = Icons.Default.Palette,
                     showSwitch = true,
                     switchChecked = themeState.dynamicColorEnabled,
@@ -97,9 +97,9 @@ fun SettingsTab(
         }
 
         item(key = "section_amoled_dark") {
-            AddySectionView(
-                title = "Pure Black Theme (AMOLED)",
-                description = "Use a pure black background in dark mode",
+            MailxSectionRow(
+                title = "Pure Black Surface (AMOLED)",
+                description = "True #000000 background in dark theme",
                 startIcon = Icons.Default.Contrast,
                 showSwitch = true,
                 switchChecked = themeState.amoledDarkEnabled,
@@ -108,34 +108,34 @@ fun SettingsTab(
         }
 
         item(key = "section_mailto_integration") {
-            AddySectionView(
-                title = "Send from Alias",
-                description = "Generate reverse-alias forwarding addresses for recipients",
+            MailxSectionRow(
+                title = "Send via Reverse Alias",
+                description = "Generate outbound relay addresses for any recipient",
                 startIcon = Icons.AutoMirrored.Filled.Send,
                 onClick = onOpenReverseAliasTool
             )
         }
 
         item(key = "section_trackers_report_decoder") {
-            AddySectionView(
-                title = "Trackers Report Inspector",
-                description = "Decode removed email tracker links locally without contacting any server",
+            MailxSectionRow(
+                title = "Trackers Report Decoder",
+                description = "Decode removed email tracker fragments offline in Rust",
                 startIcon = Icons.Default.Policy,
                 onClick = onOpenTrackersReportSheet
             )
         }
 
         item(key = "header_defaults") {
-            AddySectionHeader(
-                title = "Mailx Server Settings",
+            MailxSectionHeader(
+                title = "Server Forwarding Defaults",
                 actionText = "Sync",
                 onActionClick = onSyncDefaults,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
 
         item(key = "section_default_domain") {
-            AddySectionView(
+            MailxSectionRow(
                 title = "Default Domain",
                 description = "@${defaultsState.defaultDomain}",
                 startIcon = Icons.Default.Language,
@@ -145,7 +145,7 @@ fun SettingsTab(
         }
 
         item(key = "section_default_recipient") {
-            AddySectionView(
+            MailxSectionRow(
                 title = "Default Recipient",
                 description = defaultsState.defaultRecipient.ifBlank { "Select default recipient" },
                 startIcon = Icons.Default.Inbox,
@@ -155,7 +155,7 @@ fun SettingsTab(
         }
 
         item(key = "section_default_format") {
-            AddySectionView(
+            MailxSectionRow(
                 title = "Default Alias Format",
                 description = formatAliasTypeLabel(defaultsState.defaultFormat),
                 startIcon = Icons.Default.AlternateEmail,
@@ -165,10 +165,10 @@ fun SettingsTab(
         }
 
         item(key = "section_from_name") {
-            AddySectionView(
-                title = "From Name",
+            MailxSectionRow(
+                title = "Default Sender Name",
                 description = defaultsState.defaultFromName.ifBlank {
-                    "Uses the alias email address when left blank"
+                    "Uses the alias address when left blank"
                 },
                 startIcon = Icons.Default.Badge,
                 endIcon = Icons.Default.Edit,
@@ -178,9 +178,9 @@ fun SettingsTab(
 
         item(key = "section_mailx_header") {
             val includeHeader = !defaultsState.removeHeader
-            AddySectionView(
-                title = "Add Mailx Header",
-                description = "Include 'Sent to <alias> from <sender>' banner in forwarded emails",
+            MailxSectionRow(
+                title = "Include Relay Banner Header",
+                description = "Show 'Sent to <alias> from <sender>' header in forwarded emails",
                 startIcon = Icons.Default.MailOutline,
                 showSwitch = true,
                 switchChecked = includeHeader,
@@ -189,9 +189,9 @@ fun SettingsTab(
         }
 
         item(key = "section_block_trackers") {
-            AddySectionView(
-                title = "Block Email Trackers",
-                description = "Remove known tracking pixels and tracking links from forwarded emails",
+            MailxSectionRow(
+                title = "Strip Spy Pixels & Trackers",
+                description = "Automatically remove tracking pixels and spy links before forwarding",
                 startIcon = Icons.Default.Shield,
                 showSwitch = true,
                 switchChecked = defaultsState.blockTrackers,
@@ -200,8 +200,8 @@ fun SettingsTab(
         }
 
         item(key = "section_unsubscribe_behaviour") {
-            AddySectionView(
-                title = "Unsubscribe Behaviour",
+            MailxSectionRow(
+                title = "List-Unsubscribe Action",
                 description = MailxRuleCatalog.unsubscribeLabel(defaultsState.unsubscribeBehaviour),
                 startIcon = Icons.Default.Unsubscribe,
                 endIcon = Icons.Default.Edit,
@@ -210,9 +210,9 @@ fun SettingsTab(
         }
 
         item(key = "section_enable_diagnostics") {
-            AddySectionView(
-                title = "Enable Diagnostics Logging",
-                description = "Log delivery failures, bounced messages, and rule-blocked emails",
+            MailxSectionRow(
+                title = "Diagnostic Issue Logging",
+                description = "Record delivery errors, bounces, and rule blocks",
                 startIcon = Icons.Default.BugReport,
                 showSwitch = true,
                 switchChecked = defaultsState.logIssues,
@@ -221,45 +221,45 @@ fun SettingsTab(
         }
 
         item(key = "section_open_diagnostics") {
-            AddySectionView(
-                title = "View & Clear Diagnostic Logs",
-                description = "Inspect delivery logs, view raw bounce files, or delete all logs",
+            MailxSectionRow(
+                title = "Inspect Delivery & Bounce Logs",
+                description = "View MTA delivery logs, raw bounce files & server health",
                 startIcon = Icons.Default.ReceiptLong,
                 onClick = onOpenDiagnosticsSheet
             )
         }
 
         item(key = "header_manage_data") {
-            AddySectionHeader(
-                title = "Account, Security & Data",
-                modifier = Modifier.padding(top = 8.dp)
+            MailxSectionHeader(
+                title = "Account, Security & Backup",
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
 
         item(key = "section_account_security") {
-            AddySectionView(
-                title = "Account, Subscription & Security",
-                description = "Subscription status, 2FA (TOTP), passkeys, access keys, password, and CSV import/export",
+            MailxSectionRow(
+                title = "Account, 2FA, Passkeys & CSV",
+                description = "Manage TOTP, passkeys, API access keys, and CSV import/export",
                 startIcon = Icons.Default.ManageAccounts,
                 onClick = onOpenAccountSheet
             )
         }
 
         item(key = "section_announcements") {
-            AddySectionView(
-                title = "Announcements",
-                description = "Mailx service updates and announcements",
+            MailxSectionRow(
+                title = "Service Announcements",
+                description = "Instance updates and operational notices",
                 startIcon = Icons.Default.Campaign,
                 onClick = onOpenAnnouncementsSheet
             )
         }
 
         item(key = "section_reset_logout") {
-            AddySectionView(
-                title = "Reset App (Log Out)",
-                description = "Clear all local session data and cache on this device and sign out",
+            MailxSectionRow(
+                title = "Sign Out & Clear Cache",
+                description = "Wipe encrypted credentials and local cache from this device",
                 startIcon = Icons.Default.RestartAlt,
-                accentColor = AddyPalette.SoftRed,
+                accentColor = MailxPalette.BlockedRose,
                 onClick = onRequestLogout
             )
         }
@@ -268,38 +268,21 @@ fun SettingsTab(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 20.dp, bottom = 8.dp),
+                    .padding(top = 14.dp, bottom = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .padding(bottom = 4.dp)
-                        .size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.MarkEmailUnread,
-                            contentDescription = "Mailx",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
                 Text(
-                    text = "Designed with privacy and care",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    text = "Mailx Privacy • Rust Native Core (16 KB Aligned)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "v0.3.0 • $baseUrl",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                    text = "v0.4.0 • $baseUrl",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center
                 )
             }
@@ -311,24 +294,24 @@ fun SettingsTab(
         ModalBottomSheet(
             onDismissRequest = { showInterfaceSheet = false },
             sheetState = sheetState,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 28.dp)
+                    .padding(bottom = 24.dp)
             ) {
                 Text(
-                    text = "Appearance & Interface",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = "Theme & Display Mode",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 14.dp)
+                        .padding(bottom = 12.dp)
                 )
 
                 HorizontalDivider(
@@ -339,13 +322,13 @@ fun SettingsTab(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        AddySectionView(
-                            title = "Dynamic Colors",
-                            description = "Adapt application colors to your device wallpaper",
+                        MailxSectionRow(
+                            title = "Material You Dynamic Color",
+                            description = "Adapt colors to your device wallpaper",
                             startIcon = Icons.Default.Palette,
                             showSwitch = true,
                             switchChecked = themeState.dynamicColorEnabled,
@@ -353,9 +336,9 @@ fun SettingsTab(
                         )
                     }
 
-                    AddySectionView(
-                        title = "Pure Black Theme (AMOLED)",
-                        description = "Use a pure black background in dark mode",
+                    MailxSectionRow(
+                        title = "Pure Black Surface (AMOLED)",
+                        description = "True black background in dark mode",
                         startIcon = Icons.Default.Contrast,
                         showSwitch = true,
                         switchChecked = themeState.amoledDarkEnabled,
@@ -363,10 +346,10 @@ fun SettingsTab(
                     )
 
                     Text(
-                        text = "Dark Mode",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                        text = "Color Mode",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(top = 4.dp)
                     )
 
@@ -375,7 +358,7 @@ fun SettingsTab(
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                             selected = themeState.darkModeMode == 1,
                             onClick = { onUpdateDarkModeMode(1) },
-                            label = { Text("On") }
+                            label = { Text("Dark") }
                         )
                         SegmentedButton(
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
@@ -387,7 +370,7 @@ fun SettingsTab(
                             shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
                             selected = themeState.darkModeMode == 0,
                             onClick = { onUpdateDarkModeMode(0) },
-                            label = { Text("Off") }
+                            label = { Text("Light") }
                         )
                     }
                 }
@@ -413,7 +396,7 @@ fun SettingsTab(
                                     onUpdateDefaultDomain(dom)
                                     showDomainDialog = false
                                 }
-                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                                .padding(vertical = 8.dp, horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -453,7 +436,7 @@ fun SettingsTab(
                                     onUpdateDefaultRecipient(rec)
                                     showRecipientDialog = false
                                 }
-                                .padding(vertical = 8.dp, horizontal = 6.dp),
+                                .padding(vertical = 6.dp, horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -511,7 +494,7 @@ fun SettingsTab(
                                     onUpdateDefaultFormat(fmt)
                                     showFormatDialog = false
                                 }
-                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                                .padding(vertical = 8.dp, horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -539,11 +522,11 @@ fun SettingsTab(
         var nameInput by remember { mutableStateOf(defaultsState.defaultFromName) }
         AlertDialog(
             onDismissRequest = { showFromNameDialog = false },
-            title = { Text("From Name") },
+            title = { Text("Default Sender Name") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Default display name used when replying from or sending via an alias (leave blank to use the alias email address):",
+                        text = "Display name used when replying or sending via an alias (leave blank to use the alias address):",
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
@@ -577,7 +560,7 @@ fun SettingsTab(
     if (showUnsubscribeDialog) {
         AlertDialog(
             onDismissRequest = { showUnsubscribeDialog = false },
-            title = { Text("Unsubscribe Behaviour") },
+            title = { Text("List-Unsubscribe Action") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     MailxRuleCatalog.unsubscribeBehaviours.forEach { (code, label) ->
@@ -589,7 +572,7 @@ fun SettingsTab(
                                     onUpdateUnsubscribeBehaviour(code)
                                     showUnsubscribeDialog = false
                                 }
-                                .padding(vertical = 8.dp, horizontal = 6.dp),
+                                .padding(vertical = 6.dp, horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(

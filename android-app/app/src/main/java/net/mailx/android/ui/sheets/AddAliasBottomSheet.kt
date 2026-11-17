@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.model.DefaultsUiState
 import net.mailx.android.ui.model.UiCustomDomain
 import net.mailx.android.ui.model.UiWildcardDomainInfo
@@ -24,9 +25,18 @@ import org.json.JSONObject
 import kotlin.random.Random
 
 private fun randomAlphanumeric(length: Int = 8): String {
-    val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-    return buildString(length) {
-        repeat(length) { append(chars[Random.nextInt(chars.length)]) }
+    return runCatching {
+        val obj = JSONObject(MailxRustBridge.nativeGenerateRandomSuffix(length))
+        if (obj.optBoolean("ok", false)) {
+            obj.optString("data").takeIf { it.isNotBlank() }
+        } else {
+            null
+        }
+    }.getOrNull() ?: run {
+        val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+        buildString(length) {
+            repeat(length) { append(chars[Random.nextInt(chars.length)]) }
+        }
     }
 }
 
@@ -90,7 +100,7 @@ fun AddAliasBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -98,17 +108,17 @@ fun AddAliasBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 28.dp)
+                .padding(bottom = 24.dp)
         ) {
             Text(
-                text = "New Alias",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                text = "Create New Alias",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp)
+                    .padding(bottom = 10.dp)
             )
 
             HorizontalDivider(
@@ -119,80 +129,80 @@ fun AddAliasBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = "Choose a domain and format to create a new alias. The created address will be copied to your clipboard automatically.",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = domainDropdownExpanded,
-                    onExpandedChange = { domainDropdownExpanded = it }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = selectedDomain,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Domain") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = domainDropdownExpanded)
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
+                    ExposedDropdownMenuBox(
                         expanded = domainDropdownExpanded,
-                        onDismissRequest = { domainDropdownExpanded = false }
+                        onExpandedChange = { domainDropdownExpanded = it },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        defaultsState.availableDomains.forEach { dom ->
-                            DropdownMenuItem(
-                                text = { Text(dom) },
-                                onClick = {
-                                    selectedDomain = dom
-                                    domainDropdownExpanded = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = selectedDomain,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Domain") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = domainDropdownExpanded)
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = domainDropdownExpanded,
+                            onDismissRequest = { domainDropdownExpanded = false }
+                        ) {
+                            defaultsState.availableDomains.forEach { dom ->
+                                DropdownMenuItem(
+                                    text = { Text(dom) },
+                                    onClick = {
+                                        selectedDomain = dom
+                                        domainDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
-                }
 
-                ExposedDropdownMenuBox(
-                    expanded = formatDropdownExpanded,
-                    onExpandedChange = { formatDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = currentFormatLabel,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Alias Format") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatDropdownExpanded)
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
+                    ExposedDropdownMenuBox(
                         expanded = formatDropdownExpanded,
-                        onDismissRequest = { formatDropdownExpanded = false }
+                        onExpandedChange = { formatDropdownExpanded = it },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        formats.forEach { (fmtKey, fmtLabel) ->
-                            DropdownMenuItem(
-                                text = { Text(fmtLabel) },
-                                onClick = {
-                                    selectedFormat = fmtKey
-                                    formatDropdownExpanded = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = currentFormatLabel,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Format") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatDropdownExpanded)
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = formatDropdownExpanded,
+                            onDismissRequest = { formatDropdownExpanded = false }
+                        ) {
+                            formats.forEach { (fmtKey, fmtLabel) ->
+                                DropdownMenuItem(
+                                    text = { Text(fmtLabel) },
+                                    onClick = {
+                                        selectedFormat = fmtKey
+                                        formatDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -210,7 +220,7 @@ fun AddAliasBottomSheet(
                         )
                         if (matchingCustomDomain == null) {
                             Text(
-                                text = "Note: Mailx only supports custom local parts on verified custom domains.",
+                                text = "Custom local parts require a verified custom domain.",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -219,13 +229,13 @@ fun AddAliasBottomSheet(
                 }
 
                 AnimatedVisibility(visible = selectedFormat == "wildcard") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.width(128.dp)) {
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.width(120.dp)) {
                                 SegmentedButton(
                                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                                     selected = wildcardDelimiter == ".",
@@ -244,7 +254,7 @@ fun AddAliasBottomSheet(
                                 onValueChange = {
                                     wildcardLocalPart = it.filter { ch -> ch.isLetterOrDigit() }.take(12)
                                 },
-                                label = { Text("Suffix (6-12 alphanumeric)") },
+                                label = { Text("Suffix (6-12 chars)") },
                                 trailingIcon = {
                                     IconButton(onClick = { wildcardLocalPart = randomAlphanumeric(8) }) {
                                         Icon(Icons.Default.Casino, contentDescription = "Random Suffix")
@@ -256,8 +266,8 @@ fun AddAliasBottomSheet(
                             )
                         }
                         Text(
-                            text = "Preview: *${wildcardDelimiter}${wildcardLocalPart}@$selectedDomain (${wildcardDomainInfo.count}/${wildcardDomainInfo.limit} used on domain)",
-                            fontSize = 12.sp,
+                            text = "Preview: *${wildcardDelimiter}${wildcardLocalPart}@$selectedDomain (${wildcardDomainInfo.count}/${wildcardDomainInfo.limit} used)",
+                            fontSize = 11.sp,
                             color = if (wildcardDomainInfo.isAtLimit) {
                                 MaterialTheme.colorScheme.error
                             } else {
@@ -270,9 +280,8 @@ fun AddAliasBottomSheet(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (Optional)") },
-                    minLines = 2,
-                    maxLines = 4,
+                    label = { Text("Description / Service Note (Optional)") },
+                    singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -280,25 +289,25 @@ fun AddAliasBottomSheet(
                 OutlinedTextField(
                     value = fromName,
                     onValueChange = { fromName = it },
-                    label = { Text("From Name (Optional)") },
+                    label = { Text("Sender Display Name (Optional)") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 if (defaultsState.availableRecipients.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Select recipient(s) for this alias",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            text = "Forwarding Recipient(s)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             defaultsState.availableRecipients.forEach { rec ->
                                 val isChecked = selectedRecipients.contains(rec)
@@ -313,7 +322,7 @@ fun AddAliasBottomSheet(
                                         }
                                         selectedRecipients = next
                                     },
-                                    label = { Text(rec) }
+                                    label = { Text(rec, fontSize = 12.sp) }
                                 )
                             }
                         }
@@ -349,23 +358,19 @@ fun AddAliasBottomSheet(
                         (selectedFormat != "wildcard" || wildcardSuffixValid),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                        .height(48.dp),
+                    shape = CircleShape
                 ) {
                     if (isSubmitting) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("Creating...", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Creating...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     } else {
-                        Text("Create & Copy to Clipboard", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text("Create & Copy Alias", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

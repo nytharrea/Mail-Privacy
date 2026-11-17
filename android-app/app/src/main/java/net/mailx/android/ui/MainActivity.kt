@@ -24,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -38,8 +39,8 @@ import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.screens.*
 import net.mailx.android.ui.sheets.*
-import net.mailx.android.ui.theme.AddyPalette
-import net.mailx.android.ui.theme.MailxAddyTheme
+import net.mailx.android.ui.theme.MailxPalette
+import net.mailx.android.ui.theme.MailxTheme
 import net.mailx.android.ui.viewmodel.MailxViewModel
 import net.mailx.android.ui.viewmodel.MailxViewModelFactory
 
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
                 else -> systemDark
             }
 
-            MailxAddyTheme(
+            MailxTheme(
                 darkTheme = useDarkTheme,
                 dynamicColor = themeState.dynamicColorEnabled,
                 amoledDark = themeState.amoledDarkEnabled
@@ -173,15 +174,17 @@ fun MailxAppScreen(vm: MailxViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            AddyMainTopAppBar(
+            MailxCompactTopBar(
                 title = currentTab.label,
-                subtitle = if (isLoading) "Refreshing data..." else "@${defaultsState.defaultDomain}",
+                domainTag = "@${defaultsState.defaultDomain}",
+                isLoading = isLoading,
                 userInitials = userInitials,
                 onSendMailClick = {
                     val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
                         ?: "example.alias@${defaultsState.defaultDomain}"
                     vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                 },
+                onTrackerDecoderClick = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
                 onRefreshClick = vm::refreshAllData,
                 onProfileClick = { vm.openSheet(ActiveSheet.ProfileMenu) }
             )
@@ -199,7 +202,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 4.dp
+                tonalElevation = 2.dp
             ) {
                 MainNavTab.entries.forEach { tab ->
                     val selected = currentTab == tab
@@ -209,13 +212,15 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         icon = {
                             Icon(
                                 imageVector = if (selected) tab.selectedIcon else tab.icon,
-                                contentDescription = tab.label
+                                contentDescription = tab.label,
+                                modifier = Modifier.size(20.dp)
                             )
                         },
                         label = {
                             Text(
                                 text = tab.label,
-                                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -233,8 +238,9 @@ fun MailxAppScreen(vm: MailxViewModel) {
         },
         floatingActionButton = {
             if (currentTab == MainNavTab.ALIASES) {
-                FloatingActionButton(
+                SmallFloatingActionButton(
                     onClick = { vm.openSheet(ActiveSheet.CreateAlias) },
+                    shape = RoundedCornerShape(14.dp),
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
@@ -253,7 +259,9 @@ fun MailxAppScreen(vm: MailxViewModel) {
         ) {
             AnimatedVisibility(visible = isLoading) {
                 LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 )
@@ -276,8 +284,11 @@ fun MailxAppScreen(vm: MailxViewModel) {
                                 if (defaultsState.defaultRecipient.isNotBlank()) 1 else 0
                             )
                         ),
-                        ruleCount = rules.size,
+                        ruleCount = rules.count { it.active },
                         blocklistCount = blocklist.size,
+                        blockTrackers = defaultsState.blockTrackers,
+                        removeHeader = defaultsState.removeHeader,
+                        pgpActive = recipients.any { it.hasPgpKey && it.pgpEnabled },
                         onRefresh = vm::refreshAllData,
                         onNavigateToFilter = vm::navigateToFilteredAliases,
                         onNavigateToRecipients = { vm.selectTab(MainNavTab.RECIPIENTS) },
@@ -402,7 +413,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
         ActiveSheet.None -> Unit
         ActiveSheet.AppearanceSheet -> Unit
 
-        ActiveSheet.ProfileMenu -> AddyProfileBottomSheet(
+        ActiveSheet.ProfileMenu -> MailxCommandBottomSheet(
             baseUrl = authState.baseUrl,
             defaultsState = defaultsState,
             userAccount = userAccount,
@@ -546,24 +557,24 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 Icon(
                     imageVector = Icons.Default.DeleteForever,
                     contentDescription = null,
-                    tint = AddyPalette.SoftRed
+                    tint = MailxPalette.BlockedRose
                 )
             },
             title = { Text("Delete Alias") },
             text = {
                 Text(
-                    text = "Are you sure you want to delete ${sheet.alias.name}? Deleted aliases reject incoming emails and can be restored within 90 days."
+                    text = "Move ${sheet.alias.name} to Trash? Incoming emails will be rejected and the alias can be restored within 90 days."
                 )
             },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AddyPalette.SoftRed,
+                        containerColor = MailxPalette.BlockedRose,
                         contentColor = Color.White
                     ),
                     onClick = { vm.deleteAliasConfirmed(sheet.alias) }
                 ) {
-                    Text("Delete", fontWeight = FontWeight.Medium)
+                    Text("Delete", fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -579,22 +590,22 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Logout,
                     contentDescription = null,
-                    tint = AddyPalette.SoftRed
+                    tint = MailxPalette.BlockedRose
                 )
             },
-            title = { Text("Reset App") },
+            title = { Text("Sign Out & Clear Cache") },
             text = {
-                Text("This will clear your local session credentials and offline cache on this device. Do you want to log out?")
+                Text("This clears your encrypted local session tokens and offline alias cache on this device.")
             },
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AddyPalette.SoftRed,
+                        containerColor = MailxPalette.BlockedRose,
                         contentColor = Color.White
                     ),
                     onClick = vm::logoutConfirmed
                 ) {
-                    Text("Log Out", fontWeight = FontWeight.Medium)
+                    Text("Sign Out", fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -607,11 +618,13 @@ fun MailxAppScreen(vm: MailxViewModel) {
 }
 
 @Composable
-private fun AddyMainTopAppBar(
+private fun MailxCompactTopBar(
     title: String,
-    subtitle: String,
+    domainTag: String,
+    isLoading: Boolean,
     userInitials: String,
     onSendMailClick: () -> Unit,
+    onTrackerDecoderClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
@@ -624,77 +637,123 @@ private fun AddyMainTopAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+                .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(
+            Row(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = title,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            Text(
+                                text = if (isLoading) "Syncing..." else domainTag,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FilledTonalIconButton(
                     onClick = onSendMailClick,
-                    modifier = Modifier.size(46.dp),
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ForwardToInbox,
-                        contentDescription = "Send from Alias",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = "Reverse Alias",
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = onTrackerDecoderClick,
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Policy,
+                        contentDescription = "Tracker Decoder",
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
                 FilledTonalIconButton(
                     onClick = onRefreshClick,
-                    modifier = Modifier.size(46.dp),
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
                 Surface(
                     onClick = onProfileClick,
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = userInitials,
-                            fontSize = 15.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -706,7 +765,7 @@ private fun AddyMainTopAppBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddyProfileBottomSheet(
+private fun MailxCommandBottomSheet(
     baseUrl: String,
     defaultsState: DefaultsUiState,
     userAccount: UiUserAccount,
@@ -729,7 +788,7 @@ private fun AddyProfileBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -737,171 +796,156 @@ private fun AddyProfileBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 14.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(80.dp)
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = userInitials,
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = userInitials,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = userAccount.email.ifBlank {
+                                defaultsState.defaultRecipient.ifBlank { "@${defaultsState.defaultDomain}" }
+                            },
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "@${defaultsState.defaultDomain} • $aliasCount aliases • ${userAccount.subStatus}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    CompactMenuItemRow(
+                        icon = Icons.Default.AlternateEmail,
+                        title = "Aliases",
+                        subtitle = "$aliasCount configured addresses",
+                        onClick = { onNavigateToAliases("active_inactive") }
+                    )
+                    CompactMenuItemRow(
+                        icon = Icons.Default.AutoAwesome,
+                        title = "Wildcard Aliases (*)",
+                        subtitle = "Generate prefix addresses on the fly",
+                        onClick = { onNavigateToAliases("wildcard_only") }
+                    )
+                    CompactMenuItemRow(
+                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                        title = "Send via Reverse Alias",
+                        subtitle = "Compose outgoing email from any alias",
+                        onClick = onOpenReverseSend
+                    )
+                    CompactMenuItemRow(
+                        icon = Icons.Default.Policy,
+                        title = "Trackers Report Decoder",
+                        subtitle = "Inspect removed email trackers offline in Rust",
+                        onClick = onOpenTrackersReport
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = userAccount.email.ifBlank {
-                    defaultsState.defaultRecipient.ifBlank { "@${defaultsState.defaultDomain}" }
-                },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "@${defaultsState.defaultDomain} • $aliasCount aliases • Subscription: ${userAccount.subStatus}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    ProfileMenuItemRow(
-                        icon = Icons.Default.AlternateEmail,
-                        title = "Aliases",
-                        subtitle = "$aliasCount total aliases",
-                        onClick = { onNavigateToAliases("active_inactive") }
-                    )
-                    ProfileMenuItemRow(
-                        icon = Icons.Default.AutoAwesome,
-                        title = "Wildcard Aliases (*)",
-                        subtitle = "Generate on-the-fly custom prefix addresses",
-                        onClick = { onNavigateToAliases("wildcard_only") }
-                    )
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.Default.Inbox,
-                        title = "Recipients & PGP Encryption",
+                        title = "Recipients & PGP Keys",
                         subtitle = defaultsState.defaultRecipient.ifBlank { "${defaultsState.availableRecipients.size} verified recipients" },
                         onClick = onNavigateToRecipients
                     )
-                    ProfileMenuItemRow(
-                        icon = Icons.Default.Language,
-                        title = "Custom Domains & DNS",
-                        subtitle = "Default: @${defaultsState.defaultDomain}",
-                        onClick = onNavigateToRecipients
-                    )
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.Default.FilterAlt,
                         title = "Rules & Blocklist",
-                        subtitle = "Automated email filtering rules and sender blocklist",
+                        subtitle = "Multi-condition routing rules & sender blocks",
                         onClick = onNavigateToRules
                     )
-                    ProfileMenuItemRow(
-                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
-                        title = "Send from Alias",
-                        subtitle = "Generate reverse-alias forwarding addresses",
-                        onClick = onOpenReverseSend
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.Default.ManageAccounts,
-                        title = "Account, Subscription & Keys",
-                        subtitle = "2FA TOTP, passkeys, access keys, password, and CSV import/export",
+                        title = "Account, 2FA, Keys & CSV",
+                        subtitle = "TOTP, passkeys, API access keys & CSV backup",
                         onClick = onOpenAccount
                     )
-                    ProfileMenuItemRow(
-                        icon = Icons.Default.Policy,
-                        title = "Trackers Report Inspector",
-                        subtitle = "Decode removed email tracker links locally",
-                        onClick = onOpenTrackersReport
-                    )
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.Default.BugReport,
-                        title = "Diagnostics Logs",
-                        subtitle = "Delivery, bounce, and blocked email logs",
+                        title = "Delivery & Bounce Logs",
+                        subtitle = "Server health check & raw MTA bounce viewer",
                         onClick = onOpenDiagnostics
                     )
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.Default.Campaign,
-                        title = "Announcements",
-                        subtitle = "Mailx service announcements",
+                        title = "Service Announcements",
+                        subtitle = "Updates from your Mailx instance",
                         onClick = onOpenAnnouncements
                     )
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.Default.Settings,
-                        title = "Server & App Settings",
-                        subtitle = "Defaults, tracker blocking, header & theme • v0.3.0",
+                        title = "Preferences & Appearance",
+                        subtitle = "Defaults, tracker stripping & Material 3 theme",
                         onClick = onNavigateToSettings
                     )
-                    ProfileMenuItemRow(
+                    CompactMenuItemRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
-                        title = "Reset App (Log Out)",
-                        subtitle = "Clear local session data on this device",
-                        iconTint = AddyPalette.SoftRed,
-                        titleColor = AddyPalette.SoftRed,
+                        title = "Sign Out & Clear Cache",
+                        subtitle = "Wipe local credentials and offline cache",
+                        iconTint = MailxPalette.BlockedRose,
+                        titleColor = MailxPalette.BlockedRose,
                         onClick = onRequestLogout
                     )
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = baseUrl,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Text(
-                    text = "Designed with privacy and care",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
+            Text(
+                text = "$baseUrl • Rust Core v0.4.0",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
 @Composable
-private fun ProfileMenuItemRow(
+private fun CompactMenuItemRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -913,25 +957,34 @@ private fun ProfileMenuItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 15.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = iconTint,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
+        Surface(
+            shape = RoundedCornerShape(9.dp),
+            color = iconTint.copy(alpha = 0.14f),
+            modifier = Modifier.size(32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = iconTint,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = titleColor
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

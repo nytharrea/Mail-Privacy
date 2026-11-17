@@ -24,11 +24,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
-import net.mailx.android.ui.components.AddySectionHeader
-import net.mailx.android.ui.components.AddySectionView
+import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
 import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +71,7 @@ fun AccountBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -81,7 +81,7 @@ fun AccountBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
                 text = "Account, Subscription & Security",
@@ -112,13 +112,13 @@ fun AccountBottomSheet(
                         Text("Subscription Status", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Surface(
                             shape = CircleShape,
-                            color = AddyPalette.GreenActive.copy(alpha = 0.16f)
+                            color = MailxPalette.ForwardEmerald.copy(alpha = 0.16f)
                         ) {
                             Text(
                                 text = userAccount.subStatus.ifBlank { "Active" },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = AddyPalette.GreenActive,
+                                color = MailxPalette.ForwardEmerald,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
@@ -203,9 +203,9 @@ fun AccountBottomSheet(
                 }
             }
 
-            AddySectionHeader(title = "Credentials & Two-Factor Authentication")
+            MailxSectionHeader(title = "Credentials & Two-Factor Authentication")
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Change Primary Email",
                 description = userAccount.email.ifBlank { "Update account email address" },
                 startIcon = Icons.Default.Email,
@@ -213,7 +213,7 @@ fun AccountBottomSheet(
                 onClick = { showChangeEmailDialog = true }
             )
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Change Password",
                 description = "Update your account login password",
                 startIcon = Icons.Default.LockReset,
@@ -242,7 +242,7 @@ fun AccountBottomSheet(
                             Text(
                                 text = if (userAccount.totpEnabled) "Status: Enabled" else "Status: Disabled",
                                 fontSize = 13.sp,
-                                color = if (userAccount.totpEnabled) AddyPalette.GreenActive else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (userAccount.totpEnabled) MailxPalette.ForwardEmerald else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         if (userAccount.totpEnabled) {
@@ -250,7 +250,7 @@ fun AccountBottomSheet(
                                 onClick = { showDisableTotpDialog = true },
                                 shape = CircleShape
                             ) {
-                                Text("Disable", color = AddyPalette.SoftRed)
+                                Text("Disable", color = MailxPalette.BlockedRose)
                             }
                         } else {
                             Button(
@@ -321,7 +321,7 @@ fun AccountBottomSheet(
             }
 
             if (passkeys.isNotEmpty()) {
-                AddySectionHeader(
+                MailxSectionHeader(
                     title = "Passkeys",
                     countBadge = passkeys.size
                 )
@@ -359,7 +359,7 @@ fun AccountBottomSheet(
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
                                     contentDescription = "Delete Passkey",
-                                    tint = AddyPalette.SoftRed
+                                    tint = MailxPalette.BlockedRose
                                 )
                             }
                         }
@@ -367,7 +367,7 @@ fun AccountBottomSheet(
                 }
             }
 
-            AddySectionHeader(
+            MailxSectionHeader(
                 title = "Access Keys",
                 countBadge = accessKeys.size,
                 actionText = "New Key",
@@ -459,16 +459,16 @@ fun AccountBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
                                 contentDescription = "Delete Key",
-                                tint = AddyPalette.SoftRed
+                                tint = MailxPalette.BlockedRose
                             )
                         }
                     }
                 }
             }
 
-            AddySectionHeader(title = "Alias CSV Import & Export")
+            MailxSectionHeader(title = "Alias CSV Import & Export")
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Export All Aliases as CSV",
                 description = "Export $aliasCount aliases with status, recipients, and descriptions in CSV format",
                 startIcon = Icons.Default.Download,
@@ -479,20 +479,20 @@ fun AccountBottomSheet(
                 }
             )
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Import Aliases from CSV",
                 description = "Import custom-domain aliases using CSV rows (alias,description,enabled,recipients)",
                 startIcon = Icons.Default.UploadFile,
                 onClick = { showImportCsvDialog = true }
             )
 
-            AddySectionHeader(title = "Danger Zone")
+            MailxSectionHeader(title = "Danger Zone")
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Delete Account Permanently",
                 description = "Permanently delete your Mailx account and all associated aliases",
                 startIcon = Icons.Default.DeleteForever,
-                accentColor = AddyPalette.SoftRed,
+                accentColor = MailxPalette.BlockedRose,
                 onClick = { showDeleteAccountDialog = true }
             )
         }
@@ -766,7 +766,7 @@ fun AccountBottomSheet(
                     Text(
                         text = "WARNING: This operation cannot be undone. Deleting your account permanently removes all your aliases and data.",
                         fontSize = 13.sp,
-                        color = AddyPalette.SoftRed
+                        color = MailxPalette.BlockedRose
                     )
                     if (expectedCode.isBlank()) {
                         OutlinedTextField(
@@ -800,7 +800,7 @@ fun AccountBottomSheet(
                     Button(
                         enabled = stepPassword.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AddyPalette.SoftRed,
+                            containerColor = MailxPalette.BlockedRose,
                             contentColor = Color.White
                         ),
                         onClick = { onRequestDeleteAccount(stepPassword) }
@@ -811,7 +811,7 @@ fun AccountBottomSheet(
                     Button(
                         enabled = confirmCode.trim().length == 8,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AddyPalette.SoftRed,
+                            containerColor = MailxPalette.BlockedRose,
                             contentColor = Color.White
                         ),
                         onClick = {
@@ -851,7 +851,7 @@ fun DiagnosticsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -861,7 +861,7 @@ fun DiagnosticsBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -880,14 +880,14 @@ fun DiagnosticsBottomSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Server Health Check (/livez & /readyz)",
                 description = serverHealthStatus.ifBlank { "Tap to verify live connectivity with the Mailx API server" },
                 startIcon = Icons.Default.Dns,
                 onClick = onCheckServerHealth
             )
 
-            AddySectionView(
+            MailxSectionRow(
                 title = "Enable Diagnostics Logging",
                 description = "Record delivery errors, bounced messages, and rule-blocked emails",
                 startIcon = Icons.Default.BugReport,
@@ -900,7 +900,7 @@ fun DiagnosticsBottomSheet(
                 Button(
                     onClick = onDeleteAllLogs,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AddyPalette.SoftRed,
+                        containerColor = MailxPalette.BlockedRose,
                         contentColor = Color.White
                     ),
                     shape = CircleShape,
@@ -945,7 +945,7 @@ fun DiagnosticsBottomSheet(
                                     text = log.logType.uppercase(),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = AddyPalette.PortalOrange
+                                    color = MailxPalette.PausedAmber
                                 )
                                 Text(
                                     text = formatIsoDateShort(log.attemptedAt.ifBlank { log.createdAt }),
@@ -1012,7 +1012,7 @@ fun AnnouncementsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -1022,7 +1022,7 @@ fun AnnouncementsBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
                 text = "Announcements",
@@ -1102,7 +1102,7 @@ fun TrackersReportBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -1112,7 +1112,7 @@ fun TrackersReportBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
                 text = "Trackers Report Inspector",

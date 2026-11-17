@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.AddySectionView
+import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.model.AliasSortField
 import net.mailx.android.ui.model.FilterUiState
 
@@ -40,7 +40,7 @@ fun FilterOptionsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -48,17 +48,17 @@ fun FilterOptionsBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 28.dp)
+                .padding(bottom = 24.dp)
         ) {
             Text(
-                text = "Filter & Sort",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                text = "Filter & Sort Aliases",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp)
+                    .padding(bottom = 10.dp)
             )
 
             HorizontalDivider(
@@ -69,45 +69,34 @@ fun FilterOptionsBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = "Filter your alias list by status or sort by your preferred metric.",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Filters",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
+                        text = "Status Filter",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     FilledTonalButton(
                         onClick = onReset,
                         shape = CircleShape,
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FilterAltOff,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Reset Filters")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Reset", fontSize = 11.sp)
                     }
                 }
 
@@ -116,85 +105,71 @@ fun FilterOptionsBottomSheet(
                     "active" to "Active",
                     "inactive" to "Disabled",
                     "pinned_only" to "Pinned",
-                    "deleted" to "Deleted",
-                    "wildcard_only" to "Wildcard (*)"
+                    "wildcard_only" to "Wildcard (*)",
+                    "deleted" to "Trash"
                 )
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     filterOptions.forEach { (key, label) ->
                         FilterChip(
                             selected = tempFilter == key,
                             onClick = { tempFilter = key },
-                            label = { Text(label) }
+                            label = { Text(label, fontSize = 12.sp) }
                         )
                     }
                 }
 
-                AddySectionView(
-                    title = "Keep Pinned on Top",
-                    description = "Always show pinned aliases first regardless of sort order",
+                MailxSectionRow(
+                    title = "Pin Priority",
+                    description = "Keep pinned aliases at the top regardless of sort order",
                     startIcon = Icons.Default.PushPin,
                     showSwitch = true,
                     switchChecked = tempPinnedFirst,
                     onSwitchChange = { tempPinnedFirst = it }
                 )
-            }
 
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Sort By",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
+                        text = "Sort Metric",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     FilledTonalButton(
                         onClick = { tempDesc = !tempDesc },
                         shape = CircleShape,
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Icon(
                             imageVector = if (tempDesc) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (tempDesc) "Descending" else "Ascending")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (tempDesc) "Descending" else "Ascending", fontSize = 11.sp)
                     }
                 }
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     AliasSortField.entries.forEach { field ->
                         FilterChip(
                             selected = tempSort == field,
                             onClick = { tempSort = field },
-                            label = { Text(field.label) }
+                            label = { Text(field.label, fontSize = 12.sp) }
                         )
                     }
                 }
@@ -203,14 +178,10 @@ fun FilterOptionsBottomSheet(
                     onClick = { onApply(tempFilter, tempSort, tempDesc, tempPinnedFirst) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                        .height(46.dp),
+                    shape = CircleShape
                 ) {
-                    Text("Apply", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Apply Filter & Sort", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

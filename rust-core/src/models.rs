@@ -264,6 +264,26 @@ pub struct TrackersReport {
     pub trackers: Vec<RemovedTrackerItem>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PhoneticToken {
+    pub index: usize,
+    pub symbol: String,
+    pub word: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrivacyPostureReport {
+    pub score: u8,
+    pub grade: String,
+    pub active_aliases: usize,
+    pub total_aliases: usize,
+    pub block_rate_percent: u8,
+    pub pgp_active: bool,
+    pub trackers_blocked: bool,
+    pub header_stripped: bool,
+    pub rules_active: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct AliasFilter {
     pub page: usize,

@@ -1,5 +1,7 @@
 package net.mailx.android.ui.model
 
+import net.mailx.android.core.MailxRustBridge
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -803,8 +805,22 @@ object NatoPhoneticHelper {
         '.' to "Period", '@' to "At (@)", '-' to "Hyphen", '_' to "Underscore", '+' to "Plus", '*' to "Asterisk"
     )
 
-    fun toPhoneticPairs(email: String): List<Pair<String, String>> =
-        email.map { ch -> ch.toString() to (map[ch.uppercaseChar()] ?: ch.toString()) }
+    fun toPhoneticPairs(email: String): List<Pair<String, String>> {
+        return runCatching {
+            val res = JSONObject(MailxRustBridge.nativeEncodeNatoPhonetic(email))
+            val arr = res.optJSONArray("data")
+            if (res.optBoolean("ok", false) && arr != null && arr.length() > 0) {
+                buildList {
+                    for (i in 0 until arr.length()) {
+                        val item = arr.optJSONObject(i) ?: continue
+                        add(item.optString("symbol") to item.optString("word"))
+                    }
+                }
+            } else {
+                null
+            }
+        }.getOrNull() ?: email.map { ch -> ch.toString() to (map[ch.uppercaseChar()] ?: ch.toString()) }
+    }
 }
 
 fun formatIsoDateShort(raw: String): String {

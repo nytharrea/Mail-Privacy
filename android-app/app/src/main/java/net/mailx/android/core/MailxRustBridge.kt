@@ -22,6 +22,24 @@ object MailxRustBridge {
     external fun nativeDecodeTrackersReport(rawInput: String): String
 
     @JvmStatic
+    external fun nativeEncodeNatoPhonetic(email: String): String
+
+    @JvmStatic
+    external fun nativeGenerateRandomSuffix(length: Int): String
+
+    @JvmStatic
+    external fun nativeComputePrivacyPosture(
+        forwards: Int,
+        blocks: Int,
+        activeAliases: Int,
+        totalAliases: Int,
+        pgpActive: Boolean,
+        trackersBlocked: Boolean,
+        headerStripped: Boolean,
+        rulesActive: Int
+    ): String
+
+    @JvmStatic
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
 
     @JvmStatic

@@ -20,10 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.AddySectionHeader
+import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,8 +68,8 @@ fun RulesAndBlocklistTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         item(key = "rules_blocklist_segmented") {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -90,7 +90,7 @@ fun RulesAndBlocklistTab(
 
         if (selectedSection == 0) {
             item(key = "rules_header") {
-                AddySectionHeader(
+                MailxSectionHeader(
                     title = "Email Processing Rules",
                     countBadge = rules.size,
                     actionText = "New Rule",
@@ -282,8 +282,8 @@ fun RulesAndBlocklistTab(
                                         onClick = { onDeleteRule(rule.id) },
                                         shape = CircleShape,
                                         colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = AddyPalette.SoftRed.copy(alpha = 0.14f),
-                                            contentColor = AddyPalette.SoftRed
+                                            containerColor = MailxPalette.BlockedRose.copy(alpha = 0.14f),
+                                            contentColor = MailxPalette.BlockedRose
                                         )
                                     ) {
                                         Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
@@ -296,7 +296,7 @@ fun RulesAndBlocklistTab(
             }
         } else {
             item(key = "blocklist_header") {
-                AddySectionHeader(
+                MailxSectionHeader(
                     title = "Blocked Senders & Domains",
                     countBadge = blocklist.size,
                     actionText = "Add Block",
@@ -338,7 +338,7 @@ fun RulesAndBlocklistTab(
                                 Icon(
                                     imageVector = if (item.type == "domain") Icons.Default.Language else Icons.Default.AlternateEmail,
                                     contentDescription = null,
-                                    tint = AddyPalette.SoftRed
+                                    tint = MailxPalette.BlockedRose
                                 )
                                 Spacer(modifier = Modifier.width(14.dp))
                                 Column {
@@ -366,7 +366,7 @@ fun RulesAndBlocklistTab(
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
                                     contentDescription = "Remove",
-                                    tint = AddyPalette.SoftRed
+                                    tint = MailxPalette.BlockedRose
                                 )
                             }
                         }
@@ -384,7 +384,7 @@ fun RulesAndBlocklistTab(
             onDismissRequest = { showAddBlockDialog = false },
             title = { Text("Block Email or Domain") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         SegmentedButton(
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
@@ -547,7 +547,7 @@ private fun RuleEditorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -557,7 +557,7 @@ private fun RuleEditorBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
                 text = when {

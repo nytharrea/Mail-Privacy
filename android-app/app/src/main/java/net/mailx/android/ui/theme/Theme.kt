@@ -17,90 +17,90 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val AddyDarkColorScheme = darkColorScheme(
-    primary = AddyPalette.PrimaryDark,
-    onPrimary = AddyPalette.OnPrimaryDark,
-    primaryContainer = AddyPalette.PrimaryContainerDark,
-    onPrimaryContainer = AddyPalette.OnPrimaryContainerDark,
-    secondary = AddyPalette.SecondaryDark,
-    onSecondary = AddyPalette.OnSecondaryDark,
-    secondaryContainer = AddyPalette.SecondaryContainerDark,
-    onSecondaryContainer = AddyPalette.OnSecondaryContainerDark,
-    tertiary = AddyPalette.TertiaryDark,
-    onTertiary = AddyPalette.OnTertiaryDark,
-    tertiaryContainer = AddyPalette.TertiaryContainerDark,
-    onTertiaryContainer = AddyPalette.OnTertiaryContainerDark,
-    error = AddyPalette.ErrorDark,
-    onError = AddyPalette.OnErrorDark,
-    errorContainer = AddyPalette.ErrorContainerDark,
-    onErrorContainer = AddyPalette.OnErrorContainerDark,
-    background = AddyPalette.DarkBackground,
-    onBackground = AddyPalette.DarkOnBackground,
-    surface = AddyPalette.DarkSurface,
-    onSurface = AddyPalette.DarkOnSurface,
-    surfaceVariant = AddyPalette.DarkSurfaceVariant,
-    onSurfaceVariant = AddyPalette.DarkOnSurfaceVariant,
-    surfaceContainerLowest = AddyPalette.DarkSurfaceLowest,
-    surfaceContainerLow = AddyPalette.DarkSurfaceLow,
-    surfaceContainer = AddyPalette.DarkSurfaceContainer,
-    surfaceContainerHigh = AddyPalette.DarkSurfaceHigh,
-    surfaceContainerHighest = AddyPalette.DarkSurfaceHighest,
-    outline = AddyPalette.DarkOutline,
-    outlineVariant = AddyPalette.DarkOutlineVariant,
-    inverseSurface = Color(0xFFE4E1E9),
-    inverseOnSurface = Color(0xFF303036),
-    inversePrimary = AddyPalette.PrimaryLight
+private val MailxDarkColorScheme = darkColorScheme(
+    primary = MailxPalette.PrimaryDark,
+    onPrimary = MailxPalette.OnPrimaryDark,
+    primaryContainer = MailxPalette.PrimaryContainerDark,
+    onPrimaryContainer = MailxPalette.OnPrimaryContainerDark,
+    secondary = MailxPalette.SecondaryDark,
+    onSecondary = MailxPalette.OnSecondaryDark,
+    secondaryContainer = MailxPalette.SecondaryContainerDark,
+    onSecondaryContainer = MailxPalette.OnSecondaryContainerDark,
+    tertiary = MailxPalette.TertiaryDark,
+    onTertiary = MailxPalette.OnTertiaryDark,
+    tertiaryContainer = MailxPalette.TertiaryContainerDark,
+    onTertiaryContainer = MailxPalette.OnTertiaryContainerDark,
+    error = MailxPalette.ErrorDark,
+    onError = MailxPalette.OnErrorDark,
+    errorContainer = MailxPalette.ErrorContainerDark,
+    onErrorContainer = MailxPalette.OnErrorContainerDark,
+    background = MailxPalette.DarkBackground,
+    onBackground = MailxPalette.DarkOnBackground,
+    surface = MailxPalette.DarkSurface,
+    onSurface = MailxPalette.DarkOnSurface,
+    surfaceVariant = MailxPalette.DarkSurfaceVariant,
+    onSurfaceVariant = MailxPalette.DarkOnSurfaceVariant,
+    surfaceContainerLowest = MailxPalette.DarkSurfaceLowest,
+    surfaceContainerLow = MailxPalette.DarkSurfaceLow,
+    surfaceContainer = MailxPalette.DarkSurfaceContainer,
+    surfaceContainerHigh = MailxPalette.DarkSurfaceHigh,
+    surfaceContainerHighest = MailxPalette.DarkSurfaceHighest,
+    outline = MailxPalette.DarkOutline,
+    outlineVariant = MailxPalette.DarkOutlineVariant,
+    inverseSurface = Color(0xFFDEE4E3),
+    inverseOnSurface = Color(0xFF2B3233),
+    inversePrimary = MailxPalette.PrimaryLight
 )
 
-private val AddyLightColorScheme = lightColorScheme(
-    primary = AddyPalette.PrimaryLight,
-    onPrimary = AddyPalette.OnPrimaryLight,
-    primaryContainer = AddyPalette.PrimaryContainerLight,
-    onPrimaryContainer = AddyPalette.OnPrimaryContainerLight,
-    secondary = AddyPalette.SecondaryLight,
-    onSecondary = AddyPalette.OnSecondaryLight,
-    secondaryContainer = AddyPalette.SecondaryContainerLight,
-    onSecondaryContainer = AddyPalette.OnSecondaryContainerLight,
-    tertiary = AddyPalette.TertiaryLight,
-    onTertiary = AddyPalette.OnTertiaryLight,
-    tertiaryContainer = AddyPalette.TertiaryContainerLight,
-    onTertiaryContainer = AddyPalette.OnTertiaryContainerLight,
-    error = AddyPalette.ErrorLight,
-    onError = AddyPalette.OnErrorLight,
-    errorContainer = AddyPalette.ErrorContainerLight,
-    onErrorContainer = AddyPalette.OnErrorContainerLight,
-    background = AddyPalette.LightBackground,
-    onBackground = AddyPalette.LightOnBackground,
-    surface = AddyPalette.LightSurface,
-    onSurface = AddyPalette.LightOnSurface,
-    surfaceVariant = AddyPalette.LightSurfaceVariant,
-    onSurfaceVariant = AddyPalette.LightOnSurfaceVariant,
-    surfaceContainerLowest = AddyPalette.LightSurfaceLowest,
-    surfaceContainerLow = AddyPalette.LightSurfaceLow,
-    surfaceContainer = AddyPalette.LightSurfaceContainer,
-    surfaceContainerHigh = AddyPalette.LightSurfaceHigh,
-    surfaceContainerHighest = AddyPalette.LightSurfaceHighest,
-    outline = AddyPalette.LightOutline,
-    outlineVariant = AddyPalette.LightOutlineVariant,
-    inverseSurface = Color(0xFF303036),
-    inverseOnSurface = Color(0xFFF2EFF7),
-    inversePrimary = AddyPalette.PrimaryDark
+private val MailxLightColorScheme = lightColorScheme(
+    primary = MailxPalette.PrimaryLight,
+    onPrimary = MailxPalette.OnPrimaryLight,
+    primaryContainer = MailxPalette.PrimaryContainerLight,
+    onPrimaryContainer = MailxPalette.OnPrimaryContainerLight,
+    secondary = MailxPalette.SecondaryLight,
+    onSecondary = MailxPalette.OnSecondaryLight,
+    secondaryContainer = MailxPalette.SecondaryContainerLight,
+    onSecondaryContainer = MailxPalette.OnSecondaryContainerLight,
+    tertiary = MailxPalette.TertiaryLight,
+    onTertiary = MailxPalette.OnTertiaryLight,
+    tertiaryContainer = MailxPalette.TertiaryContainerLight,
+    onTertiaryContainer = MailxPalette.OnTertiaryContainerLight,
+    error = MailxPalette.ErrorLight,
+    onError = MailxPalette.OnErrorLight,
+    errorContainer = MailxPalette.ErrorContainerLight,
+    onErrorContainer = MailxPalette.OnErrorContainerLight,
+    background = MailxPalette.LightBackground,
+    onBackground = MailxPalette.LightOnBackground,
+    surface = MailxPalette.LightSurface,
+    onSurface = MailxPalette.LightOnSurface,
+    surfaceVariant = MailxPalette.LightSurfaceVariant,
+    onSurfaceVariant = MailxPalette.LightOnSurfaceVariant,
+    surfaceContainerLowest = MailxPalette.LightSurfaceLowest,
+    surfaceContainerLow = MailxPalette.LightSurfaceLow,
+    surfaceContainer = MailxPalette.LightSurfaceContainer,
+    surfaceContainerHigh = MailxPalette.LightSurfaceHigh,
+    surfaceContainerHighest = MailxPalette.LightSurfaceHighest,
+    outline = MailxPalette.LightOutline,
+    outlineVariant = MailxPalette.LightOutlineVariant,
+    inverseSurface = Color(0xFF2B3233),
+    inverseOnSurface = Color(0xFFECF2F0),
+    inversePrimary = MailxPalette.PrimaryDark
 )
 
 private fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
-    background = AddyPalette.AmoledBackground,
-    surface = AddyPalette.AmoledSurface,
-    surfaceContainerLowest = AddyPalette.AmoledSurfaceLowest,
-    surfaceContainerLow = AddyPalette.AmoledSurfaceLow,
-    surfaceContainer = AddyPalette.AmoledSurfaceContainer,
-    surfaceContainerHigh = AddyPalette.AmoledSurfaceHigh,
-    surfaceContainerHighest = AddyPalette.AmoledSurfaceHighest,
-    outline = AddyPalette.AmoledOutline,
-    outlineVariant = AddyPalette.AmoledOutlineVariant
+    background = MailxPalette.AmoledBackground,
+    surface = MailxPalette.AmoledSurface,
+    surfaceContainerLowest = MailxPalette.AmoledSurfaceLowest,
+    surfaceContainerLow = MailxPalette.AmoledSurfaceLow,
+    surfaceContainer = MailxPalette.AmoledSurfaceContainer,
+    surfaceContainerHigh = MailxPalette.AmoledSurfaceHigh,
+    surfaceContainerHighest = MailxPalette.AmoledSurfaceHighest,
+    outline = MailxPalette.AmoledOutline,
+    outlineVariant = MailxPalette.AmoledOutlineVariant
 )
 
 @Composable
-fun MailxAddyTheme(
+fun MailxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     amoledDark: Boolean = false,
@@ -111,8 +111,8 @@ fun MailxAddyTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> AddyDarkColorScheme
-        else -> AddyLightColorScheme
+        darkTheme -> MailxDarkColorScheme
+        else -> MailxLightColorScheme
     }
 
     val colorScheme = if (darkTheme && amoledDark) {

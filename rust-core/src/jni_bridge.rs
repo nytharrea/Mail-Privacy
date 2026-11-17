@@ -1,7 +1,8 @@
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
 use crate::utils::{
-    decode_trackers_report, generate_reverse_alias, generate_wildcard_on_the_fly,
+    compute_privacy_posture, decode_trackers_report, encode_nato_phonetic,
+    generate_random_suffix, generate_reverse_alias, generate_wildcard_on_the_fly,
     validate_access_key,
 };
 use serde::Serialize;
@@ -87,6 +88,36 @@ pub fn handle_decode_trackers_report(raw_input: &str) -> String {
         Ok(report) => JniEnvelope::success(report),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
     }
+}
+
+pub fn handle_encode_nato_phonetic(email: &str) -> String {
+    JniEnvelope::success(encode_nato_phonetic(email))
+}
+
+pub fn handle_generate_random_suffix(length: usize) -> String {
+    JniEnvelope::success(generate_random_suffix(length))
+}
+
+pub fn handle_compute_privacy_posture(
+    forwards: u64,
+    blocks: u64,
+    active_aliases: usize,
+    total_aliases: usize,
+    pgp_active: bool,
+    trackers_blocked: bool,
+    header_stripped: bool,
+    rules_active: usize,
+) -> String {
+    JniEnvelope::success(compute_privacy_posture(
+        forwards,
+        blocks,
+        active_aliases,
+        total_aliases,
+        pgp_active,
+        trackers_blocked,
+        header_stripped,
+        rules_active,
+    ))
 }
 
 #[cfg(feature = "network")]
@@ -388,6 +419,56 @@ mod android_exports {
         run_jni_safely(env, |env| {
             let raw = jstring_to_rust(env, raw_input);
             handle_decode_trackers_report(&raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeEncodeNatoPhonetic(
+        env: JNIEnv,
+        _class: JClass,
+        email: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, email);
+            handle_encode_nato_phonetic(&raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGenerateRandomSuffix(
+        env: JNIEnv,
+        _class: JClass,
+        length: jint,
+    ) -> jstring {
+        run_jni_safely(env, |_env| {
+            handle_generate_random_suffix(length.clamp(6, 12) as usize)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeComputePrivacyPosture(
+        env: JNIEnv,
+        _class: JClass,
+        forwards: jint,
+        blocks: jint,
+        active_aliases: jint,
+        total_aliases: jint,
+        pgp_active: jboolean,
+        trackers_blocked: jboolean,
+        header_stripped: jboolean,
+        rules_active: jint,
+    ) -> jstring {
+        run_jni_safely(env, |_env| {
+            handle_compute_privacy_posture(
+                forwards.max(0) as u64,
+                blocks.max(0) as u64,
+                active_aliases.max(0) as usize,
+                total_aliases.max(0) as usize,
+                pgp_active == JNI_TRUE,
+                trackers_blocked == JNI_TRUE,
+                header_stripped == JNI_TRUE,
+                rules_active.max(0) as usize,
+            )
         })
     }
 

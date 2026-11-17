@@ -24,11 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.AddySectionHeader
-import net.mailx.android.ui.components.AddySectionView
+import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,8 +96,8 @@ fun RecipientsTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         item(key = "recipients_domains_segmented") {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -153,7 +153,7 @@ fun RecipientsTab(
             }
 
             item(key = "recipients_header") {
-                AddySectionHeader(
+                MailxSectionHeader(
                     title = "Recipient Addresses",
                     countBadge = displayedRecipients.size,
                     actionText = "Sync",
@@ -215,8 +215,8 @@ fun RecipientsTab(
                                     imageVector = if (rec.hasPgpKey && rec.pgpEnabled) Icons.Default.Lock else Icons.Default.Mail,
                                     contentDescription = null,
                                     tint = when {
-                                        !rec.isActive -> AddyPalette.SoftRed
-                                        rec.hasPgpKey && rec.pgpEnabled -> AddyPalette.GreenActive
+                                        !rec.isActive -> MailxPalette.BlockedRose
+                                        rec.hasPgpKey && rec.pgpEnabled -> MailxPalette.ForwardEmerald
                                         isDefault -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -255,7 +255,7 @@ fun RecipientsTab(
                             ) {
                                 StatusPillBadge(
                                     text = if (rec.isActive) "Verified" else "Unverified",
-                                    color = if (rec.isActive) AddyPalette.GreenActive else AddyPalette.SoftRed
+                                    color = if (rec.isActive) MailxPalette.ForwardEmerald else MailxPalette.BlockedRose
                                 )
                                 if (isDefault) {
                                     StatusPillBadge(
@@ -270,7 +270,7 @@ fun RecipientsTab(
                                         } else {
                                             "PGP Key Added"
                                         },
-                                        color = if (rec.pgpEnabled) AddyPalette.EasternBlue else MaterialTheme.colorScheme.secondary
+                                        color = if (rec.pgpEnabled) MailxPalette.SentIndigo else MaterialTheme.colorScheme.secondary
                                     )
                                 }
                             }
@@ -418,8 +418,8 @@ fun RecipientsTab(
                                                 modifier = Modifier.weight(1f),
                                                 shape = CircleShape,
                                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                                    containerColor = AddyPalette.SoftRed.copy(alpha = 0.14f),
-                                                    contentColor = AddyPalette.SoftRed
+                                                    containerColor = MailxPalette.BlockedRose.copy(alpha = 0.14f),
+                                                    contentColor = MailxPalette.BlockedRose
                                                 )
                                             ) {
                                                 Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -436,7 +436,7 @@ fun RecipientsTab(
             }
         } else {
             item(key = "custom_domains_header") {
-                AddySectionHeader(
+                MailxSectionHeader(
                     title = "Custom Domains",
                     countBadge = customDomains.size,
                     actionText = "New Domain",
@@ -479,7 +479,7 @@ fun RecipientsTab(
                                     Icon(
                                         imageVector = Icons.Default.Language,
                                         contentDescription = null,
-                                        tint = if (dom.isFullyVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
+                                        tint = if (dom.isFullyVerified) MailxPalette.ForwardEmerald else MailxPalette.PausedAmber
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
@@ -513,15 +513,15 @@ fun RecipientsTab(
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 StatusPillBadge(
                                     text = if (dom.isOwnerVerified) "TXT Ownership ✓" else "TXT Pending",
-                                    color = if (dom.isOwnerVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
+                                    color = if (dom.isOwnerVerified) MailxPalette.ForwardEmerald else MailxPalette.PausedAmber
                                 )
                                 StatusPillBadge(
                                     text = if (dom.isMxVerified) "MX ✓" else "MX Pending",
-                                    color = if (dom.isMxVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
+                                    color = if (dom.isMxVerified) MailxPalette.ForwardEmerald else MailxPalette.PausedAmber
                                 )
                                 StatusPillBadge(
                                     text = if (dom.isSendVerified) "SPF/DKIM/DMARC ✓" else "SPF/DKIM Pending",
-                                    color = if (dom.isSendVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
+                                    color = if (dom.isSendVerified) MailxPalette.ForwardEmerald else MailxPalette.PausedAmber
                                 )
                             }
 
@@ -572,8 +572,8 @@ fun RecipientsTab(
                                     onClick = { onDeleteCustomDomain(dom.id) },
                                     shape = CircleShape,
                                     colors = ButtonDefaults.filledTonalButtonColors(
-                                        containerColor = AddyPalette.SoftRed.copy(alpha = 0.14f),
-                                        contentColor = AddyPalette.SoftRed
+                                        containerColor = MailxPalette.BlockedRose.copy(alpha = 0.14f),
+                                        contentColor = MailxPalette.BlockedRose
                                     )
                                 ) {
                                     Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
@@ -585,7 +585,7 @@ fun RecipientsTab(
             }
 
             item(key = "shared_domains_header") {
-                AddySectionHeader(
+                MailxSectionHeader(
                     title = "Available Domains & Default Selection",
                     countBadge = defaultsState.availableDomains.size,
                     modifier = Modifier.padding(top = 8.dp)
@@ -597,7 +597,7 @@ fun RecipientsTab(
                 val domainAliasCount = remember(aliases, domain) {
                     aliases.count { it.domainPart.equals(domain, ignoreCase = true) }
                 }
-                AddySectionView(
+                MailxSectionRow(
                     title = "@$domain",
                     description = if (isSelected) {
                         "Default domain • $domainAliasCount aliases"
@@ -778,7 +778,7 @@ fun RecipientsTab(
                                 onUpdateRecipientPgp(rec, "", false, false)
                             }
                         ) {
-                            Text("Remove Key", color = AddyPalette.SoftRed)
+                            Text("Remove Key", color = MailxPalette.BlockedRose)
                         }
                     }
                     TextButton(onClick = { pgpEditingRecipient = null }) {
@@ -817,7 +817,7 @@ fun RecipientsTab(
             confirmButton = {
                 Button(
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AddyPalette.SoftRed,
+                        containerColor = MailxPalette.BlockedRose,
                         contentColor = Color.White
                     ),
                     onClick = {
@@ -984,7 +984,7 @@ fun RecipientsTab(
                                 Icon(
                                     imageVector = if (chk.passed) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
                                     contentDescription = null,
-                                    tint = if (chk.passed) AddyPalette.GreenActive else AddyPalette.SoftRed,
+                                    tint = if (chk.passed) MailxPalette.ForwardEmerald else MailxPalette.BlockedRose,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(

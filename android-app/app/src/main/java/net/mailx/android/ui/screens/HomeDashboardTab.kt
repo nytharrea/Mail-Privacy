@@ -1,16 +1,16 @@
 package net.mailx.android.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ForwardToInbox
-import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -30,13 +29,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.AddyHomeStatCard
-import net.mailx.android.ui.components.AddySectionHeader
+import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.components.AliasCard
+import net.mailx.android.ui.components.MailxActivityRing
+import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxStatTile
+import net.mailx.android.ui.components.MailxTelemetryBar
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.UiUserStats
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +53,9 @@ fun HomeDashboardTab(
     recipientCount: Int = 1,
     ruleCount: Int = 0,
     blocklistCount: Int = 0,
+    blockTrackers: Boolean = true,
+    removeHeader: Boolean = false,
+    pgpActive: Boolean = false,
     onRefresh: () -> Unit,
     onNavigateToFilter: (String) -> Unit,
     onNavigateToRecipients: () -> Unit = {},
@@ -73,12 +81,43 @@ fun HomeDashboardTab(
 
     val activeCount = remember(aliases) { aliases.count { it.enabled && it.deletedAt.isBlank() } }
     val inactiveCount = remember(aliases) { aliases.count { !it.enabled && it.deletedAt.isBlank() } }
-    val pinnedCount = remember(aliases) { aliases.count { it.pinned } }
-    val wildcardCount = remember(aliases) { aliases.count { it.wildcard } }
+    val pinnedCount = remember(aliases) { aliases.count { it.pinned && it.deletedAt.isBlank() } }
+    val wildcardCount = remember(aliases) { aliases.count { it.wildcard && it.deletedAt.isBlank() } }
     val deletedCount = remember(aliases) { aliases.count { it.deletedAt.isNotBlank() } }
 
-    val activeRatio = remember(aliases.size, activeCount) {
-        if (aliases.isEmpty()) 0f else activeCount.toFloat() / aliases.size.toFloat()
+    val posturePair = remember(
+        totalForwards,
+        totalBlocks,
+        activeCount,
+        aliases.size,
+        pgpActive,
+        blockTrackers,
+        removeHeader,
+        ruleCount
+    ) {
+        runCatching {
+            val raw = MailxRustBridge.nativeComputePrivacyPosture(
+                totalForwards,
+                totalBlocks,
+                activeCount,
+                aliases.size,
+                pgpActive,
+                blockTrackers,
+                removeHeader,
+                ruleCount
+            )
+            val data = JSONObject(raw).optJSONObject("data")
+            val score = data?.optInt("score", 85) ?: 85
+            val grade = data?.optString("grade", "A") ?: "A"
+            score to grade
+        }.getOrElse { 85 to "A" }
+    }
+
+    val spotlightAliases = remember(aliases) {
+        aliases
+            .filter { it.deletedAt.isBlank() }
+            .sortedWith(compareByDescending<UiAlias> { it.pinned }.thenByDescending { it.totalActivity })
+            .take(3)
     }
 
     PullToRefreshBox(
@@ -88,63 +127,122 @@ fun HomeDashboardTab(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item(key = "home_stat_card_bandwidth") {
-                AddyHomeStatCard(
-                    title = "Default Domain",
-                    description = "@$defaultDomain • $activeCount/${aliases.size} active aliases",
-                    icon = Icons.Default.Speed,
-                    progressFraction = activeRatio,
-                    onClick = { onNavigateToFilter("active_inactive") }
-                )
-            }
-
-            item(key = "header_statistics") {
-                AddySectionHeader(
-                    title = "Statistics (Last 90 Days / Total)",
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            item(key = "home_stats_grid_row1") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            item(key = "hero_privacy_telemetry_card") {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    AddyHomeStatCard(
-                        title = "Forwarded",
-                        description = totalForwards.toString(),
-                        icon = Icons.Default.Inbox,
-                        modifier = Modifier.weight(1f)
-                    )
-                    AddyHomeStatCard(
-                        title = "Blocked",
-                        description = totalBlocks.toString(),
-                        icon = Icons.Default.Block,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                MailxActivityRing(
+                                    forwards = totalForwards,
+                                    replies = totalReplies,
+                                    sends = totalSends,
+                                    blocks = totalBlocks,
+                                    enabled = true,
+                                    size = 52.dp,
+                                    strokeWidth = 5.5.dp
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "@$defaultDomain",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MailxPalette.ForwardEmerald.copy(alpha = 0.16f)
+                                        ) {
+                                            Text(
+                                                text = "Shield ${posturePair.second} (${posturePair.first}%)",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MailxPalette.ForwardEmerald,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "$activeCount active of ${aliases.size} aliases • $recipientCount recipients",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
 
-            item(key = "home_stats_grid_row2") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Replied",
-                        description = totalReplies.toString(),
-                        icon = Icons.AutoMirrored.Filled.Reply,
-                        modifier = Modifier.weight(1f)
-                    )
-                    AddyHomeStatCard(
-                        title = "Sent",
-                        description = totalSends.toString(),
-                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
-                        modifier = Modifier.weight(1f)
-                    )
+                            FilledTonalButton(
+                                onClick = onOpenCreateAlias,
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("+ Alias", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        MailxTelemetryBar(
+                            forwards = totalForwards,
+                            replies = totalReplies,
+                            sends = totalSends,
+                            blocks = totalBlocks
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            CompactMetricPill(
+                                label = "Forwarded",
+                                value = totalForwards.toString(),
+                                color = MailxPalette.ForwardEmerald,
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactMetricPill(
+                                label = "Blocked",
+                                value = totalBlocks.toString(),
+                                color = MailxPalette.BlockedRose,
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactMetricPill(
+                                label = "Replied",
+                                value = totalReplies.toString(),
+                                color = MailxPalette.ReplySky,
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactMetricPill(
+                                label = "Sent",
+                                value = totalSends.toString(),
+                                color = MailxPalette.SentIndigo,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -154,153 +252,204 @@ fun HomeDashboardTab(
                 }
             }
 
-            item(key = "header_aliases") {
-                AddySectionHeader(
-                    title = "Aliases",
-                    actionText = "New Alias",
-                    onActionClick = onOpenCreateAlias,
-                    modifier = Modifier.padding(top = 6.dp)
+            item(key = "header_aliases_matrix") {
+                MailxSectionHeader(
+                    title = "Alias Matrix",
+                    countBadge = aliases.size,
+                    actionText = "All Aliases",
+                    onActionClick = { onNavigateToFilter("active_inactive") }
                 )
             }
 
-            item(key = "home_aliases_grid_row1") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Total Aliases",
-                        description = aliases.size.toString(),
-                        icon = Icons.Default.AlternateEmail,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFilter("active_inactive") }
+            item(key = "aliases_compact_grid") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MailxStatTile(
+                            title = "Active",
+                            value = activeCount.toString(),
+                            icon = Icons.Default.Check,
+                            accentColor = MailxPalette.ForwardEmerald,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToFilter("active") }
+                        )
+                        MailxStatTile(
+                            title = "Pinned",
+                            value = pinnedCount.toString(),
+                            icon = Icons.Default.PushPin,
+                            accentColor = MailxPalette.PausedAmber,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToFilter("pinned_only") }
+                        )
+                        MailxStatTile(
+                            title = "Wildcard (*)",
+                            value = wildcardCount.toString(),
+                            icon = Icons.Default.AutoAwesome,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToFilter("wildcard_only") }
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MailxStatTile(
+                            title = "Total",
+                            value = aliases.size.toString(),
+                            icon = Icons.Default.AlternateEmail,
+                            accentColor = MailxPalette.ReplySky,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToFilter("active_inactive") }
+                        )
+                        MailxStatTile(
+                            title = "Disabled",
+                            value = inactiveCount.toString(),
+                            icon = Icons.Default.Close,
+                            accentColor = MailxPalette.Slate500,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToFilter("inactive") }
+                        )
+                        MailxStatTile(
+                            title = "Trash",
+                            value = deletedCount.toString(),
+                            icon = Icons.Default.DeleteOutline,
+                            accentColor = MailxPalette.BlockedRose,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToFilter("deleted") }
+                        )
+                    }
+                }
+            }
+
+            if (spotlightAliases.isNotEmpty()) {
+                item(key = "header_spotlight_aliases") {
+                    MailxSectionHeader(
+                        title = "Quick Access Aliases",
+                        actionText = "New Alias",
+                        onActionClick = onOpenCreateAlias
                     )
-                    AddyHomeStatCard(
-                        title = "Active Aliases",
-                        description = activeCount.toString(),
-                        icon = Icons.Default.Check,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFilter("active") }
+                }
+
+                items(spotlightAliases, key = { "home_${it.id}" }) { alias ->
+                    AliasCard(
+                        alias = alias,
+                        onClick = { onSelectAlias(alias) },
+                        onCopyOrWildcard = { onCopyOrWildcard(alias) },
+                        onToggleEnabled = { en -> onToggleEnabled(alias, en) }
                     )
                 }
             }
 
-            item(key = "home_aliases_grid_row2") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Disabled Aliases",
-                        description = inactiveCount.toString(),
-                        icon = Icons.Default.Close,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFilter("inactive") }
-                    )
-                    AddyHomeStatCard(
-                        title = "Pinned",
-                        description = pinnedCount.toString(),
-                        icon = Icons.Default.PushPin,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFilter("pinned_only") }
-                    )
-                }
-            }
-
-            item(key = "home_aliases_grid_row3") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Wildcard (*)",
-                        description = wildcardCount.toString(),
-                        icon = Icons.Default.AutoAwesome,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFilter("wildcard_only") }
-                    )
-                    AddyHomeStatCard(
-                        title = "Deleted",
-                        description = deletedCount.toString(),
-                        icon = Icons.Default.DeleteOutline,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFilter("deleted") }
-                    )
-                }
-            }
-
-            item(key = "header_recipients_tools") {
-                AddySectionHeader(
-                    title = "Recipients, Rules & Tools",
-                    modifier = Modifier.padding(top = 6.dp)
+            item(key = "header_privacy_tools") {
+                MailxSectionHeader(
+                    title = "Privacy & Relay Tools"
                 )
             }
 
-            item(key = "home_recipients_row1") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Recipients & Domains",
-                        description = "$recipientCount recipients",
-                        icon = Icons.Default.Inbox,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToRecipients
-                    )
-                    AddyHomeStatCard(
-                        title = "Rules & Blocklist",
-                        description = "$ruleCount rules • $blocklistCount blocked",
-                        icon = Icons.Default.FilterAlt,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToRules
-                    )
+            item(key = "tools_compact_grid") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MailxStatTile(
+                            title = "Send via Alias",
+                            value = "Reverse Relay",
+                            icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                            onClick = onOpenReverseAliasTool
+                        )
+                        MailxStatTile(
+                            title = "Tracker Decoder",
+                            value = "Local Rust",
+                            icon = Icons.Default.Shield,
+                            accentColor = MailxPalette.ForwardEmerald,
+                            modifier = Modifier.weight(1f),
+                            onClick = onOpenTrackersReport
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MailxStatTile(
+                            title = "Recipients & PGP",
+                            value = "$recipientCount Verified",
+                            icon = Icons.Default.Inbox,
+                            accentColor = MailxPalette.ReplySky,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToRecipients
+                        )
+                        MailxStatTile(
+                            title = "Rules & Blocklist",
+                            value = "$ruleCount Rules • $blocklistCount Blk",
+                            icon = Icons.Default.FilterAlt,
+                            accentColor = MailxPalette.SentIndigo,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToRules
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MailxStatTile(
+                            title = "Delivery Logs",
+                            value = "Bounce & MTA",
+                            icon = Icons.Default.BugReport,
+                            accentColor = MailxPalette.PausedAmber,
+                            modifier = Modifier.weight(1f),
+                            onClick = onOpenDiagnostics
+                        )
+                        MailxStatTile(
+                            title = "Account & Keys",
+                            value = "2FA • CSV • Keys",
+                            icon = Icons.Default.Key,
+                            accentColor = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.weight(1f),
+                            onClick = onOpenAccountSheet
+                        )
+                    }
                 }
             }
+        }
+    }
+}
 
-            item(key = "home_recipients_row2") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Send from Alias",
-                        description = "Reverse-Alias Tool",
-                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
-                        modifier = Modifier.weight(1f),
-                        onClick = onOpenReverseAliasTool
-                    )
-                    AddyHomeStatCard(
-                        title = "Diagnostics Logs",
-                        description = "Delivery & Bounce Logs",
-                        icon = Icons.Default.BugReport,
-                        modifier = Modifier.weight(1f),
-                        onClick = onOpenDiagnostics
-                    )
-                }
-            }
-
-            item(key = "home_trackers_account_row") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddyHomeStatCard(
-                        title = "Trackers Report",
-                        description = "Inspect Removed Trackers",
-                        icon = Icons.Default.Shield,
-                        modifier = Modifier.weight(1f),
-                        onClick = onOpenTrackersReport
-                    )
-                    AddyHomeStatCard(
-                        title = "Account & Keys",
-                        description = "2FA, Passkeys & CSV",
-                        icon = Icons.Default.Key,
-                        modifier = Modifier.weight(1f),
-                        onClick = onOpenAccountSheet
-                    )
-                }
-            }
+@Composable
+private fun CompactMetricPill(
+    label: String,
+    value: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = color.copy(alpha = 0.12f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = value,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = color,
+                maxLines = 1
+            )
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
         }
     }
 }
@@ -311,19 +460,17 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
         (userStats.dailyPoints.maxOfOrNull { it.total } ?: 1).coerceAtLeast(1)
     }
 
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -331,28 +478,28 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Last 7 Days Email Traffic",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = "7-Day Relay Activity",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ChartLegendDot(color = AddyPalette.PortalOrange, label = "Forwarded")
-                    ChartLegendDot(color = AddyPalette.PortalBlue, label = "Replied")
-                    ChartLegendDot(color = AddyPalette.EasternBlue, label = "Sent")
-                    ChartLegendDot(color = AddyPalette.SoftRed, label = "Blocked")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChartLegendDot(color = MailxPalette.ForwardEmerald, label = "Fwd")
+                    ChartLegendDot(color = MailxPalette.ReplySky, label = "Rep")
+                    ChartLegendDot(color = MailxPalette.SentIndigo, label = "Sent")
+                    ChartLegendDot(color = MailxPalette.BlockedRose, label = "Blk")
                 }
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(82.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
             ) {
                 userStats.dailyPoints.forEach { pt ->
-                    val frac = (pt.total.toFloat() / maxDayTotal.toFloat()).coerceIn(0.06f, 1f)
+                    val frac = (pt.total.toFloat() / maxDayTotal.toFloat()).coerceIn(0.08f, 1f)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Bottom,
@@ -360,29 +507,29 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                     ) {
                         Text(
                             text = pt.total.toString(),
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Box(
                             modifier = Modifier
-                                .width(22.dp)
-                                .fillMaxHeight(fraction = frac * 0.72f)
-                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                .width(20.dp)
+                                .fillMaxHeight(fraction = frac * 0.68f)
+                                .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
                                 .background(
                                     when {
-                                        pt.blocks > pt.forwards -> AddyPalette.SoftRed
-                                        pt.replies > 0 -> AddyPalette.PortalBlue
-                                        pt.sends > 0 -> AddyPalette.EasternBlue
-                                        pt.total > 0 -> AddyPalette.PortalOrange
+                                        pt.blocks > pt.forwards -> MailxPalette.BlockedRose
+                                        pt.replies > 0 -> MailxPalette.ReplySky
+                                        pt.sends > 0 -> MailxPalette.SentIndigo
+                                        pt.total > 0 -> MailxPalette.ForwardEmerald
                                         else -> MaterialTheme.colorScheme.surfaceContainerHighest
                                     }
                                 )
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = pt.label,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -397,17 +544,17 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
 private fun ChartLegendDot(color: Color, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(8.dp)
+                .size(7.dp)
                 .clip(CircleShape)
                 .background(color)
         )
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

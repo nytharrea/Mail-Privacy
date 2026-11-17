@@ -16,29 +16,22 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Pin
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.WavingHand
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import net.mailx.android.ui.model.AuthUiState
-import net.mailx.android.ui.theme.AddyPalette
-import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,490 +49,344 @@ fun SetupScreen(
     onConfirmPasswordReset: (otpToken: String, newPassword: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
-    var showLoginSheet by remember { mutableStateOf(false) }
+    var showSecret by remember { mutableStateOf(false) }
+    var showResetPasswordDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(authState.errorMessage, authState.totpRequired) {
-        if (authState.errorMessage != null || authState.totpRequired) {
-            showLoginSheet = true
-        }
-    }
-
-    var backgroundApiWatermark by remember {
-        mutableStateOf(
-            buildString {
-                val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-                repeat(220) { append(chars[Random.nextInt(chars.length)]) }
-            }
-        )
-    }
-
-    LaunchedEffect(Unit) {
-        val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        while (true) {
-            delay(Random.nextLong(350, 1100))
-            val sb = StringBuilder(backgroundApiWatermark)
-            val idx = Random.nextInt(sb.length)
-            sb.setCharAt(idx, chars[Random.nextInt(chars.length)])
-            backgroundApiWatermark = sb.toString()
-        }
-    }
+    val isOfficial = authState.baseUrl.contains("api.mailx.net") || authState.baseUrl.isBlank()
+    val isCredentialsMode = authState.loginMode == "credentials"
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AddyPalette.PrimaryColorStatic)
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
-        Text(
-            text = backgroundApiWatermark,
-            fontSize = 84.sp,
-            lineHeight = 90.sp,
-            fontFamily = FontFamily.Monospace,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(0.05f)
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 32.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(top = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Default.WavingHand,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-                Text(
-                    text = "Hello!",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
-                )
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    text = "Welcome to",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
-                )
-
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.padding(vertical = 6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = AddyPalette.PrimaryInnerStatic,
-                        modifier = Modifier.size(64.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(50.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.MarkEmailUnread,
-                                contentDescription = "Mailx",
-                                tint = AddyPalette.LauncherForeground,
-                                modifier = Modifier.size(34.dp)
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "Mailx Privacy",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }
 
-                    Text(
-                        text = "mailx",
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = (-1).sp
-                    )
-                }
-
-                Text(
-                    text = "Anonymous Email Forwarding",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = {
-                        val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
-                        if (clipText.length == 85 && authState.accessKeyInput.isBlank()) {
-                            onAccessKeyChange(clipText)
-                            onLoginModeChange("access_key")
-                        }
-                        showLoginSheet = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AddyPalette.TertiaryDark,
-                        contentColor = AddyPalette.OnTertiaryDark
-                    )
-                ) {
-                    Text(
-                        text = "Get Started",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
-                            if (clipText.isNotEmpty()) {
-                                onAccessKeyChange(clipText)
-                            }
-                            onLoginModeChange("access_key")
-                            showLoginSheet = true
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AddyPalette.PrimaryDark,
-                            contentColor = AddyPalette.OnPrimaryDark
-                        ),
-                        contentPadding = PaddingValues(horizontal = 14.dp)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Text(
-                            text = "Paste Key",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Default.ContentPaste,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            onBaseUrlChange("https://")
-                            showLoginSheet = true
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = AddyPalette.PrimaryDark,
-                            contentColor = AddyPalette.OnPrimaryDark
-                        ),
-                        contentPadding = PaddingValues(horizontal = 14.dp)
-                    ) {
-                        Text(
-                            text = "Self-Hosted",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Default.Dns,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showLoginSheet) {
-        AddyApiLoginBottomSheet(
-            authState = authState,
-            onBaseUrlChange = onBaseUrlChange,
-            onLoginModeChange = onLoginModeChange,
-            onEmailChange = onEmailChange,
-            onPasswordChange = onPasswordChange,
-            onOtpChange = onOtpChange,
-            onAccessKeyChange = onAccessKeyChange,
-            onConnectWithCredentials = onConnectWithCredentials,
-            onConnectWithAccessKey = onConnectWithAccessKey,
-            onInitiatePasswordReset = onInitiatePasswordReset,
-            onConfirmPasswordReset = onConfirmPasswordReset,
-            onDismiss = { if (!authState.isLoading) showLoginSheet = false }
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddyApiLoginBottomSheet(
-    authState: AuthUiState,
-    onBaseUrlChange: (String) -> Unit,
-    onLoginModeChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onOtpChange: (String) -> Unit,
-    onAccessKeyChange: (String) -> Unit,
-    onConnectWithCredentials: () -> Unit,
-    onConnectWithAccessKey: () -> Unit,
-    onInitiatePasswordReset: (email: String) -> Unit,
-    onConfirmPasswordReset: (otpToken: String, newPassword: String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showSecret by remember { mutableStateOf(false) }
-    var showResetPasswordDialog by remember { mutableStateOf(false) }
-    val isOfficial = authState.baseUrl.contains("api.mailx.net") || authState.baseUrl.isBlank()
-    val isCredentialsMode = authState.loginMode == "credentials"
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 28.dp)
-        ) {
-            Text(
-                text = "Sign In",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 14.dp)
-            )
-
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        selected = isCredentialsMode,
-                        onClick = { onLoginModeChange("credentials") },
-                        label = { Text("Email & Password") }
-                    )
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        selected = !isCredentialsMode,
-                        onClick = { onLoginModeChange("access_key") },
-                        label = { Text("Access Key") }
-                    )
-                }
-
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        selected = isOfficial,
-                        onClick = { onBaseUrlChange("https://api.mailx.net") },
-                        label = { Text("Official Instance") }
-                    )
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        selected = !isOfficial,
-                        onClick = {
-                            if (isOfficial) {
-                                onBaseUrlChange("https://")
-                            }
-                        },
-                        label = { Text("Self-Hosted") }
-                    )
-                }
-
-                AnimatedVisibility(visible = !isOfficial) {
-                    OutlinedTextField(
-                        value = authState.baseUrl,
-                        onValueChange = onBaseUrlChange,
-                        label = { Text("Mailx API Server URL") },
-                        leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (isCredentialsMode) {
-                    OutlinedTextField(
-                        value = authState.emailInput,
-                        onValueChange = onEmailChange,
-                        label = { Text("Email Address") },
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = authState.passwordInput,
-                        onValueChange = onPasswordChange,
-                        label = { Text("Password") },
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                        trailingIcon = {
-                            IconButton(onClick = { showSecret = !showSecret }) {
-                                Icon(
-                                    imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Show / Hide"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Mailx Privacy",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Text(
+                                    text = "Rust Core",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
-                        },
-                        visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        }
+                        Text(
+                            text = "Audited alias management, PGP forwarding & local tracker inspection",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
-                    AnimatedVisibility(visible = authState.totpRequired || authState.otpInput.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Instance & Authentication",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        FilledTonalButton(
+                            onClick = {
+                                val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
+                                if (clipText.isNotEmpty()) {
+                                    onAccessKeyChange(clipText)
+                                }
+                                onLoginModeChange("access_key")
+                            },
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentPaste,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Paste Key", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            selected = isCredentialsMode,
+                            onClick = { onLoginModeChange("credentials") },
+                            label = { Text("Email & Password", fontSize = 12.sp) }
+                        )
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            selected = !isCredentialsMode,
+                            onClick = { onLoginModeChange("access_key") },
+                            label = { Text("85-Char Access Key", fontSize = 12.sp) }
+                        )
+                    }
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            selected = isOfficial,
+                            onClick = { onBaseUrlChange("https://api.mailx.net") },
+                            label = { Text("Official (api.mailx.net)", fontSize = 12.sp) }
+                        )
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            selected = !isOfficial,
+                            onClick = {
+                                if (isOfficial) {
+                                    onBaseUrlChange("https://")
+                                }
+                            },
+                            label = { Text("Self-Hosted", fontSize = 12.sp) }
+                        )
+                    }
+
+                    AnimatedVisibility(visible = !isOfficial) {
                         OutlinedTextField(
-                            value = authState.otpInput,
-                            onValueChange = onOtpChange,
-                            label = { Text("2FA Verification Code (6-Digit TOTP)") },
-                            leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+                            value = authState.baseUrl,
+                            onValueChange = onBaseUrlChange,
+                            label = { Text("Self-Hosted Server URL") },
+                            leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showResetPasswordDialog = true }) {
-                            Text("Forgot Password?", fontSize = 13.sp)
-                        }
-                    }
-                } else {
-                    OutlinedTextField(
-                        value = authState.accessKeyInput,
-                        onValueChange = onAccessKeyChange,
-                        label = { Text("Access Key") },
-                        leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = {
-                                    val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
-                                    if (clipText.isNotEmpty()) onAccessKeyChange(clipText)
-                                }) {
-                                    Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
-                                }
+                    if (isCredentialsMode) {
+                        OutlinedTextField(
+                            value = authState.emailInput,
+                            onValueChange = onEmailChange,
+                            label = { Text("Account Email") },
+                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = authState.passwordInput,
+                            onValueChange = onPasswordChange,
+                            label = { Text("Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            trailingIcon = {
                                 IconButton(onClick = { showSecret = !showSecret }) {
                                     Icon(
                                         imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = "Show / Hide"
+                                        contentDescription = "Toggle password"
                                     )
                                 }
+                            },
+                            visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        AnimatedVisibility(visible = authState.totpRequired || authState.otpInput.isNotEmpty()) {
+                            OutlinedTextField(
+                                value = authState.otpInput,
+                                onValueChange = onOtpChange,
+                                label = { Text("2FA TOTP Code (6 digits)") },
+                                leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = { showResetPasswordDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text("Forgot Password?", fontSize = 12.sp)
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = authState.accessKeyInput,
+                            onValueChange = onAccessKeyChange,
+                            label = { Text("Access Key (<UUID>.<48-char-token>)") },
+                            leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
+                            trailingIcon = {
+                                IconButton(onClick = { showSecret = !showSecret }) {
+                                    Icon(
+                                        imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "Toggle key"
+                                    )
+                                }
+                            },
+                            supportingText = {
+                                Text(
+                                    text = "${authState.accessKeyInput.trim().length} / 85 characters",
+                                    fontSize = 11.sp
+                                )
+                            },
+                            visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    authState.errorMessage?.let { err ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = err,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            if (isCredentialsMode) {
+                                onConnectWithCredentials()
+                            } else {
+                                onConnectWithAccessKey()
                             }
                         },
-                        supportingText = {
-                            Text(
-                                text = "${authState.accessKeyInput.trim().length} / 85 characters",
-                                fontSize = 12.sp
-                            )
-                        },
-                        visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                authState.errorMessage?.let { err ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                        enabled = !authState.isLoading && (
+                            if (isCredentialsMode) {
+                                authState.emailInput.isNotBlank() && authState.passwordInput.isNotEmpty()
+                            } else {
+                                authState.accessKeyInput.isNotBlank()
+                            }
+                            ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = CircleShape
                     ) {
-                        Text(
-                            text = err,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                        if (authState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Connecting...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        } else {
+                            Text("Connect to Mailx", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
+            }
 
-                Button(
-                    onClick = {
-                        if (isCredentialsMode) {
-                            onConnectWithCredentials()
-                        } else {
-                            onConnectWithAccessKey()
-                        }
-                    },
-                    enabled = !authState.isLoading && (
-                        if (isCredentialsMode) {
-                            authState.emailInput.isNotBlank() && authState.passwordInput.isNotEmpty()
-                        } else {
-                            authState.accessKeyInput.isNotBlank()
-                        }
-                        ),
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (authState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("Signing in...", fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    } else {
-                        Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = authState.baseUrl.ifBlank { "https://api.mailx.net" },
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+                    Text(
+                        text = "Zero-knowledge memory drop",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
@@ -573,7 +420,7 @@ private fun AddyApiLoginBottomSheet(
 
                     if (resetStep == 0) {
                         Text(
-                            text = "Enter your registered email address to receive a password reset link/code:",
+                            text = "Enter your account email to receive a password reset token:",
                             style = MaterialTheme.typography.bodySmall
                         )
                         OutlinedTextField(
@@ -586,7 +433,7 @@ private fun AddyApiLoginBottomSheet(
                         )
                     } else {
                         Text(
-                            text = "Enter the 32-character reset token from your email and choose a new password (12+ chars):",
+                            text = "Enter the 32-character reset token and choose a new password (12+ chars):",
                             style = MaterialTheme.typography.bodySmall
                         )
                         OutlinedTextField(

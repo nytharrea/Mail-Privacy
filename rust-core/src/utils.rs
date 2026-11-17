@@ -1,4 +1,10 @@
-use crate::models::{AliasFilter, RemovedTrackerItem, TrackersReport};
+use crate::models::{
+    AliasFilter, PhoneticToken, PrivacyPostureReport, RemovedTrackerItem, TrackersReport,
+};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+static ENTROPY_COUNTER: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
 
 pub fn validate_access_key(access_key: &str) -> Result<(), String> {
     let trimmed = access_key.trim();
@@ -61,6 +67,143 @@ pub fn generate_wildcard_on_the_fly(wildcard_alias: &str, prefix: &str) -> Resul
     }
 
     Ok(wildcard_alias.replacen('*', prefix_trimmed, 1))
+}
+
+pub fn generate_random_suffix(length: usize) -> String {
+    let clamped = length.clamp(6, 12);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0x517C_C1B7_2722_0A95);
+    let seq = ENTROPY_COUNTER.fetch_add(0x9E37_79B9_7F4A_7C15, Ordering::Relaxed);
+    let mut state = nanos ^ seq.rotate_left(17) ^ 0xBF58_476D_1CE4_E5B9;
+    if state == 0 {
+        state = 0x94D0_49BB_1331_11EB;
+    }
+    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut out = String::with_capacity(clamped);
+    for _ in 0..clamped {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        let idx = (state as usize) % CHARSET.len();
+        out.push(CHARSET[idx] as char);
+    }
+    out
+}
+
+pub fn encode_nato_phonetic(input: &str) -> Vec<PhoneticToken> {
+    input
+        .trim()
+        .chars()
+        .enumerate()
+        .map(|(i, ch)| {
+            let word = match ch.to_ascii_uppercase() {
+                'A' => "Alpha",
+                'B' => "Bravo",
+                'C' => "Charlie",
+                'D' => "Delta",
+                'E' => "Echo",
+                'F' => "Foxtrot",
+                'G' => "Golf",
+                'H' => "Hotel",
+                'I' => "India",
+                'J' => "Juliett",
+                'K' => "Kilo",
+                'L' => "Lima",
+                'M' => "Mike",
+                'N' => "November",
+                'O' => "Oscar",
+                'P' => "Papa",
+                'Q' => "Quebec",
+                'R' => "Romeo",
+                'S' => "Sierra",
+                'T' => "Tango",
+                'U' => "Uniform",
+                'V' => "Victor",
+                'W' => "Whiskey",
+                'X' => "X-ray",
+                'Y' => "Yankee",
+                'Z' => "Zulu",
+                '0' => "Zero",
+                '1' => "One",
+                '2' => "Two",
+                '3' => "Three",
+                '4' => "Four",
+                '5' => "Five",
+                '6' => "Six",
+                '7' => "Seven",
+                '8' => "Eight",
+                '9' => "Nine",
+                '.' => "Dot",
+                '@' => "At",
+                '-' => "Dash",
+                '_' => "Underscore",
+                '+' => "Plus",
+                '*' => "Star",
+                _ => "Symbol",
+            };
+            PhoneticToken {
+                index: i + 1,
+                symbol: ch.to_string(),
+                word: word.to_string(),
+            }
+        })
+        .collect()
+}
+
+pub fn compute_privacy_posture(
+    forwards: u64,
+    blocks: u64,
+    active_aliases: usize,
+    total_aliases: usize,
+    pgp_active: bool,
+    trackers_blocked: bool,
+    header_stripped: bool,
+    rules_active: usize,
+) -> PrivacyPostureReport {
+    let mut score: u8 = 40;
+    if trackers_blocked {
+        score = score.saturating_add(20);
+    }
+    if pgp_active {
+        score = score.saturating_add(20);
+    }
+    if header_stripped {
+        score = score.saturating_add(8);
+    }
+    if rules_active > 0 {
+        score = score.saturating_add(7);
+    }
+    if active_aliases > 0 {
+        score = score.saturating_add(5);
+    }
+    let score = score.min(100);
+    let grade = match score {
+        92..=100 => "A+",
+        82..=91 => "A",
+        70..=81 => "B+",
+        58..=69 => "B",
+        _ => "C",
+    }
+    .to_string();
+    let total_traffic = forwards.saturating_add(blocks);
+    let block_rate_percent = if total_traffic == 0 {
+        0
+    } else {
+        ((blocks.saturating_mul(100)) / total_traffic).min(100) as u8
+    };
+    PrivacyPostureReport {
+        score,
+        grade,
+        active_aliases,
+        total_aliases,
+        block_rate_percent,
+        pgp_active,
+        trackers_blocked,
+        header_stripped,
+        rules_active,
+    }
 }
 
 fn decode_base64_url(input: &str) -> Result<Vec<u8>, String> {
@@ -238,10 +381,23 @@ mod tests {
     #[test]
     fn test_decode_trackers_report() {
         let encoded = "eyJuIjoyLCJ0IjpbeyJkIjoidHJhY2suZXhhbXBsZS5jb20iLCJlIjoiaW1nIiwiciI6ImRvbWFpbiJ9LHsiZCI6Im1haWxjaGltcC5jb20iLCJlIjoiaW1nIiwiciI6InRpbnkifV19";
-        let report = decode_trackers_report(&format!("https://mailx.net/trackers-report#{encoded}")).unwrap();
+        let report =
+            decode_trackers_report(&format!("https://mailx.net/trackers-report#{encoded}"))
+                .unwrap();
         assert_eq!(report.total, 2);
         assert_eq!(report.trackers.len(), 2);
         assert_eq!(report.trackers[0].domain, "track.example.com");
+    }
+
+    #[test]
+    fn test_nato_and_privacy_posture() {
+        let tokens = encode_nato_phonetic("a@b");
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens[0].word, "Alpha");
+        assert_eq!(tokens[1].word, "At");
+        let posture = compute_privacy_posture(120, 30, 10, 12, true, true, true, 3);
+        assert_eq!(posture.score, 100);
+        assert_eq!(posture.grade, "A+");
     }
 
     #[test]

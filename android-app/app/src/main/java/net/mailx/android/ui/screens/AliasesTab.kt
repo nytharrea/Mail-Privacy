@@ -28,12 +28,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.AddySectionHeader
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
+import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.model.FilterUiState
 import net.mailx.android.ui.model.UiAlias
-import net.mailx.android.ui.theme.AddyPalette
+import net.mailx.android.ui.theme.MailxPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,9 +67,9 @@ fun AliasesTab(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 14.dp)
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         TextField(
             value = filterState.searchQuery,
@@ -78,16 +78,21 @@ fun AliasesTab(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
                 )
             },
             trailingIcon = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (filterState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChange("") }) {
+                        IconButton(
+                            onClick = { onSearchQueryChange("") },
+                            modifier = Modifier.size(34.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear"
+                                contentDescription = "Clear",
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                     }
@@ -95,7 +100,8 @@ fun AliasesTab(
                         onClick = {
                             selectionMode = !selectionMode
                             if (!selectionMode) selectedIds = emptySet()
-                        }
+                        },
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckBox,
@@ -104,10 +110,14 @@ fun AliasesTab(
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                            },
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    IconButton(onClick = onOpenFilterSheet) {
+                    IconButton(
+                        onClick = onOpenFilterSheet,
+                        modifier = Modifier.size(34.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = "Filter and Sort",
@@ -115,23 +125,25 @@ fun AliasesTab(
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                            },
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             },
             placeholder = {
                 Text(
-                    text = "Search aliases...",
+                    text = "Search aliases, domains or notes...",
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             singleLine = true,
-            shape = CircleShape,
+            shape = RoundedCornerShape(14.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent
@@ -139,52 +151,50 @@ fun AliasesTab(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         val filterChips = listOf(
             "active_inactive" to "All",
             "pinned_only" to "Pinned",
             "active" to "Active",
             "inactive" to "Disabled",
-            "deleted" to "Deleted",
-            "wildcard_only" to "Wildcard (*)"
+            "wildcard_only" to "Wildcard (*)",
+            "deleted" to "Trash"
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             filterChips.forEach { (key, label) ->
                 val isSelected = filterState.selectedChip == key
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectFilterChip(key) },
-                    label = { Text(label) }
+                    label = { Text(label, fontSize = 12.sp) }
                 )
             }
 
             FilterChip(
                 selected = filterState.isCustomFilterActive,
                 onClick = onOpenFilterSheet,
-                label = { Text("Custom") }
+                label = { Text("Sort", fontSize = 12.sp) }
             )
         }
 
         AnimatedVisibility(visible = selectionMode) {
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                ),
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
+                    .padding(top = 6.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -193,11 +203,11 @@ fun AliasesTab(
                     ) {
                         Text(
                             text = "${selectedIds.size} selected",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             TextButton(
                                 onClick = {
                                     selectedIds = if (selectedIds.size == aliases.size) {
@@ -208,18 +218,21 @@ fun AliasesTab(
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(if (selectedIds.size == aliases.size) "Clear All" else "Select All", fontSize = 12.sp)
+                                Text(
+                                    text = if (selectedIds.size == aliases.size) "Clear" else "Select All",
+                                    fontSize = 11.sp
+                                )
                             }
                             IconButton(
                                 onClick = {
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(26.dp)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Close Selection", modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Close, contentDescription = "Close Selection", modifier = Modifier.size(15.dp))
                             }
                         }
                     }
@@ -241,9 +254,10 @@ fun AliasesTab(
                                     selectedIds = emptySet()
                                 },
                                 shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Text("Enable", fontSize = 12.sp)
+                                Text("Enable", fontSize = 11.sp)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -253,9 +267,10 @@ fun AliasesTab(
                                     selectedIds = emptySet()
                                 },
                                 shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Text("Disable", fontSize = 12.sp)
+                                Text("Disable", fontSize = 11.sp)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -265,11 +280,12 @@ fun AliasesTab(
                                     selectedIds = emptySet()
                                 },
                                 shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.PushPin, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Pin", fontSize = 12.sp)
+                                Icon(Icons.Default.PushPin, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Pin", fontSize = 11.sp)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -279,9 +295,10 @@ fun AliasesTab(
                                     selectedIds = emptySet()
                                 },
                                 shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Text("Unpin", fontSize = 12.sp)
+                                Text("Unpin", fontSize = 11.sp)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -292,14 +309,15 @@ fun AliasesTab(
                                 },
                                 shape = CircleShape,
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = AddyPalette.SoftRed.copy(alpha = 0.16f),
-                                    contentColor = AddyPalette.SoftRed
+                                    containerColor = MailxPalette.BlockedRose.copy(alpha = 0.16f),
+                                    contentColor = MailxPalette.BlockedRose
                                 ),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Delete", fontSize = 12.sp)
+                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Delete", fontSize = 11.sp)
                             }
                         } else {
                             FilledTonalButton(
@@ -310,11 +328,12 @@ fun AliasesTab(
                                     selectedIds = emptySet()
                                 },
                                 shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Restore", fontSize = 12.sp)
+                                Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Restore", fontSize = 11.sp)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -325,14 +344,15 @@ fun AliasesTab(
                                 },
                                 shape = CircleShape,
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = AddyPalette.SoftRed.copy(alpha = 0.16f),
-                                    contentColor = AddyPalette.SoftRed
+                                    containerColor = MailxPalette.BlockedRose.copy(alpha = 0.16f),
+                                    contentColor = MailxPalette.BlockedRose
                                 ),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Forget", fontSize = 12.sp)
+                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Forget", fontSize = 11.sp)
                             }
                         }
                     }
@@ -340,17 +360,17 @@ fun AliasesTab(
             }
         }
 
-        AddySectionHeader(
+        MailxSectionHeader(
             title = if (filterState.isCustomFilterActive || filterState.searchQuery.isNotEmpty()) {
-                "Aliases (Filtered)"
+                "Filtered Aliases"
             } else {
                 "Aliases"
             },
             countBadge = aliases.size,
             isLoading = isLoading,
-            actionText = "New Alias",
+            actionText = "+ New Alias",
             onActionClick = onOpenCreateSheet,
-            modifier = Modifier.padding(top = 6.dp, bottom = 6.dp)
+            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
         )
 
         PullToRefreshBox(
@@ -362,19 +382,19 @@ fun AliasesTab(
                 EmptyStateBox(
                     icon = Icons.Outlined.AlternateEmail,
                     title = if (filterState.searchQuery.isNotEmpty()) {
-                        "No results found for \u0022${filterState.searchQuery}\u0022"
+                        "No aliases match \u0022${filterState.searchQuery}\u0022"
                     } else {
-                        "No aliases found"
+                        "No aliases in this view"
                     },
-                    subtitle = "Create a new alias or adjust your filter options.",
+                    subtitle = "Create a new alias or switch your active filter chip.",
                     actionLabel = "New Alias",
                     onActionClick = onOpenCreateSheet
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(top = 2.dp, bottom = 84.dp)
                 ) {
                     items(aliases, key = { it.id }) { alias ->
                         val isSelected = selectedIds.contains(alias.id)
