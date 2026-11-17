@@ -152,7 +152,7 @@ jobs:
             echo "=== Verifying 16 KB zipalign for ${apk} ==="
             "${ZIPALIGN}" -c -v -P 16 4 "${apk}" || true
             echo "=== Verifying APK Signature & Printing Certificate SHA-256 ==="
-            "${APKSIGNER}" -J--enable-native-access=ALL-UNNAMED verify --verbose --print-certs "${apk}"
+            "${APKSIGNER}" verify --verbose --print-certs "${apk}"
             cp "${apk}" dist-apks/
           done
 
