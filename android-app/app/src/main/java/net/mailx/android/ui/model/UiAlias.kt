@@ -806,20 +806,25 @@ object NatoPhoneticHelper {
     )
 
     fun toPhoneticPairs(email: String): List<Pair<String, String>> {
-        return runCatching {
+        val nativePairs: List<Pair<String, String>>? = runCatching {
             val res = JSONObject(MailxRustBridge.nativeEncodeNatoPhonetic(email))
             val arr = res.optJSONArray("data")
             if (res.optBoolean("ok", false) && arr != null && arr.length() > 0) {
-                buildList {
-                    for (i in 0 until arr.length()) {
-                        val item = arr.optJSONObject(i) ?: continue
-                        add(item.optString("symbol") to item.optString("word"))
+                val list = ArrayList<Pair<String, String>>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i)
+                    if (item != null) {
+                        val sym: String = item.optString("symbol", "")
+                        val wrd: String = item.optString("word", "")
+                        list.add(Pair(sym, wrd))
                     }
                 }
+                list
             } else {
                 null
             }
-        }.getOrNull() ?: email.map { ch -> ch.toString() to (map[ch.uppercaseChar()] ?: ch.toString()) }
+        }.getOrNull()
+        return nativePairs ?: email.map { ch -> ch.toString() to (map[ch.uppercaseChar()] ?: ch.toString()) }
     }
 }
 

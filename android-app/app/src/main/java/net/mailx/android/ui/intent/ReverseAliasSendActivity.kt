@@ -104,7 +104,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
     private fun loadCachedAliasNames(rawJson: String): List<String> {
         return runCatching {
             val arr = JSONArray(rawJson)
-            buildList {
+            buildList<String> {
                 for (i in 0 until arr.length()) {
                     val obj = arr.optJSONObject(i) ?: continue
                     val enabled = obj.optBoolean("enabled", true)
