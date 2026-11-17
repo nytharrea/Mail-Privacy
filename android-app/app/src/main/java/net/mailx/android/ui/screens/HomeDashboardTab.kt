@@ -1,16 +1,25 @@
 package net.mailx.android.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.automirrored.filled.ForwardToInbox
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -19,42 +28,59 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.mailx.android.ui.components.AliasCard
-import net.mailx.android.ui.components.EmptyStateBox
-import net.mailx.android.ui.components.MetricPill
+import androidx.compose.ui.unit.sp
+import net.mailx.android.ui.components.AddyHomeStatCard
+import net.mailx.android.ui.components.AddySectionHeader
 import net.mailx.android.ui.model.UiAlias
+import net.mailx.android.ui.model.UiUserStats
 import net.mailx.android.ui.theme.AddyPalette
 
+/**
+ * `anonaddy/addy-android` içindeki `res/layout/fragment_home.xml` (`HomeFragment.kt`) +
+ * Mailx `Stats` (`43668.jpg`, `43670.jpg`) 7 günlük grafik ve 90 günlük sunucu istatistikleri.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeDashboardTab(
     aliases: List<UiAlias>,
+    userStats: UiUserStats = UiUserStats(),
     isLoading: Boolean,
     defaultDomain: String,
+    recipientCount: Int = 1,
+    ruleCount: Int = 0,
+    blocklistCount: Int = 0,
     onRefresh: () -> Unit,
     onNavigateToFilter: (String) -> Unit,
+    onNavigateToRecipients: () -> Unit = {},
+    onNavigateToRules: () -> Unit = {},
+    onOpenDiagnostics: () -> Unit = {},
+    onOpenAccountSheet: () -> Unit = {},
     onSelectAlias: (UiAlias) -> Unit,
     onCopyOrWildcard: (UiAlias) -> Unit,
     onToggleEnabled: (UiAlias, Boolean) -> Unit,
     onOpenCreateAlias: () -> Unit,
     onOpenReverseAliasTool: () -> Unit
 ) {
-    val totalForwards = remember(aliases) { aliases.sumOf { it.forwards } }
-    val totalBlocks = remember(aliases) { aliases.sumOf { it.blocks } }
-    val totalReplies = remember(aliases) { aliases.sumOf { it.replies } }
-    val totalSends = remember(aliases) { aliases.sumOf { it.sends } }
-    val totalEvents = totalForwards + totalBlocks + totalReplies + totalSends
+    val aliasForwards = remember(aliases) { aliases.sumOf { it.forwards } }
+    val aliasBlocks = remember(aliases) { aliases.sumOf { it.blocks } }
+    val aliasReplies = remember(aliases) { aliases.sumOf { it.replies } }
+    val aliasSends = remember(aliases) { aliases.sumOf { it.sends } }
 
-    val activeCount = remember(aliases) { aliases.count { it.enabled } }
-    val inactiveCount = remember(aliases) { aliases.count { !it.enabled } }
+    val totalForwards = maxOf(aliasForwards, userStats.forwards)
+    val totalBlocks = maxOf(aliasBlocks, userStats.blocks)
+    val totalReplies = maxOf(aliasReplies, userStats.replies)
+    val totalSends = maxOf(aliasSends, userStats.sends)
+
+    val activeCount = remember(aliases) { aliases.count { it.enabled && it.deletedAt.isBlank() } }
+    val inactiveCount = remember(aliases) { aliases.count { !it.enabled && it.deletedAt.isBlank() } }
     val pinnedCount = remember(aliases) { aliases.count { it.pinned } }
+    val wildcardCount = remember(aliases) { aliases.count { it.wildcard } }
+    val deletedCount = remember(aliases) { aliases.count { it.deletedAt.isNotBlank() } }
 
-    val highlightedAliases = remember(aliases) {
-        val pinned = aliases.filter { it.pinned }
-        if (pinned.isNotEmpty()) pinned.take(6) else aliases.take(5)
+    val activeRatio = remember(aliases.size, activeCount) {
+        if (aliases.isEmpty()) 0f else activeCount.toFloat() / aliases.size.toFloat()
     }
 
     PullToRefreshBox(
@@ -65,228 +91,298 @@ fun HomeDashboardTab(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(key = "traffic_summary_card") {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = "E-posta Trafik Özeti",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${aliases.size} kayıtlı takma ad • @$defaultDomain",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(7.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primary)
-                                    )
-                                    Text(
-                                        text = "$totalEvents işlem",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-
-                        // 2x2 Ferah İstatistik Izgarası
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                MetricPill(
-                                    modifier = Modifier.weight(1f),
-                                    label = "İletilen",
-                                    value = totalForwards,
-                                    dotColor = AddyPalette.ForwardedOrange
-                                )
-                                MetricPill(
-                                    modifier = Modifier.weight(1f),
-                                    label = "Engellenen",
-                                    value = totalBlocks,
-                                    dotColor = AddyPalette.BlockedRed
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                MetricPill(
-                                    modifier = Modifier.weight(1f),
-                                    label = "Yanıtlanan",
-                                    value = totalReplies,
-                                    dotColor = AddyPalette.RepliedBlue
-                                )
-                                MetricPill(
-                                    modifier = Modifier.weight(1f),
-                                    label = "Gönderilen",
-                                    value = totalSends,
-                                    dotColor = AddyPalette.SentCyan
-                                )
-                            }
-                        }
-
-                        // Durum Filtre Hapları
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            StatusCountPill(
-                                modifier = Modifier.weight(1f),
-                                label = "Aktif",
-                                count = activeCount,
-                                dotColor = AddyPalette.ActiveGreen,
-                                onClick = { onNavigateToFilter("active") }
-                            )
-                            StatusCountPill(
-                                modifier = Modifier.weight(1f),
-                                label = "Pasif",
-                                count = inactiveCount,
-                                dotColor = Color(0xFF7D8B99),
-                                onClick = { onNavigateToFilter("inactive") }
-                            )
-                            StatusCountPill(
-                                modifier = Modifier.weight(1f),
-                                label = "Sabit",
-                                count = pinnedCount,
-                                dotColor = AddyPalette.PinnedAmber,
-                                onClick = { onNavigateToFilter("pinned_only") }
-                            )
-                        }
-                    }
-                }
+            // 1. Üst Durum Kartı (home_stat_card_bandwidth karşılığı)
+            item(key = "home_stat_card_bandwidth") {
+                AddyHomeStatCard(
+                    title = "Varsayılan Alan Adı",
+                    description = "@$defaultDomain • $activeCount/${aliases.size} aktif takma ad",
+                    icon = Icons.Default.Speed,
+                    progressFraction = activeRatio,
+                    onClick = { onNavigateToFilter("active_inactive") }
+                )
             }
 
-            item(key = "quick_actions_row") {
+            // 2. İstatistikler Başlığı (R.string.statistics)
+            item(key = "header_statistics") {
+                AddySectionHeader(
+                    title = "İstatistikler (Son 90 Gün / Toplam)",
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // İstatistikler 2x2 Grid (home_stats_gridlayout)
+            item(key = "home_stats_grid_row1") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Button(
-                        onClick = onOpenCreateAlias,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Yeni Alias", fontWeight = FontWeight.Bold)
-                    }
-                    OutlinedButton(
-                        onClick = onOpenReverseAliasTool,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Ters-Alias Gönder", fontWeight = FontWeight.SemiBold)
-                    }
+                    AddyHomeStatCard(
+                        title = "İletilen E-postalar",
+                        description = totalForwards.toString(),
+                        icon = Icons.Default.Inbox,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AddyHomeStatCard(
+                        title = "Engellenenler",
+                        description = totalBlocks.toString(),
+                        icon = Icons.Default.Block,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            item(key = "highlighted_header") {
+            item(key = "home_stats_grid_row2") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = if (pinnedCount > 0) "Sabitlenen Takma Adlar" else "Son Takma Adlar",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                    AddyHomeStatCard(
+                        title = "Yanıtlananlar",
+                        description = totalReplies.toString(),
+                        icon = Icons.AutoMirrored.Filled.Reply,
+                        modifier = Modifier.weight(1f)
                     )
-                    if (aliases.isNotEmpty()) {
-                        TextButton(
-                            onClick = { onNavigateToFilter("active_inactive") },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Text(
-                                text = "Tümünü Gör (${aliases.size})",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                    AddyHomeStatCard(
+                        title = "Gönderilenler",
+                        description = totalSends.toString(),
+                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            if (highlightedAliases.isEmpty()) {
-                item(key = "empty_home") {
-                    EmptyStateBox(
-                        icon = Icons.Outlined.AlternateEmail,
-                        title = "Henüz takma ad yok",
-                        subtitle = "İlk takma adınızı oluşturarak gerçek e-posta adresinizi koruyun.",
-                        actionLabel = "Yeni Alias Oluştur",
-                        onActionClick = onOpenCreateAlias
+            // Mailx Son 7 Günlük İleti Grafiği (`43668.jpg`)
+            if (userStats.dailyPoints.isNotEmpty()) {
+                item(key = "mailx_7day_chart") {
+                    MailxSevenDayChartCard(userStats = userStats)
+                }
+            }
+
+            // 3. Takma Adlar Başlığı (R.string.aliases)
+            item(key = "header_aliases") {
+                AddySectionHeader(
+                    title = "Takma Adlar",
+                    actionText = "Takma Ad Ekle",
+                    onActionClick = onOpenCreateAlias,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+
+            // Takma Adlar 2x3 Grid (home_stats_aliases_gridlayout)
+            item(key = "home_aliases_grid_row1") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AddyHomeStatCard(
+                        title = "Toplam Takma Ad",
+                        description = aliases.size.toString(),
+                        icon = Icons.Default.AlternateEmail,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFilter("active_inactive") }
+                    )
+                    AddyHomeStatCard(
+                        title = "Aktif Takma Adlar",
+                        description = activeCount.toString(),
+                        icon = Icons.Default.Check,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFilter("active") }
                     )
                 }
-            } else {
-                items(highlightedAliases, key = { "dash_${it.id}" }) { alias ->
-                    AliasCard(
-                        alias = alias,
-                        modifier = Modifier.animateItem(),
-                        onClick = { onSelectAlias(alias) },
-                        onCopyOrWildcard = { onCopyOrWildcard(alias) },
-                        onToggleEnabled = { newState -> onToggleEnabled(alias, newState) }
+            }
+
+            item(key = "home_aliases_grid_row2") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AddyHomeStatCard(
+                        title = "Pasif Takma Adlar",
+                        description = inactiveCount.toString(),
+                        icon = Icons.Default.Close,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFilter("inactive") }
                     )
+                    AddyHomeStatCard(
+                        title = "Sabitlenenler",
+                        description = pinnedCount.toString(),
+                        icon = Icons.Default.PushPin,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFilter("pinned_only") }
+                    )
+                }
+            }
+
+            item(key = "home_aliases_grid_row3") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AddyHomeStatCard(
+                        title = "Wildcard (*)",
+                        description = wildcardCount.toString(),
+                        icon = Icons.Default.AutoAwesome,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFilter("wildcard_only") }
+                    )
+                    AddyHomeStatCard(
+                        title = "Silinenler",
+                        description = deletedCount.toString(),
+                        icon = Icons.Default.DeleteOutline,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFilter("deleted") }
+                    )
+                }
+            }
+
+            // 4. Alıcılar, Kurallar ve Araçlar Başlığı
+            item(key = "header_recipients_tools") {
+                AddySectionHeader(
+                    title = "Alıcılar, Kurallar ve Araçlar",
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+
+            item(key = "home_recipients_row1") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AddyHomeStatCard(
+                        title = "Alıcılar & Alan Adı",
+                        description = "$recipientCount alıcı",
+                        icon = Icons.Default.Inbox,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToRecipients
+                    )
+                    AddyHomeStatCard(
+                        title = "Kurallar & Engel",
+                        description = "$ruleCount kural • $blocklistCount engel",
+                        icon = Icons.Default.FilterAlt,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToRules
+                    )
+                }
+            }
+
+            item(key = "home_recipients_row2") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AddyHomeStatCard(
+                        title = "Ters-Alias Gönder",
+                        description = "Takma Addan İleti",
+                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenReverseAliasTool
+                    )
+                    AddyHomeStatCard(
+                        title = "Tanılama Günlükleri",
+                        description = "İletim & Hata Kayıtları",
+                        icon = Icons.Default.BugReport,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenDiagnostics
+                    )
+                }
+            }
+
+            item(key = "home_account_row") {
+                AddyHomeStatCard(
+                    title = "Hesap, Abonelik & Erişim Anahtarları",
+                    description = "2FA TOTP, CSV İçe/Dışa Aktar ve API Anahtarları",
+                    icon = Icons.Default.Key,
+                    onClick = onOpenAccountSheet
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MailxSevenDayChartCard(userStats: UiUserStats) {
+    val maxDayTotal = remember(userStats.dailyPoints) {
+        (userStats.dailyPoints.maxOfOrNull { it.total } ?: 1).coerceAtLeast(1)
+    }
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Son 7 Günlük İleti Trafiği",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ChartLegendDot(color = AddyPalette.PortalOrange, label = "İletilen")
+                    ChartLegendDot(color = AddyPalette.PortalBlue, label = "Yanıt")
+                    ChartLegendDot(color = AddyPalette.EasternBlue, label = "Gönderim")
+                    ChartLegendDot(color = AddyPalette.SoftRed, label = "Engel")
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                userStats.dailyPoints.forEach { pt ->
+                    val frac = (pt.total.toFloat() / maxDayTotal.toFloat()).coerceIn(0.06f, 1f)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                        modifier = Modifier.fillMaxHeight()
+                    ) {
+                        Text(
+                            text = pt.total.toString(),
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(22.dp)
+                                .fillMaxHeight(fraction = frac * 0.72f)
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                .background(
+                                    when {
+                                        pt.blocks > pt.forwards -> AddyPalette.SoftRed
+                                        pt.replies > 0 -> AddyPalette.PortalBlue
+                                        pt.sends > 0 -> AddyPalette.EasternBlue
+                                        pt.total > 0 -> AddyPalette.PortalOrange
+                                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                    }
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = pt.label,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -294,46 +390,21 @@ fun HomeDashboardTab(
 }
 
 @Composable
-private fun StatusCountPill(
-    modifier: Modifier = Modifier,
-    label: String,
-    count: Int,
-    dotColor: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+private fun ChartLegendDot(color: Color, label: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(dotColor)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "$label: ",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

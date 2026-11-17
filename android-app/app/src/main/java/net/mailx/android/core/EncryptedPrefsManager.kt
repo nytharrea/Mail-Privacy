@@ -10,7 +10,7 @@ import java.security.KeyStore
 
 /**
  * `anonaddy/addy-android` içindeki `SettingsManager.kt` mimarisinden uyarlanan,
- * Access Key, Bearer Token, sunucu varsayılanları ve çevrimdışı alias önbelleğini
+ * Access Key, Web Oturum Çerezi (`authn`), sunucu ayarları ve çevrimdışı önbelleği
  * Android Keystore (AES256-GCM) ile şifreli saklayan yönetici.
  */
 class EncryptedPrefsManager(context: Context) {
@@ -21,7 +21,6 @@ class EncryptedPrefsManager(context: Context) {
         return runCatching {
             buildEncryptedPrefs(appContext)
         }.getOrElse {
-            // Cihaz kilit ekranı sıfırlandığında veya Keystore bozulduğunda temizleyip yeniden oluştur
             runCatching {
                 appContext.deleteSharedPreferences(PREFS_FILE_NAME)
                 val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -73,6 +72,10 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getString(KEY_BEARER_TOKEN, "") ?: ""
         set(value) = prefs.edit().putString(KEY_BEARER_TOKEN, value.trim()).apply()
 
+    var accountEmail: String
+        get() = prefs.getString(KEY_ACCOUNT_EMAIL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_ACCOUNT_EMAIL, value.trim()).apply()
+
     var defaultDomain: String
         get() = prefs.getString(KEY_DEFAULT_DOMAIN, "mailx.net") ?: "mailx.net"
         set(value) = prefs.edit().putString(KEY_DEFAULT_DOMAIN, value.trim()).apply()
@@ -109,6 +112,10 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_LOG_ISSUES, false)
         set(value) = prefs.edit().putBoolean(KEY_LOG_ISSUES, value).apply()
 
+    var unsubscribeBehaviour: Int
+        get() = prefs.getInt(KEY_UNSUBSCRIBE_BEHAVIOUR, 0)
+        set(value) = prefs.edit().putInt(KEY_UNSUBSCRIBE_BEHAVIOUR, value).apply()
+
     var cachedAliasesJson: String
         get() = prefs.getString(KEY_CACHED_ALIASES, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CACHED_ALIASES, value).apply()
@@ -122,8 +129,16 @@ class EncryptedPrefsManager(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
 
     var amoledDarkEnabled: Boolean
-        get() = prefs.getBoolean(KEY_AMOLED_DARK_ENABLED, true)
+        get() = prefs.getBoolean(KEY_AMOLED_DARK_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_AMOLED_DARK_ENABLED, value).apply()
+
+    /**
+     * addy-android `PREFS.DARK_MODE` uyumlu:
+     * `1` = Karanlık Açık, `-1` = Sistem Varsayılanı, `0` = Açık Tema
+     */
+    var darkModeMode: Int
+        get() = prefs.getInt(KEY_DARK_MODE_MODE, 1)
+        set(value) = prefs.edit().putInt(KEY_DARK_MODE_MODE, value).apply()
 
     fun getAvailableDomains(): List<String> {
         val result = linkedSetOf<String>()
@@ -137,7 +152,8 @@ class EncryptedPrefsManager(context: Context) {
                 }
             }
         }
-        if (result.isEmpty()) result.add("mailx.net")
+        // Mailx resmi paylaşımlı alan adları yedek listesi (43678.jpg)
+        DEFAULT_SHARED_DOMAINS.forEach { result.add(it) }
         return result.toList()
     }
 
@@ -160,7 +176,9 @@ class EncryptedPrefsManager(context: Context) {
         return result.toList()
     }
 
-    fun isConfigured(): Boolean = accessKey.isNotEmpty() && bearerToken.isNotEmpty()
+    fun isConfigured(): Boolean = bearerToken.isNotEmpty()
+
+    fun isWebSession(): Boolean = bearerToken.startsWith("cookie:")
 
     fun syncRefreshedTokenIfPresent(response: JSONObject) {
         val newToken = response.optString("refreshed_token", "").trim()
@@ -169,11 +187,6 @@ class EncryptedPrefsManager(context: Context) {
         }
     }
 
-    /**
-     * `POST /v1/api/authenticate` veya `GET /v1/api/defaults` yanıtındaki (`access_key.go`)
-     * `domain`, `domains`, `custom_domains`, `recipient`, `recipients`, `alias_format`,
-     * `from_name`, `block_trackers`, `remove_header` ve `log_issues` alanlarını kaydeder.
-     */
     fun applyServerDefaults(data: JSONObject) {
         val domainsSet = linkedSetOf<String>()
         val domainsArr = data.optJSONArray("domains")
@@ -194,6 +207,7 @@ class EncryptedPrefsManager(context: Context) {
                 }
             }
         }
+        DEFAULT_SHARED_DOMAINS.forEach { domainsSet.add(it) }
 
         val firstDomain = domainsSet.firstOrNull().orEmpty()
         val dom = data.optString("domain", "").trim().ifEmpty {
@@ -252,12 +266,16 @@ class EncryptedPrefsManager(context: Context) {
         if (data.has("log_issues")) {
             logIssues = data.optBoolean("log_issues", false)
         }
+        if (data.has("list_unsubscribe_behaviour")) {
+            unsubscribeBehaviour = data.optInt("list_unsubscribe_behaviour", 0)
+        }
     }
 
     fun clearSession() {
         prefs.edit()
             .remove(KEY_ACCESS_KEY)
             .remove(KEY_BEARER_TOKEN)
+            .remove(KEY_ACCOUNT_EMAIL)
             .remove(KEY_CACHED_ALIASES)
             .remove(KEY_AVAILABLE_DOMAINS)
             .remove(KEY_AVAILABLE_RECIPIENTS)
@@ -267,9 +285,18 @@ class EncryptedPrefsManager(context: Context) {
     companion object {
         private const val PREFS_FILE_NAME = "mailx_encrypted_prefs"
         const val DEFAULT_API_BASE_URL = "https://api.mailx.net"
+        val DEFAULT_SHARED_DOMAINS = listOf(
+            "mailx.net",
+            "zeropost.net",
+            "mailshift.net",
+            "layermail.net",
+            "ambox.net",
+            "spotsend.com"
+        )
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_ACCESS_KEY = "access_key"
         private const val KEY_BEARER_TOKEN = "bearer_token"
+        private const val KEY_ACCOUNT_EMAIL = "account_email"
         private const val KEY_DEFAULT_DOMAIN = "default_domain"
         private const val KEY_DEFAULT_RECIPIENT = "default_recipient"
         private const val KEY_DEFAULT_FORMAT = "default_format"
@@ -279,9 +306,11 @@ class EncryptedPrefsManager(context: Context) {
         private const val KEY_BLOCK_TRACKERS = "block_trackers"
         private const val KEY_REMOVE_HEADER = "remove_header"
         private const val KEY_LOG_ISSUES = "log_issues"
+        private const val KEY_UNSUBSCRIBE_BEHAVIOUR = "unsubscribe_behaviour"
         private const val KEY_CACHED_ALIASES = "cached_aliases"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
-        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v2_enabled"
-        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v2_enabled"
+        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v3_enabled"
+        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v3_enabled"
+        private const val KEY_DARK_MODE_MODE = "dark_mode_v3_mode"
     }
 }

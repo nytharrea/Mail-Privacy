@@ -1,13 +1,10 @@
 package net.mailx.android.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
@@ -16,217 +13,219 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import net.mailx.android.ui.model.UiAlias
+import net.mailx.android.ui.model.formatIsoDateShort
 import net.mailx.android.ui.theme.AddyPalette
 
+/**
+ * `anonaddy/addy-android` içindeki `aliases_recyclerview_list_item.xml` ve `AliasAdapter.kt`
+ * bileşeninin birebir Compose karşılığı:
+ * - Sol: `DonutProgressView` (`AddyDonutChart`)
+ * - Orta: E-posta adresi (16sp, sans-serif-medium) + 2 satır açıklama/tarih (DescTextStyle, alpha 0.7) + etiket rozetleri
+ * - Sağ: Kopyala ikonu (`ic_copy` / `ic_check`)
+ * - Sağ üst köşe: Sabitlenen (`ic_pinned`) ve Wildcard ikonları (14dp)
+ */
 @Composable
 fun AliasCard(
     alias: UiAlias,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onCopyOrWildcard: () -> Unit,
-    onToggleEnabled: (Boolean) -> Unit
+    onToggleEnabled: (Boolean) -> Unit = {}
 ) {
     var justCopied by remember { mutableStateOf(false) }
 
     LaunchedEffect(justCopied) {
         if (justCopied) {
-            delay(1300)
+            delay(1400)
             justCopied = false
         }
     }
 
-    val borderColor = when {
-        alias.pinned -> AddyPalette.PinnedAmber.copy(alpha = 0.55f)
-        alias.enabled -> MaterialTheme.colorScheme.outlineVariant
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    }
-
-    val badgeContainerColor = when {
-        alias.pinned -> AddyPalette.PinnedAmber.copy(alpha = 0.14f)
-        alias.enabled -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-
-    val badgeTint = when {
-        alias.pinned -> AddyPalette.PinnedAmber
-        alias.enabled -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, borderColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 13.dp)
-                .alpha(if (alias.enabled) 1f else 0.62f),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Modern ikon rozeti (eski turuncu 0 halkası yerine)
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = badgeContainerColor,
-                border = BorderStroke(1.dp, badgeTint.copy(alpha = 0.28f)),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = when {
-                            alias.pinned -> Icons.Default.PushPin
-                            alias.wildcard -> Icons.Default.AutoAwesome
-                            else -> Icons.Default.AlternateEmail
-                        },
-                        contentDescription = null,
-                        tint = badgeTint,
-                        modifier = Modifier.size(19.dp)
-                    )
+    val descriptionText = remember(alias) {
+        val parts = mutableListOf<String>()
+        if (alias.description.isNotBlank()) {
+            parts.add(alias.description)
+        }
+        if (alias.deletedAt.isNotBlank()) {
+            parts.add("Silinme: ${formatIsoDateShort(alias.deletedAt)}")
+            if (alias.description.isBlank()) {
+                parts.add("Oluşturulma: ${formatIsoDateShort(alias.createdAt)}")
+            }
+        } else {
+            parts.add("Oluşturulma: ${formatIsoDateShort(alias.createdAt)}")
+            if (alias.description.isBlank()) {
+                if (alias.updatedAt.isNotBlank()) {
+                    parts.add("Güncellenme: ${formatIsoDateShort(alias.updatedAt)}")
+                } else if (alias.recipients.isNotBlank()) {
+                    parts.add("Alıcı: ${alias.recipients}")
                 }
             }
+        }
+        parts.joinToString("\n")
+    }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(
-                            SpanStyle(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            append(alias.localPart)
-                        }
-                        withStyle(
-                            SpanStyle(
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            append("@${alias.domainPart}")
-                        }
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                // Sol: addy-android DonutProgressView
+                AddyDonutChart(
+                    forwards = alias.forwards,
+                    replies = alias.replies,
+                    sends = alias.sends,
+                    blocks = alias.blocks,
+                    enabled = alias.enabled,
+                    size = 42.dp,
+                    strokeWidth = 6.5.dp
                 )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Orta: E-posta başlığı, 2 satır açıklama/tarih ve etiket rozetleri
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(if (alias.enabled) AddyPalette.ActiveGreen else Color(0xFF5C6778))
-                    )
-                    val subline = when {
-                        alias.description.isNotBlank() -> alias.description
-                        alias.recipients.isNotBlank() -> alias.recipients
-                        else -> if (alias.enabled) "Aktif yönlendirme" else "Duraklatıldı"
-                    }
                     Text(
-                        text = subline,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = alias.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.padding(bottom = 2.dp, end = if (alias.pinned || alias.wildcard) 24.dp else 0.dp)
                     )
 
-                    if (alias.totalActivity > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    Text(
+                        text = descriptionText,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 2,
+                        minLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // Etiket / Durum rozetleri (addy-android layout_label_badge.xml karşılığı)
+                    if (!alias.enabled || alias.wildcard || alias.isCustomDomain) {
+                        Row(
+                            modifier = Modifier.padding(top = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${alias.forwards}↑ ${alias.blocks}✕",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            if (!alias.enabled) {
+                                AliasLabelBadge(
+                                    text = "Devre Dışı",
+                                    color = AddyPalette.Grey500
+                                )
+                            }
+                            if (alias.wildcard) {
+                                AliasLabelBadge(
+                                    text = "Wildcard",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (alias.isCustomDomain) {
+                                AliasLabelBadge(
+                                    text = alias.domainPart,
+                                    color = AddyPalette.EasternBlue
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            val copyContainerColor by animateColorAsState(
-                targetValue = if (justCopied) {
-                    AddyPalette.ActiveGreen.copy(alpha = 0.18f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                label = "copyContainerColor"
-            )
-            val copyTint by animateColorAsState(
-                targetValue = if (justCopied) {
-                    AddyPalette.ActiveGreen
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                label = "copyTint"
-            )
-
-            Surface(
-                onClick = {
-                    if (!alias.wildcard) justCopied = true
-                    onCopyOrWildcard()
-                },
-                modifier = Modifier.size(36.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = copyContainerColor,
-                border = BorderStroke(
-                    1.dp,
-                    if (justCopied) AddyPalette.ActiveGreen.copy(alpha = 0.45f)
-                    else MaterialTheme.colorScheme.outlineVariant
-                )
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+                // Sağ: Kopyala ikonu (addy-android aliases_recyclerview_list_copy)
+                IconButton(
+                    onClick = {
+                        if (!alias.wildcard) justCopied = true
+                        onCopyOrWildcard()
+                    }
+                ) {
                     Icon(
                         imageVector = when {
                             justCopied -> Icons.Default.Check
                             alias.wildcard -> Icons.Default.AutoAwesome
                             else -> Icons.Default.ContentCopy
                         },
-                        contentDescription = "Kopyala",
-                        tint = copyTint,
-                        modifier = Modifier.size(16.dp)
+                        contentDescription = "Takma adı kopyala",
+                        tint = if (justCopied) {
+                            AddyPalette.Green
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Switch(
-                checked = alias.enabled,
-                onCheckedChange = onToggleEnabled,
-                colors = amoledSwitchColors()
-            )
+            // Sağ üst köşe: Sabitlenen ve Wildcard rozet ikonları (14dp, margin 8dp)
+            if (alias.pinned || alias.wildcard) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (alias.wildcard) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Wildcard",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    if (alias.pinned) {
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Sabitlendi",
+                            tint = AddyPalette.PortalOrange,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun AliasLabelBadge(
+    text: String,
+    color: androidx.compose.ui.graphics.Color
+) {
+    Surface(
+        shape = CircleShape,
+        color = color.copy(alpha = 0.18f)
+    ) {
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = color,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+        )
     }
 }

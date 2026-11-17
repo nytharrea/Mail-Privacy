@@ -6,6 +6,8 @@ import org.json.JSONObject
 
 /**
  * `libmailx_core.so` (Rust çekirdeği) ile doğrudan JNI üzerinden konuşan tekil köprü.
+ * Hem Access Key (`Bearer`) hem de E-posta/Parola (`Cookie: authn=...`) oturumlarını
+ * ve tüm `/v1/*` Mailx API uç noktalarını destekler.
  */
 object MailxRustBridge {
     init {
@@ -23,6 +25,24 @@ object MailxRustBridge {
 
     @JvmStatic
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
+
+    @JvmStatic
+    external fun nativeLogin(
+        baseUrl: String,
+        email: String,
+        password: String,
+        otp: String
+    ): String
+
+    @JvmStatic
+    external fun nativeApiRequest(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        method: String,
+        path: String,
+        bodyJson: String
+    ): String
 
     @JvmStatic
     external fun nativeFetchDefaults(
@@ -86,6 +106,26 @@ object MailxRustBridge {
         withContext(Dispatchers.IO) {
             JSONObject(nativeAuthenticate(baseUrl, accessKey))
         }
+
+    suspend fun login(
+        baseUrl: String,
+        email: String,
+        password: String,
+        otp: String = ""
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativeLogin(baseUrl, email, password, otp))
+    }
+
+    suspend fun apiRequest(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        method: String,
+        path: String,
+        bodyJson: String = ""
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativeApiRequest(baseUrl, accessKey, bearerToken, method, path, bodyJson))
+    }
 
     suspend fun fetchDefaults(
         baseUrl: String,

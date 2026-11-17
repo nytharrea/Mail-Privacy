@@ -1,23 +1,32 @@
 package net.mailx.android.ui.sheets
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import net.mailx.android.ui.components.SectionSwitchRow
+import androidx.compose.ui.unit.sp
+import net.mailx.android.ui.components.AddySectionView
 import net.mailx.android.ui.model.AliasSortField
 import net.mailx.android.ui.model.FilterUiState
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * `anonaddy/addy-android` içindeki `res/layout/bottomsheet_filter_options_alias.xml`
+ * (`FilterOptionsAliasBottomDialogFragment.kt`) alt penceresinin birebir Compose karşılığı.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FilterOptionsBottomSheet(
     filterState: FilterUiState,
@@ -35,130 +44,183 @@ fun FilterOptionsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 28.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Filtrele ve Sırala",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                TextButton(onClick = onReset) {
-                    Text("Sıfırla")
-                }
-            }
-
             Text(
-                text = "Durum Filtresi",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-            Row(
+                text = "Filtreleme ve Sıralama",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(bottom = 14.dp)
+            )
+
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                listOf(
+                Text(
+                    text = "Takma ad listesini durumuna göre filtreleyin veya istediğiniz ölçüte göre sıralayın.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Filtreler Başlığı + Filtreyi Temizle (bs_filteroptions_aliases_clear_filter)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Filtreler",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    FilledTonalButton(
+                        onClick = onReset,
+                        shape = CircleShape,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterAltOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Filtreyi Temizle")
+                    }
+                }
+
+                // bs_filteroptions_aliases_mbtg
+                val filterOptions = listOf(
                     "active_inactive" to "Tümü",
                     "active" to "Aktif",
                     "inactive" to "Pasif",
                     "pinned_only" to "Sabitlenen",
-                    "wildcard_only" to "Wildcard (*)",
-                    "deleted" to "Silinen (90g)"
-                ).forEach { (key, lbl) ->
-                    FilterChip(
-                        selected = tempFilter == key,
-                        onClick = { tempFilter = key },
-                        label = { Text(lbl) },
-                        shape = MaterialTheme.shapes.small
-                    )
-                }
-            }
-
-            Text(
-                text = "Sıralama Yönü",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    selected = tempDesc,
-                    onClick = { tempDesc = true },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDownward,
-                            contentDescription = null,
-                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
-                        )
-                    },
-                    label = { Text("Azalan (Yeni → Eski)") }
+                    "deleted" to "Silinen",
+                    "wildcard_only" to "Wildcard (*)"
                 )
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    selected = !tempDesc,
-                    onClick = { tempDesc = false },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowUpward,
-                            contentDescription = null,
-                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    filterOptions.forEach { (key, label) ->
+                        FilterChip(
+                            selected = tempFilter == key,
+                            onClick = { tempFilter = key },
+                            label = { Text(label) }
                         )
-                    },
-                    label = { Text("Artan (Eski → Yeni)") }
+                    }
+                }
+
+                AddySectionView(
+                    title = "Sabitlenenleri Üstte Tut",
+                    description = "Sıralama ölçütünden bağımsız olarak sabitlenenleri başta göster",
+                    startIcon = Icons.Default.PushPin,
+                    showSwitch = true,
+                    switchChecked = tempPinnedFirst,
+                    onSwitchChange = { tempPinnedFirst = it }
                 )
             }
 
-            Text(
-                text = "Sıralama Ölçütü",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
-            Row(
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                AliasSortField.entries.forEach { field ->
-                    FilterChip(
-                        selected = tempSort == field,
-                        onClick = { tempSort = field },
-                        label = { Text(field.label) },
-                        shape = MaterialTheme.shapes.small
+                // Sıralama Ölçütü Başlığı + Sıralama Yönü Butonu (bs_filteroptions_aliases_sort_order)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Sıralama Ölçütü",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+
+                    FilledTonalButton(
+                        onClick = { tempDesc = !tempDesc },
+                        shape = CircleShape,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (tempDesc) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (tempDesc) "Azalan" else "Artan")
+                    }
                 }
-            }
 
-            SectionSwitchRow(
-                icon = Icons.Default.PushPin,
-                title = "Sabitlenenleri Üstte Tut",
-                subtitle = "Sıralamadan bağımsız olarak sabitlenenleri başta göster",
-                checked = tempPinnedFirst,
-                onCheckedChange = { tempPinnedFirst = it }
-            )
+                // bs_filteroptions_aliases_sorting_chipgroup
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    AliasSortField.entries.forEach { field ->
+                        FilterChip(
+                            selected = tempSort == field,
+                            onClick = { tempSort = field },
+                            label = { Text(field.label) }
+                        )
+                    }
+                }
 
-            Button(
-                onClick = { onApply(tempFilter, tempSort, tempDesc, tempPinnedFirst) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text("Uygula", fontWeight = FontWeight.Bold)
+                // bs_filteroptions_aliases_save_button (CircularProgressButtonSecondary -> 56dp)
+                Button(
+                    onClick = { onApply(tempFilter, tempSort, tempDesc, tempPinnedFirst) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Kaydet", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }

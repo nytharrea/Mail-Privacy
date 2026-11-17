@@ -1,7 +1,7 @@
 //! Android (Kotlin) <-> Rust JNI Köprüsü
 //!
 //! Kotlin paket yolu: `net.mailx.android.core.MailxRustBridge`
-//! Tüm yanıtlar JSON zarfı (`{"ok": true, "data": ...}` veya `{"ok": false, "error": "..."}`)
+//! Tüm yanıtlar JSON zarfı (`{"ok": true, "data": ...}` veya `{"ok": false, "error": "...", "error_code": ...}`)
 //! olarak döndürülür; böylece JNI sınırında exception/panic oluşmaz.
 
 #[cfg(feature = "network")]
@@ -17,6 +17,8 @@ pub struct JniEnvelope<T: Serialize> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refreshed_token: Option<String>,
 }
 
@@ -30,16 +32,22 @@ impl<T: Serialize> JniEnvelope<T> {
             ok: true,
             data: Some(data),
             error: None,
+            error_code: None,
             refreshed_token,
         })
         .unwrap_or_else(|e| format!(r#"{{"ok":false,"error":"{}"}}"#, e))
     }
 
     pub fn failure(err: impl ToString) -> String {
+        Self::failure_with_code(err, None)
+    }
+
+    pub fn failure_with_code(err: impl ToString, error_code: Option<i64>) -> String {
         serde_json::to_string(&Self {
             ok: false,
             data: None,
             error: Some(err.to_string()),
+            error_code,
             refreshed_token: None,
         })
         .unwrap_or_else(|_| r#"{"ok":false,"error":"Serialization error"}"#.to_string())
@@ -86,7 +94,49 @@ pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {
     };
     match client.authenticate(access_key) {
         Ok(res) => JniEnvelope::success(res),
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
+pub fn handle_login(base_url: &str, email: &str, password: &str, otp: &str) -> String {
+    use crate::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    match client.login_with_credentials(email, password, otp) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
+pub fn handle_api_request(
+    base_url: &str,
+    access_key: &str,
+    bearer_token: &str,
+    method: &str,
+    path: &str,
+    body_json: &str,
+) -> String {
+    use crate::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
+    let body_opt = if body_json.trim().is_empty() {
+        None
+    } else {
+        Some(body_json)
+    };
+    match client.execute_raw_json(method, path, body_opt) {
+        Ok(val) => {
+            let refreshed = detect_refreshed_token(&client, bearer_token);
+            JniEnvelope::success_with_token(val, refreshed)
+        }
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -103,7 +153,7 @@ pub fn handle_fetch_defaults(base_url: &str, access_key: &str, bearer_token: &st
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(defaults, refreshed)
         }
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -140,7 +190,7 @@ pub fn handle_fetch_aliases(
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(list, refreshed)
         }
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -166,7 +216,7 @@ pub fn handle_create_alias(
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(res, refreshed)
         }
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -193,7 +243,7 @@ pub fn handle_update_alias(
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(res, refreshed)
         }
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -216,7 +266,7 @@ pub fn handle_pin_alias(
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(res, refreshed)
         }
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -238,7 +288,7 @@ pub fn handle_delete_alias(
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(res, refreshed)
         }
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -252,7 +302,7 @@ pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
     client.set_credentials(None, Some(bearer_token.to_string()));
     match client.logout() {
         Ok(res) => JniEnvelope::success(res),
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
 }
 
@@ -338,6 +388,48 @@ mod android_exports {
             let url = jstring_to_rust(env, base_url);
             let key = jstring_to_rust(env, access_key);
             handle_authenticate(&url, &key)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeLogin(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        email: JString,
+        password: JString,
+        otp: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let em = jstring_to_rust(env, email);
+            let pw = jstring_to_rust(env, password);
+            let code = jstring_to_rust(env, otp);
+            handle_login(&url, &em, &pw, &code)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeApiRequest(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        access_key: JString,
+        bearer_token: JString,
+        method: JString,
+        path: JString,
+        body_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let key = jstring_to_rust(env, access_key);
+            let tok = jstring_to_rust(env, bearer_token);
+            let m = jstring_to_rust(env, method);
+            let p = jstring_to_rust(env, path);
+            let b = jstring_to_rust(env, body_json);
+            handle_api_request(&url, &key, &tok, &m, &p, &b)
         })
     }
 

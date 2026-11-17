@@ -4,20 +4,24 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.model.DefaultsUiState
 import org.json.JSONObject
 
+/**
+ * `anonaddy/addy-android` içindeki `res/layout/bottomsheet_addalias.xml` (`AddAliasBottomDialogFragment.kt`)
+ * alt penceresinin birebir Compose karşılığı.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAliasBottomSheet(
@@ -27,220 +31,285 @@ fun AddAliasBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var description by remember { mutableStateOf("") }
-    var selectedFormat by remember { mutableStateOf(defaultsState.defaultFormat.ifEmpty { "words" }) }
     var selectedDomain by remember { mutableStateOf(defaultsState.defaultDomain.ifEmpty { "mailx.net" }) }
+    var selectedFormat by remember { mutableStateOf(defaultsState.defaultFormat.ifEmpty { "words" }) }
     var customLocalPart by remember { mutableStateOf("") }
     var wildcardLocalPart by remember { mutableStateOf("") }
     var wildcardDelimiter by remember { mutableStateOf("+") }
+    var description by remember { mutableStateOf("") }
     var fromName by remember { mutableStateOf(defaultsState.defaultFromName) }
-    var recipientsText by remember { mutableStateOf(defaultsState.defaultRecipient) }
-    var showAdvanced by remember { mutableStateOf(false) }
+    var selectedRecipients by remember {
+        mutableStateOf(
+            defaultsState.defaultRecipient
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+        )
+    }
+    var domainDropdownExpanded by remember { mutableStateOf(false) }
+    var formatDropdownExpanded by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
 
     val formats = listOf(
-        "words" to "Kelime",
-        "random" to "Rastgele",
+        "words" to "Rastgele Kelimeler",
+        "random" to "Rastgele Karakterler",
         "uuid" to "UUID",
         "wildcard" to "Wildcard (*)",
-        "custom" to "Özel Ad"
+        "custom" to "Özel"
     )
+    val currentFormatLabel = formats.firstOrNull { it.first == selectedFormat }?.second ?: selectedFormat
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Yeni Takma Ad Oluştur",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Açıklama (Örn: GitHub, Amazon, Kargo)") },
-                singleLine = true,
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Row(
+                text = "Takma Ad Ekle",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                formats.forEach { (fmtKey, fmtLabel) ->
-                    FilterChip(
-                        selected = selectedFormat == fmtKey,
-                        onClick = { selectedFormat = fmtKey },
-                        label = { Text(fmtLabel) },
-                        shape = MaterialTheme.shapes.small
-                    )
-                }
-            }
+                    .padding(bottom = 14.dp)
+            )
 
-            AnimatedVisibility(visible = selectedFormat == "custom") {
-                OutlinedTextField(
-                    value = customLocalPart,
-                    onValueChange = { customLocalPart = it.trim() },
-                    label = { Text("Özel Yerel Ad") },
-                    suffix = { Text("@$selectedDomain", fontFamily = FontFamily.Monospace) },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.small,
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Alan adı ve format seçerek yeni bir takma ad oluşturun. Oluşturulan adres otomatik olarak panoya kopyalanır.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
 
-            AnimatedVisibility(visible = selectedFormat == "wildcard") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // bs_addalias_domain_til (AppTheme.ExposedDropdownMenu)
+                ExposedDropdownMenuBox(
+                    expanded = domainDropdownExpanded,
+                    onExpandedChange = { domainDropdownExpanded = it }
                 ) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.width(128.dp)) {
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            selected = wildcardDelimiter == "+",
-                            onClick = { wildcardDelimiter = "+" },
-                            label = { Text("*+") }
-                        )
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            selected = wildcardDelimiter == ".",
-                            onClick = { wildcardDelimiter = "." },
-                            label = { Text("*.") }
-                        )
-                    }
                     OutlinedTextField(
-                        value = wildcardLocalPart,
-                        onValueChange = { wildcardLocalPart = it.trim() },
-                        label = { Text("Sonek (Boşsa rastgele)") },
+                        value = selectedDomain,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Alan Adı") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = domainDropdownExpanded)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = domainDropdownExpanded,
+                        onDismissRequest = { domainDropdownExpanded = false }
+                    ) {
+                        defaultsState.availableDomains.forEach { dom ->
+                            DropdownMenuItem(
+                                text = { Text(dom) },
+                                onClick = {
+                                    selectedDomain = dom
+                                    domainDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // bs_addalias_alias_format_til (AppTheme.ExposedDropdownMenu)
+                ExposedDropdownMenuBox(
+                    expanded = formatDropdownExpanded,
+                    onExpandedChange = { formatDropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = currentFormatLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Takma Ad Formatı") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatDropdownExpanded)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = formatDropdownExpanded,
+                        onDismissRequest = { formatDropdownExpanded = false }
+                    ) {
+                        formats.forEach { (fmtKey, fmtLabel) ->
+                            DropdownMenuItem(
+                                text = { Text(fmtLabel) },
+                                onClick = {
+                                    selectedFormat = fmtKey
+                                    formatDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // bs_addalias_alias_local_part_til (Özel format seçildiğinde görünür)
+                AnimatedVisibility(visible = selectedFormat == "custom") {
+                    OutlinedTextField(
+                        value = customLocalPart,
+                        onValueChange = { customLocalPart = it.trim() },
+                        label = { Text("Takma Ad Yerel Kısmı") },
+                        suffix = { Text("@$selectedDomain") },
                         singleLine = true,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            }
 
-            OutlinedCard(
-                onClick = { showAdvanced = !showAdvanced },
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Alan Adı ve Alıcı Ayarları",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "@$selectedDomain • ${recipientsText.ifBlank { "Varsayılan alıcı" }}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                // Wildcard seçenekleri
+                AnimatedVisibility(visible = selectedFormat == "wildcard") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.width(128.dp)) {
+                            SegmentedButton(
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                selected = wildcardDelimiter == "+",
+                                onClick = { wildcardDelimiter = "+" },
+                                label = { Text("*+") }
+                            )
+                            SegmentedButton(
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                selected = wildcardDelimiter == ".",
+                                onClick = { wildcardDelimiter = "." },
+                                label = { Text("*.") }
+                            )
+                        }
+                        OutlinedTextField(
+                            value = wildcardLocalPart,
+                            onValueChange = { wildcardLocalPart = it.trim() },
+                            label = { Text("Sonek (Boşsa rastgele)") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                    Icon(
-                        imageVector = if (showAdvanced) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null
-                    )
                 }
-            }
 
-            AnimatedVisibility(visible = showAdvanced) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (defaultsState.availableDomains.size > 1) {
+                // bs_addalias_alias_desc_til (Çok satırlı açıklama alanı)
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Açıklama") },
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // bs_addalias_domain_help_textview2 + bs_addalias_recipients_chipgroup
+                if (defaultsState.availableRecipients.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Bu takma ad için alıcıları seçin",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            defaultsState.availableDomains.forEach { dom ->
+                            defaultsState.availableRecipients.forEach { rec ->
+                                val isChecked = selectedRecipients.contains(rec)
                                 FilterChip(
-                                    selected = selectedDomain == dom,
-                                    onClick = { selectedDomain = dom },
-                                    label = { Text("@$dom") },
-                                    shape = MaterialTheme.shapes.small
+                                    selected = isChecked,
+                                    onClick = {
+                                        val next = selectedRecipients.toMutableSet()
+                                        if (isChecked) {
+                                            if (next.size > 1) next.remove(rec)
+                                        } else {
+                                            next.add(rec)
+                                        }
+                                        selectedRecipients = next
+                                    },
+                                    label = { Text(rec) }
                                 )
                             }
                         }
                     }
-
-                    OutlinedTextField(
-                        value = recipientsText,
-                        onValueChange = { recipientsText = it },
-                        label = { Text("Yönlendirilecek Alıcı E-posta") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = fromName,
-                        onValueChange = { fromName = it },
-                        label = { Text("Gönderici Adı (İsteğe Bağlı)") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
-            }
 
-            Button(
-                onClick = {
-                    isSubmitting = true
-                    val reqObj = JSONObject().apply {
-                        put("description", description.trim())
-                        put("enabled", true)
-                        put("recipients", recipientsText.trim())
-                        put("from_name", fromName.trim())
-                        put("format", selectedFormat)
-                        put("domain", selectedDomain)
-                        if (selectedFormat == "custom" && customLocalPart.isNotEmpty()) {
-                            put("local_part", customLocalPart)
-                        }
-                        if (selectedFormat == "wildcard") {
-                            put("wildcard_delimiter", wildcardDelimiter)
-                            if (wildcardLocalPart.isNotEmpty()) {
-                                put("wildcard_local_part", wildcardLocalPart)
+                // bs_addalias_alias_add_alias_button (CircularProgressButtonSecondary -> 56dp)
+                Button(
+                    onClick = {
+                        isSubmitting = true
+                        val recipientsStr = selectedRecipients.joinToString(",")
+                            .ifEmpty { defaultsState.defaultRecipient }
+                        val reqObj = JSONObject().apply {
+                            put("description", description.trim())
+                            put("enabled", true)
+                            put("recipients", recipientsStr)
+                            put("from_name", fromName.trim())
+                            put("format", selectedFormat)
+                            put("domain", selectedDomain)
+                            if (selectedFormat == "custom" && customLocalPart.isNotEmpty()) {
+                                put("local_part", customLocalPart)
+                            }
+                            if (selectedFormat == "wildcard") {
+                                put("wildcard_delimiter", wildcardDelimiter)
+                                if (wildcardLocalPart.isNotEmpty()) {
+                                    put("wildcard_local_part", wildcardLocalPart)
+                                }
                             }
                         }
+                        onCreateAlias(reqObj.toString())
+                    },
+                    enabled = !isSubmitting && (selectedFormat != "custom" || customLocalPart.isNotBlank()),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.5.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Ekleniyor...", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    } else {
+                        Text("Ekle", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
-                    onCreateAlias(reqObj.toString())
-                },
-                enabled = !isSubmitting && (selectedFormat != "custom" || customLocalPart.isNotBlank()),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isSubmitting) "Oluşturuluyor..." else "Oluştur ve Kopyala",
-                    fontWeight = FontWeight.Bold
-                )
+                }
             }
         }
     }

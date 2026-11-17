@@ -1,6 +1,7 @@
 package net.mailx.android.ui.sheets
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -11,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.copyToClipboard
@@ -32,77 +35,114 @@ fun WildcardGeneratorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Anında Wildcard Alias Üret",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                text = "Wildcard Takma Ad Üret",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
             )
-            Text(
-                text = "Şablon: ${wildcardAlias.name}",
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.primary
+
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
-            OutlinedTextField(
-                value = prefix,
-                onValueChange = {
-                    prefix = it
-                    val r = JSONObject(MailxRustBridge.nativeGenerateWildcard(wildcardAlias.name, it))
-                    if (r.optBoolean("ok", false)) {
-                        generated = r.optString("data")
-                        errorMsg = null
-                    } else {
-                        generated = ""
-                        errorMsg = if (it.isNotEmpty()) r.optString("error") else null
-                    }
-                },
-                label = { Text("Servis Öneki (Örn: amazon, github)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            errorMsg?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-            if (generated.isNotEmpty()) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Şablon: ${wildcardAlias.name}",
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    SelectionContainer {
-                        Text(
-                            text = generated,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                )
+
+                OutlinedTextField(
+                    value = prefix,
+                    onValueChange = {
+                        prefix = it
+                        val r = JSONObject(MailxRustBridge.nativeGenerateWildcard(wildcardAlias.name, it))
+                        if (r.optBoolean("ok", false)) {
+                            generated = r.optString("data")
+                            errorMsg = null
+                        } else {
+                            generated = ""
+                            errorMsg = if (it.isNotEmpty()) r.optString("error") else null
+                        }
+                    },
+                    label = { Text("Servis Öneki (Örn: github, amazon)") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                errorMsg?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                if (generated.isNotEmpty()) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = generated,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(14.dp)
+                            )
+                        }
                     }
                 }
-            }
-            Button(
-                enabled = generated.isNotEmpty(),
-                onClick = {
-                    copyToClipboard(context, "Mailx Wildcard Alias", generated)
-                    onDismiss()
-                },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Kopyala", fontWeight = FontWeight.Bold)
+
+                Button(
+                    enabled = generated.isNotEmpty(),
+                    onClick = {
+                        copyToClipboard(context, "Mailx Wildcard Alias", generated)
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Takma Adı Kopyala", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }

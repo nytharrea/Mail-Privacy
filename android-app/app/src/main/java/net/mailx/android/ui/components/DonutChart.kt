@@ -16,12 +16,18 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import net.mailx.android.ui.theme.AddyPalette
 
+/**
+ * `anonaddy/addy-android` içindeki `DonutProgressView` (`AliasAdapter.kt` ve `ManageAliasActivity.kt`)
+ * bileşeninin Compose karşılığı.
+ * - Aktifken: portalOrange (#FF9800), portalBlue (#4289FD), easternBlue (#16A8B8), softRed (#FD5842)
+ * - Pasifken: md_grey_500..800
+ * - Hiç istatistik yoksa `emptyDonut = 1` ile tam turuncu/gri halka çizer.
+ */
 @Composable
 fun AddyDonutChart(
     forwards: Int,
@@ -29,86 +35,87 @@ fun AddyDonutChart(
     sends: Int,
     blocks: Int,
     enabled: Boolean,
-    size: Dp = 44.dp,
-    strokeWidth: Dp = 4.dp,
+    size: Dp = 42.dp,
+    strokeWidth: Dp = 6.5.dp,
+    showCenterText: Boolean = false,
     centerSubtitle: String? = null
 ) {
-    val total = forwards + replies + sends + blocks
-    val trackColor = MaterialTheme.colorScheme.outlineVariant
+    val cForward = if (enabled) AddyPalette.PortalOrange else AddyPalette.Grey500
+    val cReply = if (enabled) AddyPalette.PortalBlue else AddyPalette.Grey600
+    val cSend = if (enabled) AddyPalette.EasternBlue else AddyPalette.Grey700
+    val cBlock = if (enabled) AddyPalette.SoftRed else AddyPalette.Grey800
 
-    val cForward = if (enabled) AddyPalette.ForwardedOrange else Color(0xFF4B5563)
-    val cReply = if (enabled) AddyPalette.RepliedBlue else Color(0xFF374151)
-    val cSend = if (enabled) AddyPalette.SentCyan else Color(0xFF374151)
-    val cBlock = if (enabled) AddyPalette.BlockedRed else Color(0xFF4B5563)
+    val totalReal = forwards + replies + sends + blocks
+    val emptyDonut = if (totalReal == 0) 1 else 0
+
+    val sections = buildList {
+        add((forwards + emptyDonut).toFloat() to cForward)
+        if (replies > 0) add(replies.toFloat() to cReply)
+        if (sends > 0) add(sends.toFloat() to cSend)
+        if (blocks > 0) add(blocks.toFloat() to cBlock)
+    }.sortedBy { it.first }
+
+    val cap = sections.sumOf { it.first.toDouble() }.toFloat().coerceAtLeast(1f)
 
     Box(
         modifier = Modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(strokeWidth / 2)) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(strokeWidth / 2)
+        ) {
             val strokePx = strokeWidth.toPx()
             val arcSize = Size(this.size.width, this.size.height)
 
-            drawArc(
-                color = trackColor,
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset.Zero,
-                size = arcSize,
-                style = Stroke(width = strokePx, cap = StrokeCap.Round)
-            )
-
-            if (total > 0) {
-                val segments = listOf(
-                    forwards to cForward,
-                    replies to cReply,
-                    sends to cSend,
-                    blocks to cBlock
-                ).filter { it.first > 0 }
-
-                var startAngle = -90f
-                val gapDegrees = if (segments.size > 1) 8f else 0f
-                val availableDegrees = 360f - (gapDegrees * segments.size)
-
-                segments.forEach { (count, segColor) ->
-                    val sweep = (count.toFloat() / total.toFloat()) * availableDegrees
+            if (sections.size == 1) {
+                drawArc(
+                    color = sections.first().second,
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = Offset.Zero,
+                    size = arcSize,
+                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                )
+            } else {
+                var currentStartAngle = 90f
+                sections.forEach { (amount, color) ->
+                    val sweep = (amount / cap) * 360f
                     drawArc(
-                        color = segColor,
-                        startAngle = startAngle,
-                        sweepAngle = sweep.coerceAtLeast(6f),
+                        color = color,
+                        startAngle = currentStartAngle,
+                        sweepAngle = sweep.coerceAtLeast(8f),
                         useCenter = false,
                         topLeft = Offset.Zero,
                         size = arcSize,
-                        style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                        style = Stroke(width = strokePx, cap = StrokeCap.Butt)
                     )
-                    startAngle += sweep + gapDegrees
+                    currentStartAngle += sweep
                 }
             }
         }
 
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = total.toString(),
-                style = if (size >= 52.dp) {
-                    MaterialTheme.typography.titleMedium
-                } else {
-                    MaterialTheme.typography.labelMedium
-                },
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = if (total > 0 && enabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-            if (centerSubtitle != null && size >= 52.dp) {
+        if (showCenterText) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = centerSubtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = totalReal.toString(),
+                    style = if (size >= 72.dp) {
+                        MaterialTheme.typography.titleLarge
+                    } else {
+                        MaterialTheme.typography.labelMedium
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                if (centerSubtitle != null && size >= 72.dp) {
+                    Text(
+                        text = centerSubtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

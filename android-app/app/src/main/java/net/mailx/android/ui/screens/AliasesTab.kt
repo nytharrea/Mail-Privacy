@@ -1,15 +1,12 @@
 package net.mailx.android.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
@@ -19,15 +16,22 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import net.mailx.android.ui.components.AddySectionHeader
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.FilterUiState
 import net.mailx.android.ui.model.UiAlias
 
+/**
+ * `anonaddy/addy-android` içindeki `res/layout/fragment_aliases.xml` (`AliasesFragment.kt`)
+ * ekranının birebir Compose karşılığı:
+ * - Üstte: Material 3 `SearchBar` görünümünde yuvarlatılmış arama çubuğu (`alias_search_bar`)
+ * - Yatay `ChipGroup` filtreleri (`alias_chipgroup`: Tümü, Sabitlenen, Aktif, Pasif, Silinen, Wildcard, Özel)
+ * - Başlık satırı (`alias_header` + `alias_count` kapsülü + `alias_add_alias` butonu)
+ * - `AliasCard` listesi (`aliases_recyclerview_list_item.xml`)
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AliasesTab(
@@ -48,89 +52,71 @@ fun AliasesTab(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = filterState.searchQuery,
-                onValueChange = onSearchQueryChange,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                },
-                trailingIcon = {
+        // addy-android alias_search_bar (Material 3 SearchBar kapsül görünümü, çerçevesiz)
+        TextField(
+            value = filterState.searchQuery,
+            onValueChange = onSearchQueryChange,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Ara",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     if (filterState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Temizle")
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Temizle"
+                            )
                         }
                     }
-                },
-                placeholder = {
-                    Text(
-                        text = "Takma ad veya açıklama ara...",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.weight(1f)
-            )
-
-            Surface(
-                onClick = onOpenFilterSheet,
-                shape = RoundedCornerShape(16.dp),
-                color = if (filterState.isCustomFilterActive) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainer
-                },
-                border = BorderStroke(
-                    1.dp,
-                    if (filterState.isCustomFilterActive) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant
+                    IconButton(onClick = onOpenFilterSheet) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Filtrele ve Sırala",
+                            tint = if (filterState.isCustomFilterActive) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
                     }
-                ),
-                modifier = Modifier.size(54.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = "Sırala ve Filtrele",
-                        tint = if (filterState.isCustomFilterActive) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
                 }
-            }
-        }
+            },
+            placeholder = {
+                Text(
+                    text = "Takma adlarda ara...",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            singleLine = true,
+            shape = CircleShape,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        val filterItems = listOf(
+        // addy-android alias_chipgroup
+        val filterChips = listOf(
             "active_inactive" to "Tümü",
             "pinned_only" to "Sabitlenen",
             "active" to "Aktif",
             "inactive" to "Pasif",
-            "wildcard_only" to "Wildcard (*)",
-            "deleted" to "Silinen (90g)"
+            "deleted" to "Silinen",
+            "wildcard_only" to "Wildcard (*)"
         )
 
         Row(
@@ -139,73 +125,35 @@ fun AliasesTab(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            filterItems.forEach { (key, label) ->
+            filterChips.forEach { (key, label) ->
                 val isSelected = filterState.selectedChip == key
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectFilterChip(key) },
-                    label = {
-                        Text(
-                            text = label,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.primary
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = isSelected,
-                        borderColor = MaterialTheme.colorScheme.outlineVariant,
-                        selectedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                    )
+                    label = { Text(label) }
                 )
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "${aliases.size} kayıt",
-                style = MaterialTheme.typography.labelLarge,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Surface(
+            FilterChip(
+                selected = filterState.isCustomFilterActive,
                 onClick = onOpenFilterSheet,
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = if (filterState.sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = filterState.sortField.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
+                label = { Text("Özel") }
+            )
         }
+
+        // addy-android alias_header + alias_count + alias_add_alias
+        AddySectionHeader(
+            title = if (filterState.isCustomFilterActive || filterState.searchQuery.isNotEmpty()) {
+                "Takma Adlar (Filtreli)"
+            } else {
+                "Takma Adlar"
+            },
+            countBadge = aliases.size,
+            isLoading = isLoading,
+            actionText = "Takma Ad Ekle",
+            onActionClick = onOpenCreateSheet,
+            modifier = Modifier.padding(top = 6.dp, bottom = 6.dp)
+        )
 
         PullToRefreshBox(
             isRefreshing = isLoading,
@@ -216,18 +164,18 @@ fun AliasesTab(
                 EmptyStateBox(
                     icon = Icons.Outlined.AlternateEmail,
                     title = if (filterState.searchQuery.isNotEmpty()) {
-                        "\u0022${filterState.searchQuery}\u0022 için eşleşme yok"
+                        "\u0022${filterState.searchQuery}\u0022 için sonuç bulunamadı"
                     } else {
-                        "Bu görünümde takma ad yok"
+                        "Takma ad bulunamadı"
                     },
-                    subtitle = "Yeni bir takma ad oluşturabilir veya aktif filtreyi değiştirebilirsiniz.",
-                    actionLabel = "Yeni Alias Oluştur",
+                    subtitle = "Yeni bir takma ad ekleyebilir veya filtre seçeneklerini değiştirebilirsiniz.",
+                    actionLabel = "Takma Ad Ekle",
                     onActionClick = onOpenCreateSheet
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
                 ) {
                     items(aliases, key = { it.id }) { alias ->

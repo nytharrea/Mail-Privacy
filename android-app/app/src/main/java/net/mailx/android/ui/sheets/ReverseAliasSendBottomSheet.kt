@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -16,11 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.model.copyToClipboard
 import org.json.JSONObject
 
+/**
+ * `anonaddy/addy-android` içindeki `res/layout/bottomsheet_send_mail_alias.xml`
+ * (`EditAliasSendMailRecipientBottomDialogFragment.kt`) alt penceresinin birebir karşılığı.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReverseAliasSendBottomSheet(
@@ -54,122 +61,167 @@ fun ReverseAliasSendBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Alias Üzerinden İleti Gönder",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                text = "Takma Addan İleti Gönder",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
             )
 
-            if (availableAliases.size > 1) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    availableAliases.take(10).forEach { candidate ->
-                        FilterChip(
-                            selected = senderAlias == candidate,
-                            onClick = {
-                                senderAlias = candidate
-                                recompute(candidate, targetEmail)
-                            },
-                            label = { Text(candidate, maxLines = 1) }
-                        )
-                    }
-                }
-            }
-
-            OutlinedTextField(
-                value = senderAlias,
-                onValueChange = {
-                    senderAlias = it
-                    recompute(it, targetEmail)
-                },
-                label = { Text("Gönderici Alias Adresiniz") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
 
-            OutlinedTextField(
-                value = targetEmail,
-                onValueChange = {
-                    targetEmail = it
-                    recompute(senderAlias, it)
-                },
-                label = { Text("Alıcı E-posta Adresi (To)") },
-                placeholder = { Text("Örn: destek@firma.com") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            errorMsg?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-
-            if (generated.isNotEmpty()) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    SelectionContainer {
-                        Text(
-                            text = generated,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                FilledTonalButton(
-                    enabled = generated.isNotEmpty(),
-                    onClick = {
-                        copyToClipboard(context, "Mailx Send Address", generated)
-                        onDismiss()
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Kopyala")
+                Text(
+                    text = "Bu takma ad üzerinden e-posta göndermek istediğiniz alıcı adresini girin. Üretilen yönlendirme adresine e-posta gönderdiğinizde karşı taraf yalnızca takma adınızı görür.",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (availableAliases.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        availableAliases.take(10).forEach { candidate ->
+                            FilterChip(
+                                selected = senderAlias == candidate,
+                                onClick = {
+                                    senderAlias = candidate
+                                    recompute(candidate, targetEmail)
+                                },
+                                label = { Text(candidate, maxLines = 1) }
+                            )
+                        }
+                    }
                 }
 
-                Button(
-                    enabled = generated.isNotEmpty(),
-                    onClick = {
-                        copyToClipboard(context, "Mailx Send Address", generated)
-                        runCatching {
-                            val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generated"))
-                            context.startActivity(Intent.createChooser(mailIntent, "E-posta Uygulaması Seçin"))
-                        }
-                        onDismiss()
+                OutlinedTextField(
+                    value = senderAlias,
+                    onValueChange = {
+                        senderAlias = it
+                        recompute(it, targetEmail)
                     },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(14.dp)
+                    label = { Text("Gönderici Takma Ad") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = targetEmail,
+                    onValueChange = {
+                        targetEmail = it
+                        recompute(senderAlias, it)
+                    },
+                    label = { Text("Alıcı E-posta Adresi") },
+                    placeholder = { Text("ornek@alanadi.com") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                errorMsg?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                if (generated.isNotEmpty()) {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = generated,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(14.dp)
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("E-posta Aç")
+                    FilledTonalButton(
+                        enabled = generated.isNotEmpty(),
+                        onClick = {
+                            copyToClipboard(context, "Mailx Send Address", generated, "Yönlendirme adresi kopyalandı")
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Adresi Kopyala")
+                    }
+
+                    Button(
+                        enabled = generated.isNotEmpty(),
+                        onClick = {
+                            copyToClipboard(context, "Mailx Send Address", generated, "Yönlendirme adresi kopyalandı")
+                            runCatching {
+                                val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generated"))
+                                context.startActivity(Intent.createChooser(mailIntent, "E-posta Uygulaması Seçin"))
+                            }
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("İleti Gönder")
+                    }
                 }
             }
         }

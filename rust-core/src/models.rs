@@ -107,7 +107,7 @@ impl Alias {
     }
 }
 
-/// `GET /v1/api/aliases` yanıt modeli (`model.AliasList` - `api/internal/model/alias.go`)
+/// `GET /v1/api/aliases` ve `GET /v1/aliases` yanıt modeli (`model.AliasList`)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasListResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -116,7 +116,7 @@ pub struct AliasListResponse {
     pub total: usize,
 }
 
-/// `POST /v1/api/alias` ve `PUT /v1/api/alias/:id` istek gövdesi (`api.AliasReq` - `api/internal/transport/api/req.go`)
+/// `POST /v1/api/alias` ve `PUT /v1/api/alias/:id` istek gövdesi (`api.AliasReq`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasRequest {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -177,11 +177,20 @@ pub struct AliasPinRequest {
     pub pinned: bool,
 }
 
-/// Özel alan adı modeli (`model.Domain` - `api/internal/model/domain.go` & `wxt/lib/types.ts`)
+/// `PUT /v1/alias/:id/pause` istek gövdesi (`api.AliasPauseReq`)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AliasPauseRequest {
+    pub value: i32,
+    pub unit: String,
+}
+
+/// Özel alan adı modeli (`model.Domain` - `api/internal/model/domain.go`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CustomDomain {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub id: String,
+    #[serde(default)]
+    pub created_at: Option<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub name: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -204,7 +213,7 @@ pub struct CustomDomain {
     pub send_verified_at: Option<String>,
 }
 
-/// `POST /v1/api/authenticate` yanıtı (`api/internal/transport/api/access_key.go` satır 248-256)
+/// `POST /v1/api/authenticate` ve `POST /v1/login` birleşik yanıt modeli
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuthResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -221,9 +230,19 @@ pub struct AuthResponse {
     pub recipients: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub alias_format: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub from_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub log_issues: bool,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub remove_header: bool,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub list_unsubscribe_behaviour: i32,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub block_trackers: bool,
 }
 
-/// `GET /v1/api/defaults` yanıtı (`api/internal/transport/api/access_key.go` satır 309-322)
+/// `GET /v1/api/defaults` ve `GET /v1/defaults` yanıtı (`api/internal/transport/api/access_key.go`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DefaultsResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]

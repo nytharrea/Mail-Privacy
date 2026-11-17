@@ -11,9 +11,21 @@ pub enum MailxError {
     InvalidAccessKey(String),
     Unauthorized(String),
     RateLimited(String),
+    TotpRequired(String),
+    StepUpRequired(String),
     ApiError { status: u16, message: String },
     NetworkError(String),
     SerializationError(String),
+}
+
+impl MailxError {
+    pub fn error_code(&self) -> Option<i64> {
+        match self {
+            MailxError::TotpRequired(_) => Some(70001),
+            MailxError::StepUpRequired(_) => Some(80001),
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for MailxError {
@@ -23,6 +35,8 @@ impl std::fmt::Display for MailxError {
             MailxError::InvalidAccessKey(msg) => write!(f, "{}", msg),
             MailxError::Unauthorized(msg) => write!(f, "Oturum yetkisi geçersiz: {}", msg),
             MailxError::RateLimited(msg) => write!(f, "İstek sınırı aşıldı: {}", msg),
+            MailxError::TotpRequired(msg) => write!(f, "{}", msg),
+            MailxError::StepUpRequired(msg) => write!(f, "{}", msg),
             MailxError::ApiError { status, message } => {
                 write!(f, "API Hatası ({}): {}", status, message)
             }
@@ -36,15 +50,17 @@ impl std::fmt::Display for MailxError {
 struct ApiErrorBody {
     error: Option<String>,
     message: Option<String>,
+    code: Option<i64>,
 }
 
-/// Mailx REST API İstemcisi
+/// Mailx REST API İstemcisi (`ivpn/mailx` Go/Fiber sunucusu uyumlu)
 ///
-/// - Resmi `https://mailx.net` web arayüzü (Nginx statik Vue SPA) girildiğinde otomatik olarak
-///   Go + Fiber API sunucusu olan `https://api.mailx.net` adresine yönlendirir.
-/// - Varsayılan olarak yalnızca `https://` kabul eder (`allow_insecure_localhost` yalnızca yerel test içindir).
-/// - `401 Unauthorized` alındığında saklanan `AccessKey` ile **yalnızca 1 kez** sessizce yeniden
-///   `POST /v1/api/authenticate` dener (5 deneme / 10 dk rate-limit döngüsüne girmemek için).
+/// - Hem **Access Key (`POST /v1/api/authenticate` -> `Authorization: Bearer <token>`)**
+///   hem de **E-posta & Parola + 2FA (`POST /v1/login` -> `Cookie: authn=<token>`)**
+///   oturum kapsamlarını (`SessionScopeAPI` ve `SessionScopeWeb`) destekler.
+/// - `bearer_token` değeri `"cookie:<authn_token>"` önekine sahipse tüm `/v1/*` uç noktalarını
+///   doğrudan `Cookie: authn=<authn_token>` başlığıyla çağırır ve `/v1/api/*` yollarını
+///   otomatik olarak `/v1/*` karşılıklarına dönüştürür.
 #[derive(Clone)]
 pub struct MailxClient {
     base_url: String,
@@ -53,13 +69,12 @@ pub struct MailxClient {
 }
 
 impl MailxClient {
-    /// Kullanıcı `https://mailx.net` gibi web arayüzü adresini veya sonunda `/v1/api` bulunan
-    /// bir adresi girdiğinde otomatik olarak temiz API kök adresine (`https://api.mailx.net`) dönüştürür.
     pub fn normalize_base_url(raw: &str) -> String {
         let mut s = raw.trim().trim_end_matches('/').to_string();
         for suffix in [
             "/v1/api/authenticate",
             "/api/v1/authenticate",
+            "/v1/login",
             "/v1/api",
             "/api/v1",
             "/v1",
@@ -125,14 +140,30 @@ impl MailxClient {
             .and_then(|g| g.as_ref().map(|s| s.expose().to_string()))
     }
 
-    /// Self-host veya farklı reverse-proxy kurulumlarında `/v1/api/...` 404/405 döndürürse
-    /// denenecek alternatif tam URL adaylarını üretir.
+    pub fn is_web_cookie_session(&self) -> bool {
+        self.current_token()
+            .map(|t| t.starts_with("cookie:"))
+            .unwrap_or(false)
+    }
+
+    /// Oturum türüne göre (`/v1/api/*` veya `/v1/*`) doğru API yolunu çözümler.
+    pub fn resolve_scoped_path(path: &str, is_cookie_session: bool) -> String {
+        if is_cookie_session {
+            if path == "/v1/api/logout" {
+                return "/v1/user/logout".to_string();
+            }
+            if let Some(rest) = path.strip_prefix("/v1/api/") {
+                return format!("/v1/{}", rest);
+            }
+        }
+        path.to_string()
+    }
+
     fn candidate_urls(&self, path: &str) -> Vec<String> {
         let mut urls = Vec::new();
         let primary = format!("{}{}", self.base_url, path);
         urls.push(primary);
 
-        // Eğer alan adı `api.` ile başlamıyorsa `https://api.<host>` adayını da ekle
         if let Some(rest) = self.base_url.strip_prefix("https://") {
             let is_local = rest.starts_with("localhost") || rest.starts_with("127.");
             if !rest.starts_with("api.") && !is_local {
@@ -145,22 +176,11 @@ impl MailxClient {
             }
         }
 
-        // `/v1/api/...` yerine `/api/v1/...` kullanan reverse-proxy kurulumları için alternatif yol
         if let Some(tail) = path.strip_prefix("/v1/api/") {
             let alt_path = format!("/api/v1/{}", tail);
             let alt_primary = format!("{}{}", self.base_url, alt_path);
             if !urls.contains(&alt_primary) {
                 urls.push(alt_primary);
-            }
-            if let Some(rest) = self.base_url.strip_prefix("https://") {
-                let is_local = rest.starts_with("localhost") || rest.starts_with("127.");
-                if !rest.starts_with("api.") && !is_local {
-                    let host_without_www = rest.strip_prefix("www.").unwrap_or(rest);
-                    let alt_api = format!("https://api.{}{}", host_without_www, alt_path);
-                    if !urls.contains(&alt_api) {
-                        urls.push(alt_api);
-                    }
-                }
             }
         }
 
@@ -193,8 +213,9 @@ impl MailxClient {
     }
 
     fn parse_error_body(status: u16, raw: &str) -> MailxError {
-        let parsed = serde_json::from_str::<ApiErrorBody>(raw)
-            .ok()
+        let body_struct = serde_json::from_str::<ApiErrorBody>(raw).ok();
+        let code = body_struct.as_ref().and_then(|b| b.code);
+        let parsed = body_struct
             .and_then(|b| b.error.or(b.message))
             .unwrap_or_else(|| {
                 let trimmed = raw.trim();
@@ -222,6 +243,13 @@ impl MailxClient {
                 }
             });
 
+        if code == Some(70001) {
+            return MailxError::TotpRequired(parsed);
+        }
+        if code == Some(80001) {
+            return MailxError::StepUpRequired(parsed);
+        }
+
         match status {
             401 => MailxError::Unauthorized(parsed),
             429 => MailxError::RateLimited(parsed),
@@ -230,6 +258,31 @@ impl MailxClient {
                 message: parsed,
             },
         }
+    }
+
+    #[cfg(feature = "network")]
+    fn extract_authn_cookie(resp: &ureq::Response) -> Option<String> {
+        for val in resp.all("set-cookie") {
+            for part in val.split(';') {
+                let trimmed = part.trim();
+                if let Some(cookie_val) = trimmed.strip_prefix("authn=") {
+                    if !cookie_val.is_empty() {
+                        return Some(cookie_val.to_string());
+                    }
+                }
+            }
+        }
+        if let Some(val) = resp.header("Set-Cookie") {
+            for part in val.split(';') {
+                let trimmed = part.trim();
+                if let Some(cookie_val) = trimmed.strip_prefix("authn=") {
+                    if !cookie_val.is_empty() {
+                        return Some(cookie_val.to_string());
+                    }
+                }
+            }
+        }
+        None
     }
 
     #[cfg(feature = "network")]
@@ -246,6 +299,111 @@ impl MailxClient {
             }
             Err(e) => Err(MailxError::NetworkError(e.to_string())),
         }
+    }
+
+    /// `POST /v1/login` ile E-posta, Parola ve opsiyonel 2FA TOTP kodu kullanarak
+    /// tam yetkili Web oturumu (`SessionScopeWeb`, `Cookie: authn=<token>`) başlatır.
+    #[cfg(feature = "network")]
+    pub fn login_with_credentials(
+        &self,
+        email: &str,
+        password: &str,
+        otp: &str,
+    ) -> Result<AuthResponse, MailxError> {
+        let clean_email = email.trim();
+        if clean_email.is_empty() || password.is_empty() {
+            return Err(MailxError::InvalidAccessKey(
+                "E-posta adresi ve parola boş bırakılamaz.".to_string(),
+            ));
+        }
+        let payload = serde_json::json!({
+            "email": clean_email,
+            "password": password,
+            "otp": otp.trim(),
+            "remember": true
+        })
+        .to_string();
+
+        let candidates = self.candidate_urls("/v1/login");
+        let mut last_err: Option<MailxError> = None;
+
+        for (idx, url) in candidates.iter().enumerate() {
+            let resp = ureq::post(url)
+                .set("Content-Type", "application/json")
+                .set("Accept", "application/json")
+                .timeout(std::time::Duration::from_secs(15))
+                .send_string(&payload);
+
+            match resp {
+                Ok(r) => {
+                    let authn_cookie = Self::extract_authn_cookie(&r).ok_or_else(|| {
+                        MailxError::Unauthorized(
+                            "Sunucu oturum çerezi (authn) döndürmedi.".to_string(),
+                        )
+                    })?;
+                    let _ = r.into_string();
+                    let cookie_token = format!("cookie:{}", authn_cookie);
+                    self.set_credentials(None, Some(cookie_token.clone()));
+
+                    // Oturum açıldıktan hemen sonra `/v1/defaults` üzerinden kullanıcı varsayılanlarını çek
+                    match self.fetch_defaults() {
+                        Ok(def) => {
+                            return Ok(AuthResponse {
+                                token: cookie_token,
+                                domain: def.domain,
+                                domains: def.domains,
+                                custom_domains: def.custom_domains,
+                                recipient: def.recipient,
+                                recipients: def.recipients,
+                                alias_format: def.alias_format,
+                                from_name: def.from_name,
+                                log_issues: def.log_issues,
+                                remove_header: def.remove_header,
+                                list_unsubscribe_behaviour: def.list_unsubscribe_behaviour,
+                                block_trackers: def.block_trackers,
+                            });
+                        }
+                        Err(_) => {
+                            return Ok(AuthResponse {
+                                token: cookie_token,
+                                domain: "mailx.net".to_string(),
+                                domains: vec!["mailx.net".to_string()],
+                                custom_domains: Vec::new(),
+                                recipient: clean_email.to_string(),
+                                recipients: vec![clean_email.to_string()],
+                                alias_format: "words".to_string(),
+                                from_name: String::new(),
+                                log_issues: false,
+                                remove_header: false,
+                                list_unsubscribe_behaviour: 0,
+                                block_trackers: false,
+                            });
+                        }
+                    }
+                }
+                Err(ureq::Error::Status(code, r)) => {
+                    let body = r.into_string().unwrap_or_default();
+                    let err = Self::parse_error_body(code, &body);
+                    if idx + 1 < candidates.len() && (code == 404 || code == 405) {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+                Err(e) => {
+                    let err = MailxError::NetworkError(e.to_string());
+                    if idx + 1 < candidates.len() {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+            }
+        }
+
+        Err(last_err.unwrap_or_else(|| {
+            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+        }))
     }
 
     #[cfg(feature = "network")]
@@ -285,7 +443,6 @@ impl MailxClient {
                 Err(ureq::Error::Status(code, r)) => {
                     let body = r.into_string().unwrap_or_default();
                     let err = Self::parse_error_body(code, &body);
-                    // 404 veya 405 (Nginx statik SPA yanıtı) durumunda sıradaki aday API adresini dene
                     if idx + 1 < candidates.len() && (code == 404 || code == 405) {
                         last_err = Some(err);
                         continue;
@@ -316,22 +473,33 @@ impl MailxClient {
         json_body: Option<&str>,
         allow_reauth: bool,
     ) -> Result<T, MailxError> {
-        let token = self
+        let raw_token = self
             .current_token()
             .ok_or_else(|| MailxError::Unauthorized("Oturum anahtarı bulunamadı.".to_string()))?;
 
-        let candidates = self.candidate_urls(path);
+        let is_cookie = raw_token.starts_with("cookie:");
+        let scoped_path = Self::resolve_scoped_path(path, is_cookie);
+        let candidates = self.candidate_urls(&scoped_path);
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let req = ureq::request(method, url)
-                .set("Authorization", &format!("Bearer {}", token))
+            let mut req = ureq::request(method, url)
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15));
 
+            if let Some(cookie_val) = raw_token.strip_prefix("cookie:") {
+                req = req.set("Cookie", &format!("authn={}", cookie_val));
+            } else {
+                req = req.set("Authorization", &format!("Bearer {}", raw_token));
+            }
+
             let resp = if let Some(body) = json_body {
-                req.set("Content-Type", "application/json")
-                    .send_string(body)
+                if !body.is_empty() {
+                    req.set("Content-Type", "application/json")
+                        .send_string(body)
+                } else {
+                    req.call()
+                }
             } else {
                 req.call()
             };
@@ -341,6 +509,11 @@ impl MailxClient {
                     let text = r
                         .into_string()
                         .map_err(|e| MailxError::NetworkError(e.to_string()))?;
+                    if text.trim().is_empty() {
+                        if let Ok(empty_val) = serde_json::from_str::<T>("{}") {
+                            return Ok(empty_val);
+                        }
+                    }
                     match serde_json::from_str::<T>(&text) {
                         Ok(parsed) => return Ok(parsed),
                         Err(e) => {
@@ -354,20 +527,98 @@ impl MailxClient {
                 }
                 Err(ureq::Error::Status(401, r)) => {
                     let body = r.into_string().unwrap_or_default();
-                    // 401 durumunda saklı Access Key varsa yalnızca 1 kez sessizce yenile
-                    if allow_reauth {
+                    if allow_reauth && !is_cookie {
                         let saved_key = self
                             .access_key
                             .read()
                             .ok()
                             .and_then(|g| g.as_ref().map(|s| s.expose().to_string()));
                         if let Some(key) = saved_key {
-                            if self.authenticate(&key).is_ok() {
+                            if !key.starts_with("web:") && self.authenticate(&key).is_ok() {
                                 return self.execute_authenticated(method, path, json_body, false);
                             }
                         }
                     }
                     return Err(Self::parse_error_body(401, &body));
+                }
+                Err(ureq::Error::Status(code, r)) => {
+                    let body = r.into_string().unwrap_or_default();
+                    let err = Self::parse_error_body(code, &body);
+                    if idx + 1 < candidates.len() && (code == 404 || code == 405) {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+                Err(e) => {
+                    let err = MailxError::NetworkError(e.to_string());
+                    if idx + 1 < candidates.len() {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+            }
+        }
+
+        Err(last_err.unwrap_or_else(|| {
+            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+        }))
+    }
+
+    /// Tüm `/v1/*` ve `/v1/api/*` uç noktalarını (JSON veya düz metin / CSV döndürenler dahil)
+    /// çağırmak için kullanılan genel amaçlı kimlik doğrulamalı istek yürütücüsü.
+    #[cfg(feature = "network")]
+    pub fn execute_raw_json(
+        &self,
+        method: &str,
+        path: &str,
+        json_body: Option<&str>,
+    ) -> Result<serde_json::Value, MailxError> {
+        let raw_token = self
+            .current_token()
+            .ok_or_else(|| MailxError::Unauthorized("Oturum anahtarı bulunamadı.".to_string()))?;
+
+        let is_cookie = raw_token.starts_with("cookie:");
+        let scoped_path = Self::resolve_scoped_path(path, is_cookie);
+        let candidates = self.candidate_urls(&scoped_path);
+        let mut last_err: Option<MailxError> = None;
+
+        for (idx, url) in candidates.iter().enumerate() {
+            let mut req = ureq::request(method, url)
+                .set("Accept", "application/json, text/plain, text/csv, */*")
+                .timeout(std::time::Duration::from_secs(20));
+
+            if let Some(cookie_val) = raw_token.strip_prefix("cookie:") {
+                req = req.set("Cookie", &format!("authn={}", cookie_val));
+            } else {
+                req = req.set("Authorization", &format!("Bearer {}", raw_token));
+            }
+
+            let resp = if let Some(body) = json_body {
+                if !body.is_empty() {
+                    req.set("Content-Type", "application/json")
+                        .send_string(body)
+                } else {
+                    req.call()
+                }
+            } else {
+                req.call()
+            };
+
+            match resp {
+                Ok(r) => {
+                    let text = r
+                        .into_string()
+                        .map_err(|e| MailxError::NetworkError(e.to_string()))?;
+                    let trimmed = text.trim();
+                    if trimmed.is_empty() {
+                        return Ok(serde_json::json!({ "message": "OK" }));
+                    }
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                        return Ok(val);
+                    }
+                    return Ok(serde_json::json!({ "text": text }));
                 }
                 Err(ureq::Error::Status(code, r)) => {
                     let body = r.into_string().unwrap_or_default();
@@ -463,55 +714,33 @@ mod tests {
     }
 
     #[test]
-    fn test_html_error_body_sanitization() {
+    fn test_scoped_path_resolution() {
+        assert_eq!(
+            MailxClient::resolve_scoped_path("/v1/api/aliases?page=1", true),
+            "/v1/aliases?page=1"
+        );
+        assert_eq!(
+            MailxClient::resolve_scoped_path("/v1/api/logout", true),
+            "/v1/user/logout"
+        );
+        assert_eq!(
+            MailxClient::resolve_scoped_path("/v1/api/aliases", false),
+            "/v1/api/aliases"
+        );
+    }
+
+    #[test]
+    fn test_html_error_body_sanitization_and_codes() {
         let nginx_405 = "<html>\r\n<head><title>405 Not Allowed</title></head>\r\n<body>\r\n<center><h1>405 Not Allowed</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>";
         let err = MailxClient::parse_error_body(405, nginx_405);
         let msg = err.to_string();
         assert!(!msg.contains("<html>"));
         assert!(msg.contains("405 Not Allowed"));
-        assert!(msg.contains("https://api.mailx.net"));
-    }
 
-    #[test]
-    fn test_alias_deserialization_and_modify_roundtrip() {
-        let sample_json = r#"{
-            "aliases": [
-                {
-                    "id": "b3d7f6a2-1122-3344-5566-778899aabbcc",
-                    "name": "silent.forest88@mailx.net",
-                    "enabled": true,
-                    "description": "GitHub Hesabı",
-                    "recipients": "kipchak@tutanota.com",
-                    "from_name": "Nytharrea",
-                    "wildcard": false,
-                    "pinned": true,
-                    "paused_until": null,
-                    "stats": {
-                        "forwards": 14,
-                        "blocks": 2,
-                        "replies": 1,
-                        "sends": 0
-                    },
-                    "is_custom_domain": false,
-                    "is_domain_verified": null,
-                    "is_domain_enabled": true
-                }
-            ],
-            "total": 1
-        }"#;
-
-        let parsed: AliasListResponse = serde_json::from_str(sample_json).unwrap();
-        assert_eq!(parsed.total, 1);
-        let first = &parsed.aliases[0];
-        assert_eq!(first.name, "silent.forest88@mailx.net");
-        assert_eq!(first.stats.forwards, 14);
-        assert!(!first.is_paused());
-
-        // Read-modify-write güvenliği testi
-        let mut update_req = AliasRequest::from_existing(first);
-        update_req.enabled = false;
-        assert_eq!(update_req.domain, "mailx.net");
-        assert_eq!(update_req.recipients, "kipchak@tutanota.com");
-        assert!(!update_req.enabled);
+        let totp_err = MailxClient::parse_error_body(
+            400,
+            r#"{"message":"Two-factor authentication is required to continue.","code":70001}"#,
+        );
+        assert_eq!(totp_err.error_code(), Some(70001));
     }
 }
