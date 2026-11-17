@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
@@ -24,11 +26,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.model.AuthUiState
@@ -42,6 +47,7 @@ fun SetupScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onOtpChange: (String) -> Unit,
+    onDismissTotp: () -> Unit = {},
     onAccessKeyChange: (String) -> Unit,
     onConnectWithCredentials: () -> Unit,
     onConnectWithAccessKey: () -> Unit,
@@ -253,18 +259,6 @@ fun SetupScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        AnimatedVisibility(visible = authState.totpRequired || authState.otpInput.isNotEmpty()) {
-                            OutlinedTextField(
-                                value = authState.otpInput,
-                                onValueChange = onOtpChange,
-                                label = { Text("2FA TOTP Code (6 digits)") },
-                                leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
@@ -290,7 +284,6 @@ fun SetupScreen(
                                     )
                                 }
                             },
-
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
@@ -298,18 +291,20 @@ fun SetupScreen(
                         )
                     }
 
-                    authState.errorMessage?.let { err ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = err,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                    if (!authState.totpRequired) {
+                        authState.errorMessage?.let { err ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = err,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
                     }
 
@@ -333,16 +328,16 @@ fun SetupScreen(
                             .height(48.dp),
                         shape = CircleShape
                     ) {
-                        if (authState.isLoading) {
+                        if (authState.isLoading && !authState.totpRequired) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Connecting...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Logging in...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         } else {
-                            Text("Connect to Mailx", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Login", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -385,6 +380,130 @@ fun SetupScreen(
                 }
             }
         }
+    }
+
+    if (authState.totpRequired) {
+        val otpFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            runCatching { otpFocusRequester.requestFocus() }
+        }
+
+        AlertDialog(
+            onDismissRequest = {
+                if (!authState.isLoading) {
+                    onDismissTotp()
+                }
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Pin,
+                    contentDescription = "2FA Verification",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(
+                    text = "Two-Factor Authentication",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Enter the 6-digit verification code from your authenticator app to complete login.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = authState.otpInput,
+                        onValueChange = { input ->
+                            onOtpChange(input.filter { it.isDigit() }.take(6))
+                        },
+                        label = { Text("2FA TOTP Code (6 digits)") },
+                        leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = {
+                                    val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clipDigits = cb.primaryClip?.getItemAt(0)
+                                        ?.coerceToText(context)
+                                        ?.toString()
+                                        ?.filter { it.isDigit() }
+                                        ?.take(6)
+                                        .orEmpty()
+                                    if (clipDigits.isNotEmpty()) {
+                                        onOtpChange(clipDigits)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Paste 2FA code"
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (!authState.isLoading && authState.otpInput.trim().length == 6) {
+                                    onConnectWithCredentials()
+                                }
+                            }
+                        ),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(otpFocusRequester)
+                    )
+
+                    authState.errorMessage?.let { err ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = err,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !authState.isLoading && authState.otpInput.trim().length == 6,
+                    onClick = onConnectWithCredentials
+                ) {
+                    if (authState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Logging in...")
+                    } else {
+                        Text("Login")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !authState.isLoading,
+                    onClick = onDismissTotp
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showResetPasswordDialog) {

@@ -170,6 +170,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onEmailChange = vm::updateEmailInput,
             onPasswordChange = vm::updatePasswordInput,
             onOtpChange = vm::updateOtpInput,
+            onDismissTotp = vm::dismissTotpDialog,
             onAccessKeyChange = vm::updateAccessKeyInput,
             onConnectWithCredentials = vm::connectWithCredentials,
             onConnectWithAccessKey = vm::connectWithAccessKey,

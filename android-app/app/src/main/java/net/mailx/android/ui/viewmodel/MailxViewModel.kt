@@ -187,15 +187,25 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 
     fun updateEmailInput(email: String) {
-        _authState.update { it.copy(emailInput = email, errorMessage = null) }
+        _authState.update { it.copy(emailInput = email, totpRequired = false, otpInput = "", errorMessage = null) }
     }
 
     fun updatePasswordInput(password: String) {
-        _authState.update { it.copy(passwordInput = password, errorMessage = null) }
+        _authState.update { it.copy(passwordInput = password, totpRequired = false, otpInput = "", errorMessage = null) }
     }
 
     fun updateOtpInput(otp: String) {
         _authState.update { it.copy(otpInput = otp, errorMessage = null) }
+    }
+
+    fun dismissTotpDialog() {
+        _authState.update {
+            it.copy(
+                totpRequired = false,
+                otpInput = "",
+                errorMessage = null
+            )
+        }
     }
 
     fun updateAccessKeyInput(key: String) {
@@ -208,8 +218,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             _authState.update { it.copy(errorMessage = "Please enter your email address and password.") }
             return
         }
+        if (currentAuth.totpRequired && currentAuth.otpInput.trim().isEmpty()) {
+            _authState.update { it.copy(errorMessage = "Please enter your 6-digit 2FA verification code.") }
+            return
+        }
 
         viewModelScope.launch {
+            val hadOtp = currentAuth.otpInput.trim().isNotEmpty()
             _authState.update { it.copy(isLoading = true, errorMessage = null) }
             val loginRes = MailxRustBridge.login(
                 baseUrl = currentAuth.baseUrl,
@@ -242,14 +257,15 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             } else {
                 val errCode = loginRes.optInt("error_code", 0)
                 val errMsg = loginRes.optString("error", "Sign in failed")
+                val isInitialTotpPrompt = errCode == 70001 && !hadOtp
                 _authState.update {
                     it.copy(
                         isLoading = false,
                         totpRequired = it.totpRequired || errCode == 70001,
-                        errorMessage = if (errCode == 70001) {
-                            "Two-factor authentication (2FA) is enabled. Please enter your 6-digit verification code."
-                        } else {
-                            errMsg
+                        errorMessage = when {
+                            isInitialTotpPrompt -> null
+                            errCode == 70001 -> "Invalid 2FA verification code. Please try again."
+                            else -> errMsg
                         }
                     )
                 }
