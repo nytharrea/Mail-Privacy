@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-repository.workspace = true
 
 [lib]
 name = "mailx_core"
@@ -15,7 +14,6 @@ crate-type = ["cdylib", "rlib"]
 default = ["network"]
 # network özelliği aktifken ureq (rustls TLS) ile gerçek HTTPS istekleri atılır
 network = ["dep:ureq"]
-jni = ["dep:jni"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

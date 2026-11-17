@@ -9,16 +9,13 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
-import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -35,12 +32,10 @@ class ReverseAliasSendActivity : ComponentActivity() {
 
         val initialTarget = extractTargetEmail(intent)
         val prefs = EncryptedPrefsManager(this)
-        val cachedAliases = loadCachedAliasNames(prefs.cachedAliasesJson)
-        val defaultAlias = cachedAliases.firstOrNull() ?: "ornek.alias@${prefs.defaultDomain}"
 
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
-                var aliasEmail by remember { mutableStateOf(defaultAlias) }
+                var aliasEmail by remember { mutableStateOf("ornek.alias@${prefs.defaultDomain}") }
                 var targetEmail by remember { mutableStateOf(initialTarget) }
                 var generatedSendAddress by remember { mutableStateOf("") }
                 var errorText by remember { mutableStateOf<String?>(null) }
@@ -56,23 +51,6 @@ class ReverseAliasSendActivity : ComponentActivity() {
                             "Gerçek e-posta adresinizi gizleyerek alias üzerinden e-posta göndermek için hedef adresi girin.",
                             style = MaterialTheme.typography.bodyMedium
                         )
-
-                        if (cachedAliases.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                cachedAliases.take(8).forEach { candidate ->
-                                    FilterChip(
-                                        selected = aliasEmail == candidate,
-                                        onClick = { aliasEmail = candidate },
-                                        label = { Text(candidate) }
-                                    )
-                                }
-                            }
-                        }
 
                         OutlinedTextField(
                             value = aliasEmail,
@@ -136,22 +114,6 @@ class ReverseAliasSendActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    private fun loadCachedAliasNames(rawJson: String): List<String> {
-        if (rawJson.isBlank()) return emptyList()
-        return runCatching {
-            val arr = JSONArray(rawJson)
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val obj = arr.optJSONObject(i) ?: continue
-                    if (obj.optBoolean("enabled", true) && !obj.optBoolean("wildcard", false)) {
-                        val name = obj.optString("name", "")
-                        if (name.isNotEmpty()) add(name)
-                    }
-                }
-            }
-        }.getOrDefault(emptyList())
     }
 
     private fun extractTargetEmail(intent: Intent?): String {

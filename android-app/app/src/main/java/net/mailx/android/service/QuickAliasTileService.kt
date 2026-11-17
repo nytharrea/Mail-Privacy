@@ -9,7 +9,6 @@ import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
@@ -64,7 +63,6 @@ class QuickAliasTileService : TileService() {
                 bearerToken = prefs.bearerToken,
                 requestJson = reqJson
             )
-            prefs.syncRefreshedTokenIfPresent(response)
 
             if (response.optBoolean("ok", false)) {
                 val createdAlias = response.optJSONObject("data")
@@ -91,10 +89,5 @@ class QuickAliasTileService : TileService() {
                 updateTile()
             }
         }
-    }
-
-    override fun onDestroy() {
-        serviceScope.cancel()
-        super.onDestroy()
     }
 }

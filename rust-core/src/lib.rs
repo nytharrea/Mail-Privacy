@@ -5,8 +5,6 @@
 //! - Çevrimdışı JSON önbellek yönetimi ve Access Key doğrulaması
 //! - Android JNI köprüsü (`Java_net_mailx_android_core_MailxRustBridge_*`)
 
-#![allow(clippy::all)]
-
 pub mod client;
 pub mod jni_bridge;
 pub mod models;
