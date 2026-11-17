@@ -1,8 +1,9 @@
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
 use crate::skeleton::{
-    compute_seven_day_telemetry, filter_and_sort_aliases, format_aliases_csv_export,
-    get_skeleton_info, parse_aliases_csv_import,
+    analyze_email_headers, audit_alias_hygiene, compute_seven_day_telemetry,
+    filter_and_sort_aliases, format_aliases_csv_export, generate_contextual_aliases,
+    get_skeleton_info, parse_aliases_csv_import, sanitize_tracking_urls,
 };
 use crate::utils::{
     compute_privacy_posture, decode_trackers_report, encode_nato_phonetic, encode_qr_matrix,
@@ -183,6 +184,26 @@ pub fn handle_parse_aliases_csv_import(
 
 pub fn handle_get_skeleton_info() -> String {
     JniEnvelope::success(get_skeleton_info())
+}
+
+pub fn handle_sanitize_tracking_urls(raw_text: &str) -> String {
+    JniEnvelope::success(sanitize_tracking_urls(raw_text))
+}
+
+pub fn handle_analyze_email_headers(raw_headers: &str) -> String {
+    JniEnvelope::success(analyze_email_headers(raw_headers))
+}
+
+pub fn handle_generate_contextual_aliases(
+    service_input: &str,
+    domain: &str,
+    count: usize,
+) -> String {
+    JniEnvelope::success(generate_contextual_aliases(service_input, domain, count))
+}
+
+pub fn handle_audit_alias_hygiene(aliases_json: &str) -> String {
+    JniEnvelope::success(audit_alias_hygiene(aliases_json))
 }
 
 #[cfg(feature = "network")]
@@ -625,6 +646,57 @@ mod android_exports {
         _class: JClass,
     ) -> jstring {
         run_jni_safely(env, |_env| handle_get_skeleton_info())
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeSanitizeTrackingUrls(
+        env: JNIEnv,
+        _class: JClass,
+        raw_text: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, raw_text);
+            handle_sanitize_tracking_urls(&raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAnalyzeEmailHeaders(
+        env: JNIEnv,
+        _class: JClass,
+        raw_headers: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, raw_headers);
+            handle_analyze_email_headers(&raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGenerateContextualAliases(
+        env: JNIEnv,
+        _class: JClass,
+        service_input: JString,
+        domain: JString,
+        count: jint,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let srv = jstring_to_rust(env, service_input);
+            let dom = jstring_to_rust(env, domain);
+            handle_generate_contextual_aliases(&srv, &dom, count.clamp(1, 8) as usize)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAuditAliasHygiene(
+        env: JNIEnv,
+        _class: JClass,
+        aliases_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let aliases = jstring_to_rust(env, aliases_json);
+            handle_audit_alias_hygiene(&aliases)
+        })
     }
 
     #[cfg(feature = "network")]

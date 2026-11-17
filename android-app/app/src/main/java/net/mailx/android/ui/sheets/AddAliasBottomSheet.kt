@@ -7,8 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +19,7 @@ import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.model.DefaultsUiState
 import net.mailx.android.ui.model.UiCustomDomain
 import net.mailx.android.ui.model.UiWildcardDomainInfo
+import net.mailx.android.ui.theme.MailxIcons
 import org.json.JSONObject
 import kotlin.random.Random
 
@@ -100,7 +99,7 @@ fun AddAliasBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -113,7 +112,7 @@ fun AddAliasBottomSheet(
             Text(
                 text = "Create New Alias",
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -150,9 +149,9 @@ fun AddAliasBottomSheet(
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = domainDropdownExpanded)
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth()
                         )
                         ExposedDropdownMenu(
@@ -185,9 +184,9 @@ fun AddAliasBottomSheet(
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatDropdownExpanded)
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth()
                         )
                         ExposedDropdownMenu(
@@ -215,7 +214,7 @@ fun AddAliasBottomSheet(
                             label = { Text("Custom Local Part (1-64 chars)") },
                             suffix = { Text("@$selectedDomain") },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                         if (matchingCustomDomain == null) {
@@ -257,11 +256,11 @@ fun AddAliasBottomSheet(
                                 label = { Text("Suffix (6-12 chars)") },
                                 trailingIcon = {
                                     IconButton(onClick = { wildcardLocalPart = randomAlphanumeric(8) }) {
-                                        Icon(Icons.Default.Casino, contentDescription = "Random Suffix")
+                                        Icon(MailxIcons.RefreshCw, contentDescription = "Random Suffix", modifier = Modifier.size(18.dp))
                                     }
                                 },
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -282,7 +281,7 @@ fun AddAliasBottomSheet(
                     onValueChange = { description = it },
                     label = { Text("Description / Service Note (Optional)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -291,7 +290,7 @@ fun AddAliasBottomSheet(
                     onValueChange = { fromName = it },
                     label = { Text("Sender Display Name (Optional)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -358,7 +357,7 @@ fun AddAliasBottomSheet(
                         (selectedFormat != "wildcard" || wildcardSuffixValid),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .height(50.dp),
                     shape = CircleShape
                 ) {
                     if (isSubmitting) {
@@ -368,9 +367,9 @@ fun AddAliasBottomSheet(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Creating...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Creating...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text("Create & Copy Alias", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Create & Copy Alias", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

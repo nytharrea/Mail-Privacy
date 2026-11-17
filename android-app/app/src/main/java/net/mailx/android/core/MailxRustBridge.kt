@@ -73,6 +73,22 @@ object MailxRustBridge {
     external fun nativeGetSkeletonInfo(): String
 
     @JvmStatic
+    external fun nativeSanitizeTrackingUrls(rawText: String): String
+
+    @JvmStatic
+    external fun nativeAnalyzeEmailHeaders(rawHeaders: String): String
+
+    @JvmStatic
+    external fun nativeGenerateContextualAliases(
+        serviceInput: String,
+        domain: String,
+        count: Int
+    ): String
+
+    @JvmStatic
+    external fun nativeAuditAliasHygiene(aliasesJson: String): String
+
+    @JvmStatic
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
 
     @JvmStatic

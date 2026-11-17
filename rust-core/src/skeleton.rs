@@ -2,6 +2,7 @@ use crate::models::{
     Alias, AliasRequest, CsvImportPlan, CustomDomain, DailyStatPoint, SkeletonInfo,
     TelemetrySummary,
 };
+use crate::utils::generate_random_suffix;
 use std::cmp::Ordering;
 use std::sync::{OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -416,6 +417,169 @@ pub fn parse_aliases_csv_import(
     Ok(CsvImportPlan { requests, skipped })
 }
 
+/// Sanitizes tracking parameters (utm_*, fbclid, gclid, mc_eid, etc.) from URLs in text.
+pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
+    const TRACKING_PARAMS: &[&str] = &[
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_id",
+        "fbclid",
+        "gclid",
+        "dclid",
+        "msclkid",
+        "mc_cid",
+        "mc_eid",
+        "mkt_tok",
+        "yclid",
+        "twclid",
+        "igshid",
+        "si",
+        "_hsenc",
+        "_hsmi",
+        "vero_id",
+        "oly_enc_id",
+        "oly_anon_id",
+        "rb_clickid",
+    ];
+
+    let mut removed_params: Vec<String> = Vec::new();
+    let mut urls_cleaned = 0usize;
+
+    let sanitized_tokens: Vec<String> = raw_text
+        .split_whitespace()
+        .map(|token| {
+            if (token.starts_with("http://") || token.starts_with("https://"))
+                && token.contains('?')
+            {
+                if let Some((base, query_and_hash)) = token.split_once('?') {
+                    let (query, hash_opt) = match query_and_hash.split_once('#') {
+                        Some((q, h)) => (q, Some(h)),
+                        None => (query_and_hash, None),
+                    };
+                    let mut kept = Vec::new();
+                    let mut modified = false;
+                    for pair in query.split('&') {
+                        let key = pair.split('=').next().unwrap_or("").to_ascii_lowercase();
+                        if TRACKING_PARAMS.contains(&key.as_str()) || key.starts_with("utm_") {
+                            removed_params.push(key);
+                            modified = true;
+                        } else if !pair.is_empty() {
+                            kept.push(pair);
+                        }
+                    }
+                    if modified {
+                        urls_cleaned += 1;
+                    }
+                    let mut rebuilt = base.to_string();
+                    if !kept.is_empty() {
+                        rebuilt.push('?');
+                        rebuilt.push_str(&kept.join("&"));
+                    }
+                    if let Some(h) = hash_opt {
+                        rebuilt.push('#');
+                        rebuilt.push_str(h);
+                    }
+                    return rebuilt;
+                }
+            }
+            token.to_string()
+        })
+        .collect();
+
+    serde_json::json!({
+        "sanitized_text": sanitized_tokens.join(" "),
+        "urls_cleaned": urls_cleaned,
+        "removed_params_count": removed_params.len(),
+        "removed_params": removed_params
+    })
+}
+
+/// Analyzes raw RFC-5322 email headers for SPF, DKIM, DMARC, TLS, and relay hops in Rust.
+pub fn analyze_email_headers(raw_headers: &str) -> serde_json::Value {
+    let lower = raw_headers.to_ascii_lowercase();
+    let spf_pass = lower.contains("spf=pass");
+    let dkim_pass = lower.contains("dkim=pass");
+    let dmarc_pass = lower.contains("dmarc=pass");
+    let tls_active = lower.contains("tls") || lower.contains("esmtps");
+    let hop_count = raw_headers
+        .lines()
+        .filter(|l| l.trim_start().to_ascii_lowercase().starts_with("received:"))
+        .count();
+
+    serde_json::json!({
+        "spf_status": if spf_pass { "PASS" } else { "MISSING/WARN" },
+        "dkim_status": if dkim_pass { "PASS" } else { "MISSING/WARN" },
+        "dmarc_status": if dmarc_pass { "PASS" } else { "MISSING/WARN" },
+        "tls_encrypted": tls_active,
+        "hop_count": hop_count,
+        "verdict": if spf_pass && dkim_pass { "Authenticated Relay" } else { "Unverified / Partial Headers" }
+    })
+}
+
+/// Generates contextual service-specific alias candidates in Rust.
+pub fn generate_contextual_aliases(
+    service_input: &str,
+    domain: &str,
+    count: usize,
+) -> serde_json::Value {
+    let clean_service: String = service_input
+        .trim()
+        .to_ascii_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(16)
+        .collect();
+    let prefix = if clean_service.is_empty() {
+        "vault".to_string()
+    } else {
+        clean_service
+    };
+    let clean_domain = if domain.trim().is_empty() {
+        "mailx.net"
+    } else {
+        domain.trim()
+    };
+    let total = count.clamp(1, 8);
+    let mut candidates = Vec::with_capacity(total);
+    for _ in 0..total {
+        let token = generate_random_suffix(6);
+        candidates.push(format!("{}.{}@{}", prefix, token, clean_domain));
+    }
+    serde_json::json!({
+        "service": prefix,
+        "domain": clean_domain,
+        "candidates": candidates
+    })
+}
+
+/// Audits alias hygiene (high-spam aliases, inactive aliases, missing descriptions) in Rust.
+pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
+    let aliases: Vec<Alias> = serde_json::from_str(aliases_json).unwrap_or_default();
+    let total = aliases.len();
+    let missing_desc = aliases
+        .iter()
+        .filter(|a| !a.is_deleted() && a.description.trim().is_empty())
+        .count();
+    let high_block = aliases
+        .iter()
+        .filter(|a| !a.is_deleted() && a.stats.blocks > a.stats.forwards && a.stats.blocks >= 3)
+        .count();
+    let dormant = aliases
+        .iter()
+        .filter(|a| !a.is_deleted() && a.enabled && a.total_activity() == 0)
+        .count();
+
+    serde_json::json!({
+        "total_audited": total,
+        "missing_description_count": missing_desc,
+        "high_block_ratio_count": high_block,
+        "dormant_active_count": dormant
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -444,7 +608,6 @@ mod tests {
     fn test_rust_skeleton_seven_day_telemetry() {
         let stats_json = r#"{"forwards":10,"blocks":3,"replies":1,"sends":2,"aliases":2,"messages":[{"created_at":"2026-11-17T12:00:00Z","type":1},{"created_at":"2026-11-17T13:00:00Z","type":4}]}"#;
         let aliases_json = r#"[{"id":"1","name":"a@mailx.net","enabled":true,"pinned":true,"wildcard":false,"stats":{"forwards":12,"blocks":3,"replies":1,"sends":2}}]"#;
-        // 2026-11-17T12:00:00Z = 1794916800
         let summary =
             compute_seven_day_telemetry(stats_json, aliases_json, 1_794_916_800).unwrap();
         assert_eq!(summary.forwards, 12);
@@ -469,5 +632,12 @@ mod tests {
         assert_eq!(plan.requests.len(), 1);
         assert_eq!(plan.requests[0].domain, "dom_123");
         assert_eq!(plan.requests[0].local_part.as_deref(), Some("shop"));
+    }
+
+    #[test]
+    fn test_privacy_lab_url_sanitizer() {
+        let res = sanitize_tracking_urls("https://example.com/item?id=42&utm_source=news&fbclid=abc123");
+        assert_eq!(res["sanitized_text"], "https://example.com/item?id=42");
+        assert_eq!(res["removed_params_count"], 2);
     }
 }

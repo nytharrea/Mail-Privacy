@@ -11,8 +11,9 @@ pub use client::{MailxClient, MailxError};
 pub use models::*;
 pub use secret::SecretString;
 pub use skeleton::{
-    compute_seven_day_telemetry, filter_and_sort_aliases, format_aliases_csv_export,
-    get_skeleton_info, parse_aliases_csv_import, MailxSkeletonRuntime,
+    analyze_email_headers, audit_alias_hygiene, compute_seven_day_telemetry,
+    filter_and_sort_aliases, format_aliases_csv_export, generate_contextual_aliases,
+    get_skeleton_info, parse_aliases_csv_import, sanitize_tracking_urls, MailxSkeletonRuntime,
 };
 pub use utils::{
     build_aliases_query_path, compute_privacy_posture, decode_trackers_report,
