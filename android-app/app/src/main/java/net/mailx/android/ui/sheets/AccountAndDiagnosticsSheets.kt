@@ -2,6 +2,18 @@ package net.mailx.android.ui.sheets
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import java.net.URLEncoder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -67,6 +79,36 @@ fun AccountBottomSheet(
     var exportedCsvPreview by remember { mutableStateOf<String?>(null) }
     var showImportCsvDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
+    val saveBackupTxtLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri: Uri? ->
+        if (uri != null && userAccount.totpBackupCodes.isNotBlank()) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    val content = buildString {
+                        appendLine("Mailx Privacy - 2FA Backup Recovery Codes")
+                        if (userAccount.email.isNotBlank()) {
+                            appendLine("Account: ${userAccount.email}")
+                        }
+                        appendLine("----------------------------------------")
+                        userAccount.totpBackupCodes
+                            .trim()
+                            .split(Regex("\\s+"))
+                            .filter { it.isNotBlank() }
+                            .forEachIndexed { idx, code ->
+                                appendLine("${idx + 1}. $code")
+                            }
+                    }
+                    out.write(content.toByteArray(Charsets.UTF_8))
+                }
+            }.onSuccess {
+                Toast.makeText(context, "Backup codes saved as .txt", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Toast.makeText(context, "Failed to save backup codes", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -263,18 +305,68 @@ fun AccountBottomSheet(
                     }
 
                     if (userAccount.totpSetupSecret.isNotBlank()) {
+                        val qrUri = remember(userAccount.totpSetupUri, userAccount.totpSetupSecret, userAccount.email) {
+                            if (userAccount.totpSetupUri.isNotBlank()) {
+                                userAccount.totpSetupUri
+                            } else {
+                                val label = URLEncoder.encode(userAccount.email.ifBlank { "Mailx" }, "UTF-8")
+                                "otpauth://totp/Mailx:$label?secret=${userAccount.totpSetupSecret}&issuer=Mailx"
+                            }
+                        }
                         HorizontalDivider()
                         Text(
-                            text = "Add the following TOTP secret to your authenticator app (Aegis, Ente Auth, etc.) and enter the 6-digit code:",
-                            fontSize = 12.sp
+                            text = "Scan this QR code with your authenticator app (Aegis, Ente Auth, etc.) or copy the setup key manually:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        SelectionContainer {
-                            Text(
-                                text = userAccount.totpSetupSecret,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TotpQrCodeView(
+                                payload = qrUri,
+                                modifier = Modifier.size(184.dp)
                             )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                SelectionContainer(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = userAccount.totpSetupSecret,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                FilledTonalIconButton(
+                                    onClick = {
+                                        copyToClipboard(
+                                            context,
+                                            "TOTP Secret",
+                                            userAccount.totpSetupSecret,
+                                            "TOTP secret key copied"
+                                        )
+                                    },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy Secret Key",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -300,19 +392,68 @@ fun AccountBottomSheet(
 
                     if (userAccount.totpBackupCodes.isNotBlank()) {
                         Card(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            )
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text("Backup Recovery Code (Save in a secure place):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Backup Recovery Codes (Save in a secure place):",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
                                 SelectionContainer {
                                     Text(
                                         text = userAccount.totpBackupCodes,
                                         fontFamily = FontFamily.Monospace,
+                                        fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            copyToClipboard(
+                                                context,
+                                                "Mailx 2FA Backup Codes",
+                                                userAccount.totpBackupCodes,
+                                                "Backup codes copied"
+                                            )
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        shape = CircleShape
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Copy Codes", fontSize = 12.sp)
+                                    }
+                                    Button(
+                                        onClick = {
+                                            saveBackupTxtLauncher.launch("mailx-2fa-backup-codes.txt")
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        shape = CircleShape
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Save .txt", fontSize = 12.sp)
+                                    }
                                 }
                             }
                         }
@@ -1204,6 +1345,50 @@ fun TrackersReportBottomSheet(
                                 text = "Element: ${tracker.elementLabel} • Reason: ${tracker.reasonLabel}",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun TotpQrCodeView(
+    payload: String,
+    modifier: Modifier = Modifier
+) {
+    val matrix = remember(payload) {
+        runCatching {
+            val hints = mapOf(EncodeHintType.MARGIN to 1)
+            QRCodeWriter().encode(payload, BarcodeFormat.QR_CODE, 0, 0, hints)
+        }.getOrNull()
+    }
+
+    if (matrix != null) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White,
+            modifier = modifier
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+            ) {
+                val cols = matrix.width
+                val rows = matrix.height
+                val cellW = size.width / cols.toFloat()
+                val cellH = size.height / rows.toFloat()
+                for (y in 0 until rows) {
+                    for (x in 0 until cols) {
+                        if (matrix.get(x, y)) {
+                            drawRect(
+                                color = Color.Black,
+                                topLeft = Offset(x * cellW, y * cellH),
+                                size = Size(cellW + 0.5f, cellH + 0.5f)
                             )
                         }
                     }
