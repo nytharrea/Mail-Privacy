@@ -1,7 +1,5 @@
 use std::fmt;
 
-/// Hassas verileri (Access Key ve Bearer Token) loglarda sızdırmamak ve
-/// bellekten düşerken sıfırlamak (zeroize-on-drop) için sarmalayıcı.
 #[derive(Clone, PartialEq, Eq)]
 pub struct SecretString {
     inner: String,
@@ -39,7 +37,6 @@ impl fmt::Display for SecretString {
 
 impl Drop for SecretString {
     fn drop(&mut self) {
-        // Bellek bölgesini sıfırla
         unsafe {
             for b in self.inner.as_bytes_mut() {
                 std::ptr::write_volatile(b, 0);

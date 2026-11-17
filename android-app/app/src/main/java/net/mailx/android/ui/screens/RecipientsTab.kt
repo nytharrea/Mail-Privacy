@@ -30,11 +30,6 @@ import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.AddyPalette
 
-/**
- * `anonaddy/addy-android` `RecipientsFragment.kt` + `DomainSettingsActivity.kt` ve
- * Mailx `Recipients` (`43640.jpg`..`43646.jpg`: Yeni Alıcı, OTP Doğrulama, PGP Public Key, PGP Şifreleme, PGP/Inline) &
- * Mailx `Domains` (`43648.jpg`..`43654.jpg`: Yeni Alan Adı, TXT Sahiplik Doğrulaması, MX/SPF/DKIM/DMARC DNS Doğrulaması, Catch-All).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipientsTab(
@@ -67,7 +62,7 @@ fun RecipientsTab(
     onSyncDefaults: () -> Unit
 ) {
     val context = LocalContext.current
-    var selectedSection by remember { mutableIntStateOf(0) } // 0 = Alıcılar, 1 = Alan Adları
+    var selectedSection by remember { mutableIntStateOf(0) }
     var showVerifiedOnly by remember { mutableStateOf(false) }
     var expandedRecipientId by remember { mutableStateOf<String?>(null) }
 
@@ -104,28 +99,24 @@ fun RecipientsTab(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 48.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Üst Sekme Seçici: Alıcılar (Recipients) / Alan Adları (Domains)
         item(key = "recipients_domains_segmented") {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     selected = selectedSection == 0,
                     onClick = { selectedSection = 0 },
-                    label = { Text("Alıcılar (${displayedRecipients.size})") }
+                    label = { Text("Recipients (${displayedRecipients.size})") }
                 )
                 SegmentedButton(
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     selected = selectedSection == 1,
                     onClick = { selectedSection = 1 },
-                    label = { Text("Alan Adları (${customDomains.size + defaultsState.availableDomains.size})") }
+                    label = { Text("Domains (${customDomains.size + defaultsState.availableDomains.size})") }
                 )
             }
         }
 
         if (selectedSection == 0) {
-            // =================================================================
-            // BÖLÜM 1: ALICILAR VE PGP ŞİFRELEME (`43640.jpg`..`43646.jpg`)
-            // =================================================================
             item(key = "recipients_top_filter_bar") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -136,12 +127,12 @@ fun RecipientsTab(
                         FilterChip(
                             selected = !showVerifiedOnly,
                             onClick = { showVerifiedOnly = false },
-                            label = { Text("Tümü") }
+                            label = { Text("All") }
                         )
                         FilterChip(
                             selected = showVerifiedOnly,
                             onClick = { showVerifiedOnly = true },
-                            label = { Text("Doğrulanmış") }
+                            label = { Text("Verified") }
                         )
                     }
 
@@ -156,16 +147,16 @@ fun RecipientsTab(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Yeni Alıcı", fontSize = 13.sp)
+                        Text("New Recipient", fontSize = 13.sp)
                     }
                 }
             }
 
             item(key = "recipients_header") {
                 AddySectionHeader(
-                    title = "Alıcı Adresleri",
+                    title = "Recipient Addresses",
                     countBadge = displayedRecipients.size,
-                    actionText = "Senkronize Et",
+                    actionText = "Sync",
                     onActionClick = onSyncDefaults
                 )
             }
@@ -174,9 +165,9 @@ fun RecipientsTab(
                 item(key = "recipients_empty") {
                     EmptyStateBox(
                         icon = Icons.Default.Inbox,
-                        title = "Kayıtlı alıcı bulunamadı",
-                        subtitle = "Yeni bir alıcı e-posta adresi ekleyebilir veya sunucudan senkronize edebilirsiniz.",
-                        actionLabel = "Yeni Alıcı Ekle",
+                        title = "No recipients found",
+                        subtitle = "Add a new recipient email address or sync from the server.",
+                        actionLabel = "Add Recipient",
                         onActionClick = { showAddRecipientDialog = true }
                     )
                 }
@@ -245,7 +236,7 @@ fun RecipientsTab(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "$aliasCountForRec takma ad • İletilen: $forwardedForRec",
+                                        text = "$aliasCountForRec aliases • Forwarded: $forwardedForRec",
                                         fontSize = 13.sp,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                     )
@@ -253,32 +244,31 @@ fun RecipientsTab(
 
                                 Icon(
                                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = "Seçenekler",
+                                    contentDescription = "Options",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
-                            // Durum Rozetleri (`43640.jpg`, `43642.jpg`: Verified, PGP Key Added, Encryption Enabled, PGP/Inline)
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 StatusPillBadge(
-                                    text = if (rec.isActive) "Doğrulandı (Verified)" else "Doğrulanmadı",
+                                    text = if (rec.isActive) "Verified" else "Unverified",
                                     color = if (rec.isActive) AddyPalette.GreenActive else AddyPalette.SoftRed
                                 )
                                 if (isDefault) {
                                     StatusPillBadge(
-                                        text = "Varsayılan",
+                                        text = "Default",
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                                 if (rec.hasPgpKey) {
                                     StatusPillBadge(
                                         text = if (rec.pgpEnabled) {
-                                            if (rec.pgpInline) "PGP/Inline Aktif" else "PGP/MIME Aktif"
+                                            if (rec.pgpInline) "PGP/Inline Active" else "PGP/MIME Active"
                                         } else {
-                                            "PGP Anahtarı Ekli"
+                                            "PGP Key Added"
                                         },
                                         color = if (rec.pgpEnabled) AddyPalette.EasternBlue else MaterialTheme.colorScheme.secondary
                                     )
@@ -308,19 +298,18 @@ fun RecipientsTab(
                                             ) {
                                                 Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text("OTP Kodu Gir")
+                                                Text("Enter OTP")
                                             }
                                             FilledTonalButton(
                                                 onClick = { onSendRecipientOtp(rec.id) },
                                                 modifier = Modifier.weight(1f),
                                                 shape = CircleShape
                                             ) {
-                                                Text("Kodu Tekrar Gönder")
+                                                Text("Resend OTP")
                                             }
                                         }
                                     }
 
-                                    // PGP Anahtarı Ekle / Güncelle ve Şifreleme Kontrolleri (`43642.jpg`..`43646.jpg`)
                                     if (rec.hasPgpKey) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -328,13 +317,13 @@ fun RecipientsTab(
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                               Text(
-                                                    text = "PGP Şifreleme (Encryption)",
+                                                Text(
+                                                    text = "PGP Encryption",
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                                 Text(
-                                                    text = "Bu alıcıya yönlendirilen e-postaları PGP ile şifrele",
+                                                    text = "Encrypt forwarded emails to this recipient with PGP",
                                                     fontSize = 12.sp,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
@@ -355,12 +344,12 @@ fun RecipientsTab(
                                             ) {
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
-                                                        text = "PGP/Inline Formatı",
+                                                        text = "PGP/Inline Format",
                                                         fontSize = 14.sp,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     Text(
-                                                        text = "PGP/MIME yerine PGP/Inline kullan (Ek dosyalar şifrelenmez)",
+                                                        text = "Use PGP/Inline instead of PGP/MIME (attachments are not encrypted)",
                                                         fontSize = 12.sp,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
@@ -387,7 +376,7 @@ fun RecipientsTab(
                                             Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = if (rec.hasPgpKey) "PGP Anahtarı" else "PGP Ekle",
+                                                text = if (rec.hasPgpKey) "PGP Key" else "Add PGP Key",
                                                 maxLines = 1
                                             )
                                         }
@@ -401,7 +390,7 @@ fun RecipientsTab(
                                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = if (isDefault) "Varsayılan" else "Varsayılan Yap",
+                                                text = if (isDefault) "Default" else "Set Default",
                                                 maxLines = 1
                                             )
                                         }
@@ -413,14 +402,14 @@ fun RecipientsTab(
                                     ) {
                                         FilledTonalButton(
                                             onClick = {
-                                                copyToClipboard(context, "Recipient Email", rec.email, "Alıcı adresi kopyalandı")
+                                                copyToClipboard(context, "Recipient Email", rec.email, "Recipient email copied")
                                             },
                                             modifier = Modifier.weight(1f),
                                             shape = CircleShape
                                         ) {
                                             Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Kopyala", maxLines = 1)
+                                            Text("Copy", maxLines = 1)
                                         }
 
                                         if (!rec.id.startsWith("fallback_") && !rec.id.startsWith("default_")) {
@@ -435,7 +424,7 @@ fun RecipientsTab(
                                             ) {
                                                 Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text("Alıcıyı Sil", maxLines = 1)
+                                                Text("Delete", maxLines = 1)
                                             }
                                         }
                                     }
@@ -446,14 +435,11 @@ fun RecipientsTab(
                 }
             }
         } else {
-            // =================================================================
-            // BÖLÜM 2: ÖZEL ALAN ADLARI (CUSTOM DOMAINS & DNS) (`43648.jpg`..`43654.jpg`)
-            // =================================================================
             item(key = "custom_domains_header") {
                 AddySectionHeader(
-                    title = "Özel Alan Adları (Custom Domains)",
+                    title = "Custom Domains",
                     countBadge = customDomains.size,
-                    actionText = "Yeni Alan Adı",
+                    actionText = "New Domain",
                     onActionClick = { showAddDomainWizard = true }
                 )
             }
@@ -462,9 +448,9 @@ fun RecipientsTab(
                 item(key = "custom_domains_empty") {
                     EmptyStateBox(
                         icon = Icons.Default.Language,
-                        title = "Henüz özel alan adınız yok",
-                        subtitle = "Kendi alan adınızı (örn: alanadim.com) ekleyip TXT, MX, SPF ve DKIM kayıtlarını doğrulayarak sınırsız takma ad kullanabilirsiniz.",
-                        actionLabel = "Yeni Alan Adı Ekle",
+                        title = "No custom domains yet",
+                        subtitle = "Add your own domain (e.g. mydomain.com) and verify TXT, MX, SPF, and DKIM records to use custom aliases.",
+                        actionLabel = "Add Custom Domain",
                         onActionClick = { showAddDomainWizard = true }
                     )
                 }
@@ -524,32 +510,30 @@ fun RecipientsTab(
                                 )
                             }
 
-                            // DNS Doğrulama Rozetleri
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 StatusPillBadge(
-                                    text = if (dom.isOwnerVerified) "TXT Sahiplik ✓" else "TXT Bekliyor",
+                                    text = if (dom.isOwnerVerified) "TXT Ownership ✓" else "TXT Pending",
                                     color = if (dom.isOwnerVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
                                 )
                                 StatusPillBadge(
-                                    text = if (dom.isMxVerified) "MX ✓" else "MX Bekliyor",
+                                    text = if (dom.isMxVerified) "MX ✓" else "MX Pending",
                                     color = if (dom.isMxVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
                                 )
                                 StatusPillBadge(
-                                    text = if (dom.isSendVerified) "SPF/DKIM/DMARC ✓" else "SPF/DKIM Bekliyor",
+                                    text = if (dom.isSendVerified) "SPF/DKIM/DMARC ✓" else "SPF/DKIM Pending",
                                     color = if (dom.isSendVerified) AddyPalette.GreenActive else AddyPalette.PortalOrange
                                 )
                             }
 
-                            // Catch-All Anahtarı
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Catch-All (Tüm Adresleri Yakala)", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                    Text("Catch-All", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                                     Text(
-                                        text = "Bu alan adına gelen her e-postayı otomatik kabul et",
+                                        text = "Accept incoming emails sent to any address on this domain",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -576,13 +560,13 @@ fun RecipientsTab(
                                 ) {
                                     Icon(Icons.Default.Dns, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("DNS & Doğrula", maxLines = 1)
+                                    Text("DNS & Verify", maxLines = 1)
                                 }
                                 FilledTonalButton(
                                     onClick = { editingCustomDomain = dom },
                                     shape = CircleShape
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Düzenle", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
                                 }
                                 FilledTonalButton(
                                     onClick = { onDeleteCustomDomain(dom.id) },
@@ -592,7 +576,7 @@ fun RecipientsTab(
                                         contentColor = AddyPalette.SoftRed
                                     )
                                 ) {
-                                    Icon(Icons.Default.DeleteOutline, contentDescription = "Sil", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -600,10 +584,9 @@ fun RecipientsTab(
                 }
             }
 
-            // Paylaşımlı Mailx Alan Adları (`43678.jpg`: mailx.net, zeropost.net, mailshift.net, layermail.net, ambox.net, spotsend.com)
             item(key = "shared_domains_header") {
                 AddySectionHeader(
-                    title = "Kullanılabilir Alan Adları ve Varsayılan Seçimi",
+                    title = "Available Domains & Default Selection",
                     countBadge = defaultsState.availableDomains.size,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -617,9 +600,9 @@ fun RecipientsTab(
                 AddySectionView(
                     title = "@$domain",
                     description = if (isSelected) {
-                        "Varsayılan alan adı • $domainAliasCount takma ad"
+                        "Default domain • $domainAliasCount aliases"
                     } else {
-                        "$domainAliasCount takma ad • Varsayılan yapmak için dokunun"
+                        "$domainAliasCount aliases • Tap to set as default"
                     },
                     startIcon = Icons.Default.Language,
                     endIcon = if (isSelected) Icons.Default.Check else null,
@@ -648,13 +631,13 @@ fun RecipientsTab(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
-                        contentDescription = "Bilgi",
+                        contentDescription = "Info",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        text = "Toplam ${displayedRecipients.size} alıcı adresi, ${customDomains.size} özel alan adı ve ${defaultsState.availableDomains.size} kullanılabilir alan adı tanımlı.",
+                        text = "${displayedRecipients.size} recipient addresses, ${customDomains.size} custom domains, and ${defaultsState.availableDomains.size} available domains configured.",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -663,26 +646,22 @@ fun RecipientsTab(
         }
     }
 
-    // =========================================================================
-    // DİYALOGLAR: YENİ ALICI, OTP DOĞRULAMA, PGP ANAHTARI, YENİ ALAN ADI VE DNS TABLOSU
-    // =========================================================================
-
     if (showAddRecipientDialog) {
         var newEmail by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddRecipientDialog = false },
-            title = { Text("Yeni Alıcı Ekle (New Recipient)") },
+            title = { Text("New Recipient") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Takma adlarınızdan gelen iletilerin yönlendirileceği gerçek e-posta adresinizi girin. Adresinize 6 haneli doğrulama kodu gönderilecektir.",
+                        text = "Enter the real email address where your aliases should forward messages. A 6-digit OTP verification code will be sent to this address.",
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = newEmail,
                         onValueChange = { newEmail = it },
-                        label = { Text("Alıcı E-posta Adresi") },
-                        placeholder = { Text("ornek@proton.me") },
+                        label = { Text("Recipient Email Address") },
+                        placeholder = { Text("example@proton.me") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -698,12 +677,12 @@ fun RecipientsTab(
                         onAddRecipient(target)
                     }
                 ) {
-                    Text("Alıcı Ekle")
+                    Text("Add Recipient")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddRecipientDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -713,17 +692,17 @@ fun RecipientsTab(
         var otpCode by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { verifyingRecipient = null },
-            title = { Text("Alıcı Adresini Doğrula") },
+            title = { Text("Verify Recipient Address") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "${rec.email} adresine gönderilen 6 haneli doğrulama kodunu (OTP) girin:",
+                        text = "Enter the 6-digit verification code (OTP) sent to ${rec.email}:",
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = otpCode,
                         onValueChange = { otpCode = it.take(6) },
-                        label = { Text("6 Haneli Doğrulama Kodu") },
+                        label = { Text("6-Digit OTP Code") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -739,27 +718,26 @@ fun RecipientsTab(
                         onVerifyRecipientOtp(rec.id, code)
                     }
                 ) {
-                    Text("Doğrula")
+                    Text("Verify")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { verifyingRecipient = null }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
     }
 
-    // `43646.jpg`: ADD PGP PUBLIC KEY ("Starts with '-----BEGIN PGP PUBLIC KEY BLOCK-----'")
     pgpEditingRecipient?.let { rec ->
         var pgpText by remember(rec) { mutableStateOf(rec.pgpKey) }
         AlertDialog(
             onDismissRequest = { pgpEditingRecipient = null },
-            title = { Text("PGP Açık Anahtarı (Public Key)") },
+            title = { Text("PGP Public Key") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "${rec.email} için '-----BEGIN PGP PUBLIC KEY BLOCK-----' ile başlayan açık PGP anahtarınızı yapıştırın:",
+                        text = "Paste your public PGP key for ${rec.email} starting with '-----BEGIN PGP PUBLIC KEY BLOCK-----':",
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
@@ -783,12 +761,12 @@ fun RecipientsTab(
                         onUpdateRecipientPgp(
                             rec,
                             clean,
-                            if (clean.isNotEmpty()) true else false,
+                            clean.isNotEmpty(),
                             rec.pgpInline
                         )
                     }
                 ) {
-                    Text("Kaydet")
+                    Text("Save")
                 }
             },
             dismissButton = {
@@ -800,11 +778,11 @@ fun RecipientsTab(
                                 onUpdateRecipientPgp(rec, "", false, false)
                             }
                         ) {
-                            Text("Anahtarı Kaldır", color = AddyPalette.SoftRed)
+                            Text("Remove Key", color = AddyPalette.SoftRed)
                         }
                     }
                     TextButton(onClick = { pgpEditingRecipient = null }) {
-                        Text("İptal")
+                        Text("Cancel")
                     }
                 }
             }
@@ -816,19 +794,19 @@ fun RecipientsTab(
         var fallbackEmail by remember { mutableStateOf(otherRecipients.firstOrNull().orEmpty()) }
         AlertDialog(
             onDismissRequest = { deletingRecipient = null },
-            title = { Text("Alıcıyı Sil") },
+            title = { Text("Delete Recipient") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("${rec.email} alıcısını silmek istediğinize emin misiniz?")
+                    Text("Are you sure you want to delete recipient ${rec.email}?")
                     if (otherRecipients.isNotEmpty()) {
                         Text(
-                            text = "Bu alıcıya bağlı takma adların aktarılacağı yedek alıcı:",
+                            text = "Fallback recipient for aliases currently using this address:",
                             style = MaterialTheme.typography.bodySmall
                         )
                         OutlinedTextField(
                             value = fallbackEmail,
                             onValueChange = { fallbackEmail = it },
-                            label = { Text("Yedek Alıcı E-postası") },
+                            label = { Text("Fallback Recipient Email") },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -848,33 +826,32 @@ fun RecipientsTab(
                         onDeleteRecipient(id, fallbackEmail)
                     }
                 ) {
-                    Text("Sil")
+                    Text("Delete")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deletingRecipient = null }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
     }
 
-    // `43650.jpg`: ADD NEW DOMAIN (Step 1/2 TXT Ownership + Step 2/2 DNS)
     if (showAddDomainWizard) {
         var domainInput by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddDomainWizard = false },
-            title = { Text("Yeni Alan Adı Ekle (Step 1/2)") },
+            title = { Text("Add New Domain (Step 1/2)") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "1. Alan adınızı girin.\n2. Alan adınızın DNS ayarlarına aşağıdaki TXT doğrulama kaydını ekleyin:",
+                        text = "1. Enter your domain name.\n2. Add the following TXT ownership verification record in your DNS settings:",
                         style = MaterialTheme.typography.bodySmall
                     )
                     OutlinedTextField(
                         value = domainInput,
                         onValueChange = { domainInput = it },
-                        label = { Text("Alan Adı (Domain)") },
+                        label = { Text("Domain Name") },
                         placeholder = { Text("example.net") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -892,7 +869,7 @@ fun RecipientsTab(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        copyToClipboard(context, "TXT Record", dnsConfig.verify, "TXT doğrulama değeri kopyalandı")
+                                        copyToClipboard(context, "TXT Record", dnsConfig.verify, "TXT verification value copied")
                                     }
                                     .padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -904,7 +881,7 @@ fun RecipientsTab(
                                     fontFamily = FontFamily.Monospace,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                Text("Kopyalamak için dokunun", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Tap to copy", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -923,23 +900,22 @@ fun RecipientsTab(
                         }
                     }
                 ) {
-                    Text("Alan Adını Ekle ve DNS'e Geç")
+                    Text("Add Domain & Configure DNS")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddDomainWizard = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
     }
 
-    // `43652.jpg`, `43654.jpg`: Step 2/2 DNS Yapılandırması ve Doğrulama Tablosu
     inspectingDnsDomain?.let { dom ->
         val checks = dnsCheckResults[dom.id].orEmpty()
         AlertDialog(
             onDismissRequest = { inspectingDnsDomain = null },
-            title = { Text("DNS Yapılandırması: ${dom.name}") },
+            title = { Text("DNS Configuration: ${dom.name}") },
             text = {
                 Column(
                     modifier = Modifier
@@ -948,13 +924,13 @@ fun RecipientsTab(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "Alan adınızın e-posta alıp gönderebilmesi için aşağıdaki DNS kayıtlarını sağlayıcınıza ekleyin (Kopyalamak için kayda dokunun):",
+                        text = "Add the following DNS records at your domain provider so your domain can receive and send emails (tap any record to copy):",
                         style = MaterialTheme.typography.bodySmall
                     )
 
                     if (dnsConfig.verify.isNotBlank()) {
                         DnsRecordCard(
-                            type = "TXT (Sahiplik)",
+                            type = "TXT (Ownership)",
                             host = "@",
                             value = dnsConfig.verify,
                             onCopy = { copyToClipboard(context, "TXT", dnsConfig.verify) }
@@ -963,7 +939,7 @@ fun RecipientsTab(
 
                     dnsConfig.mxHosts.forEachIndexed { idx, mxHost ->
                         DnsRecordCard(
-                            type = "MX (Öncelik ${(idx + 1) * 10})",
+                            type = "MX (Priority ${(idx + 1) * 10})",
                             host = "@",
                             value = mxHost,
                             onCopy = { copyToClipboard(context, "MX", mxHost) }
@@ -999,7 +975,7 @@ fun RecipientsTab(
 
                     if (checks.isNotEmpty()) {
                         HorizontalDivider()
-                        Text("Son Doğrulama Sonuçları:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Latest Verification Results:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         checks.forEach { chk ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -1012,7 +988,7 @@ fun RecipientsTab(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = if (chk.passed) "${chk.name}: Doğrulandı" else "${chk.name}: ${chk.error}",
+                                    text = if (chk.passed) "${chk.name}: Verified" else "${chk.name}: ${chk.error}",
                                     fontSize = 12.sp
                                 )
                             }
@@ -1022,12 +998,12 @@ fun RecipientsTab(
             },
             confirmButton = {
                 Button(onClick = { onVerifyDomainDns(dom.id) }) {
-                    Text("DNS Kayıtlarını Doğrula")
+                    Text("Verify DNS Records")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { inspectingDnsDomain = null }) {
-                    Text("Kapat")
+                    Text("Close")
                 }
             }
         )
@@ -1041,13 +1017,13 @@ fun RecipientsTab(
 
         AlertDialog(
             onDismissRequest = { editingCustomDomain = null },
-            title = { Text("${dom.name} Ayarları") },
+            title = { Text("${dom.name} Settings") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = desc,
                         onValueChange = { desc = it },
-                        label = { Text("Açıklama") },
+                        label = { Text("Description") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1055,7 +1031,7 @@ fun RecipientsTab(
                     OutlinedTextField(
                         value = fromName,
                         onValueChange = { fromName = it },
-                        label = { Text("Gönderici Adı (From Name)") },
+                        label = { Text("From Name") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1063,7 +1039,7 @@ fun RecipientsTab(
                     OutlinedTextField(
                         value = rec,
                         onValueChange = { rec = it },
-                        label = { Text("Varsayılan Alıcı E-postası") },
+                        label = { Text("Default Recipient Email") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1074,7 +1050,7 @@ fun RecipientsTab(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Catch-All Eşleşmelerinde Otomatik Takma Ad Oluştur",
+                            text = "Auto-Create Alias on Catch-All Match",
                             fontSize = 13.sp,
                             modifier = Modifier.weight(1f)
                         )
@@ -1095,12 +1071,12 @@ fun RecipientsTab(
                         )
                     }
                 ) {
-                    Text("Kaydet")
+                    Text("Save")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { editingCustomDomain = null }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )

@@ -1,5 +1,7 @@
 package net.mailx.android.ui.sheets
 
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,32 +23,37 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.AddySectionHeader
 import net.mailx.android.ui.components.AddySectionView
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.AddyPalette
+import org.json.JSONObject
 
-/**
- * Mailx `Account` (`43692.jpg`..`43702.jpg`: Subscription, Account Info, Change Email/Password,
- * 2-Factor Authentication TOTP, Access Keys, Alias CSV Import/Export) alt penceresi.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountBottomSheet(
     userAccount: UiUserAccount,
     accessKeys: List<UiAccessKey>,
+    passkeys: List<UiPasskeyCredential> = emptyList(),
     aliasCount: Int,
     onDismiss: () -> Unit,
+    onSendAccountOtp: () -> Unit = {},
+    onVerifyAccountOtp: (otp: String) -> Unit = {},
     onChangePassword: (oldPassword: String, newPassword: String) -> Unit,
     onChangeEmail: (newEmail: String, currentPassword: String) -> Unit,
     onInitiateTotp: () -> Unit,
     onConfirmTotp: (otp: String) -> Unit,
     onDisableTotp: (otp: String) -> Unit,
+    onDeletePasskey: (id: String) -> Unit = {},
     onCreateAccessKey: (name: String, expiresDays: Int?) -> Unit,
     onClearNewAccessKeyToken: () -> Unit,
     onDeleteAccessKey: (id: String) -> Unit,
-    onExportAliasesCsv: (onCsvReady: (String) -> Unit) -> Unit
+    onExportAliasesCsv: (onCsvReady: (String) -> Unit) -> Unit,
+    onImportAliasesCsv: (csvText: String) -> Unit = {},
+    onRequestDeleteAccount: (currentPassword: String) -> Unit = {},
+    onConfirmDeleteAccount: (otp: String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -55,8 +62,11 @@ fun AccountBottomSheet(
     var showChangeEmailDialog by remember { mutableStateOf(false) }
     var showCreateKeyDialog by remember { mutableStateOf(false) }
     var totpConfirmInput by remember { mutableStateOf("") }
+    var accountOtpInput by remember { mutableStateOf("") }
     var showDisableTotpDialog by remember { mutableStateOf(false) }
     var exportedCsvPreview by remember { mutableStateOf<String?>(null) }
+    var showImportCsvDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -74,7 +84,7 @@ fun AccountBottomSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Hesap, Abonelik ve Güvenlik",
+                text = "Account, Subscription & Security",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
@@ -83,7 +93,6 @@ fun AccountBottomSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
-            // 1. Abonelik ve Hesap Bilgisi (`43692.jpg`)
             Card(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
@@ -100,7 +109,7 @@ fun AccountBottomSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Abonelik Durumu (Subscription)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Subscription Status", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Surface(
                             shape = CircleShape,
                             color = AddyPalette.GreenActive.copy(alpha = 0.16f)
@@ -117,7 +126,7 @@ fun AccountBottomSheet(
 
                     if (userAccount.subActiveUntil.isNotBlank()) {
                         Text(
-                            text = "Geçerlilik Tarihi: ${formatIsoDateShort(userAccount.subActiveUntil)}",
+                            text = "Valid Until: ${formatIsoDateShort(userAccount.subActiveUntil)}",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -125,7 +134,7 @@ fun AccountBottomSheet(
 
                     if (userAccount.email.isNotBlank()) {
                         Text(
-                            text = "Birincil E-posta: ${userAccount.email} (${if (userAccount.isActive) "Doğrulandı" else "Doğrulanmadı"})",
+                            text = "Primary Email: ${userAccount.email} (${if (userAccount.isActive) "Verified" else "Unverified"})",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -144,26 +153,74 @@ fun AccountBottomSheet(
                 }
             }
 
-            // 2. E-posta & Parola Yönetimi (`43692.jpg`, `43694.jpg`)
-            AddySectionHeader(title = "Kimlik ve İki Aşamalı Doğrulama (2FA)")
+            if (!userAccount.isActive) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.65f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Verify Your Primary Email Address",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = "Enter the 6-digit OTP code sent to your primary email address to activate email forwarding:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = accountOtpInput,
+                                onValueChange = { accountOtpInput = it.take(6) },
+                                label = { Text("6-Digit OTP") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                enabled = accountOtpInput.length == 6,
+                                onClick = { onVerifyAccountOtp(accountOtpInput) }
+                            ) {
+                                Text("Verify")
+                            }
+                        }
+                        TextButton(onClick = onSendAccountOtp) {
+                            Text("Resend OTP Code")
+                        }
+                    }
+                }
+            }
+
+            AddySectionHeader(title = "Credentials & Two-Factor Authentication")
 
             AddySectionView(
-                title = "Birincil E-postayı Değiştir",
-                description = userAccount.email.ifBlank { "Hesap e-posta adresini güncelle" },
+                title = "Change Primary Email",
+                description = userAccount.email.ifBlank { "Update account email address" },
                 startIcon = Icons.Default.Email,
                 endIcon = Icons.Default.Edit,
                 onClick = { showChangeEmailDialog = true }
             )
 
             AddySectionView(
-                title = "Parolayı Değiştir (Change Password)",
-                description = "Hesap giriş parolanızı güncelleyin",
+                title = "Change Password",
+                description = "Update your account login password",
                 startIcon = Icons.Default.LockReset,
                 endIcon = Icons.Default.Edit,
                 onClick = { showChangePasswordDialog = true }
             )
 
-            // 3. 2FA TOTP (`43694.jpg`)
             Card(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
@@ -181,9 +238,9 @@ fun AccountBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("İki Aşamalı Doğrulama (2FA TOTP)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text("Two-Factor Authentication (2FA TOTP)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             Text(
-                                text = if (userAccount.totpEnabled) "Durum: Etkin (Active)" else "Durum: Devre Dışı",
+                                text = if (userAccount.totpEnabled) "Status: Enabled" else "Status: Disabled",
                                 fontSize = 13.sp,
                                 color = if (userAccount.totpEnabled) AddyPalette.GreenActive else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -193,14 +250,14 @@ fun AccountBottomSheet(
                                 onClick = { showDisableTotpDialog = true },
                                 shape = CircleShape
                             ) {
-                                Text("Devre Dışı Bırak", color = AddyPalette.SoftRed)
+                                Text("Disable", color = AddyPalette.SoftRed)
                             }
                         } else {
                             Button(
                                 onClick = onInitiateTotp,
                                 shape = CircleShape
                             ) {
-                                Text("2FA Etkinleştir")
+                                Text("Enable 2FA")
                             }
                         }
                     }
@@ -208,7 +265,7 @@ fun AccountBottomSheet(
                     if (userAccount.totpSetupSecret.isNotBlank()) {
                         HorizontalDivider()
                         Text(
-                            text = "Kimlik doğrulayıcı uygulamanıza (Aegis, Ente Auth vb.) aşağıdaki TOTP anahtarını ekleyin ve 6 haneli kodu girin:",
+                            text = "Add the following TOTP secret to your authenticator app (Aegis, Ente Auth, etc.) and enter the 6-digit code:",
                             fontSize = 12.sp
                         )
                         SelectionContainer {
@@ -227,7 +284,7 @@ fun AccountBottomSheet(
                             OutlinedTextField(
                                 value = totpConfirmInput,
                                 onValueChange = { totpConfirmInput = it.take(6) },
-                                label = { Text("6 Haneli TOTP Kodu") },
+                                label = { Text("6-Digit TOTP Code") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
@@ -236,7 +293,7 @@ fun AccountBottomSheet(
                                 enabled = totpConfirmInput.length == 6,
                                 onClick = { onConfirmTotp(totpConfirmInput) }
                             ) {
-                                Text("Onayla")
+                                Text("Confirm")
                             }
                         }
                     }
@@ -249,7 +306,7 @@ fun AccountBottomSheet(
                             )
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text("Yedek Kurtarma Kodunuz (Güvenli bir yere kaydedin):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Backup Recovery Code (Save in a secure place):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 SelectionContainer {
                                     Text(
                                         text = userAccount.totpBackupCodes,
@@ -263,11 +320,57 @@ fun AccountBottomSheet(
                 }
             }
 
-            // 4. Erişim Anahtarları (`Access Keys` - `43698.jpg`, `43700.jpg`)
+            if (passkeys.isNotEmpty()) {
+                AddySectionHeader(
+                    title = "Passkeys",
+                    countBadge = passkeys.size
+                )
+
+                passkeys.forEach { pk ->
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Passkey Credential", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(
+                                    text = "ID: ${pk.id}",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Created: ${formatIsoDateShort(pk.createdAt)}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { onDeletePasskey(pk.id) }) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete Passkey",
+                                    tint = AddyPalette.SoftRed
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             AddySectionHeader(
-                title = "Erişim Anahtarları (Access Keys)",
+                title = "Access Keys",
                 countBadge = accessKeys.size,
-                actionText = "Yeni Anahtar",
+                actionText = "New Key",
                 onActionClick = { showCreateKeyDialog = true }
             )
 
@@ -284,7 +387,7 @@ fun AccountBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Yeni Erişim Anahtarınız (Yalnızca bir kez gösterilir):",
+                            text = "New Access Key (Shown only once):",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -304,15 +407,15 @@ fun AccountBottomSheet(
                                         context,
                                         "Mailx Access Key",
                                         userAccount.newlyCreatedAccessKeyToken,
-                                        "85 karakterlik erişim anahtarı kopyalandı"
+                                        "85-character access key copied"
                                     )
                                 },
                                 shape = CircleShape
                             ) {
-                                Text("Anahtarı Kopyala")
+                                Text("Copy Key")
                             }
                             TextButton(onClick = onClearNewAccessKeyToken) {
-                                Text("Gizle")
+                                Text("Hide")
                             }
                         }
                     }
@@ -344,9 +447,9 @@ fun AccountBottomSheet(
                             )
                             Text(
                                 text = if (keyItem.expiresAt.isNotBlank()) {
-                                    "Bitiş: ${formatIsoDateShort(keyItem.expiresAt)}"
+                                    "Expires: ${formatIsoDateShort(keyItem.expiresAt)}"
                                 } else {
-                                    "Süresiz • Oluşturulma: ${formatIsoDateShort(keyItem.createdAt)}"
+                                    "No expiration • Created: ${formatIsoDateShort(keyItem.createdAt)}"
                                 },
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -355,7 +458,7 @@ fun AccountBottomSheet(
                         IconButton(onClick = { onDeleteAccessKey(keyItem.id) }) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
-                                contentDescription = "Anahtarı Sil",
+                                contentDescription = "Delete Key",
                                 tint = AddyPalette.SoftRed
                             )
                         }
@@ -363,18 +466,34 @@ fun AccountBottomSheet(
                 }
             }
 
-            // 5. Takma Adları Dışa Aktar (`Alias Export CSV` - `43700.jpg`, `43702.jpg`)
-            AddySectionHeader(title = "Takma Adları Dışa Aktar (CSV Export)")
+            AddySectionHeader(title = "Alias CSV Import & Export")
 
             AddySectionView(
-                title = "Tüm Takma Adları CSV Olarak Dışa Aktar",
-                description = "$aliasCount takma adı durum, alıcı ve açıklamalarıyla CSV formatında dışa aktar",
+                title = "Export All Aliases as CSV",
+                description = "Export $aliasCount aliases with status, recipients, and descriptions in CSV format",
                 startIcon = Icons.Default.Download,
                 onClick = {
                     onExportAliasesCsv { csvText ->
                         exportedCsvPreview = csvText
                     }
                 }
+            )
+
+            AddySectionView(
+                title = "Import Aliases from CSV",
+                description = "Import custom-domain aliases using CSV rows (alias,description,enabled,recipients)",
+                startIcon = Icons.Default.UploadFile,
+                onClick = { showImportCsvDialog = true }
+            )
+
+            AddySectionHeader(title = "Danger Zone")
+
+            AddySectionView(
+                title = "Delete Account Permanently",
+                description = "Permanently delete your Mailx account and all associated aliases",
+                startIcon = Icons.Default.DeleteForever,
+                accentColor = AddyPalette.SoftRed,
+                onClick = { showDeleteAccountDialog = true }
             )
         }
     }
@@ -384,13 +503,13 @@ fun AccountBottomSheet(
         var newPw by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showChangePasswordDialog = false },
-            title = { Text("Parolayı Değiştir") },
+            title = { Text("Change Password") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = oldPw,
                         onValueChange = { oldPw = it },
-                        label = { Text("Mevcut Parola") },
+                        label = { Text("Current Password") },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -399,7 +518,7 @@ fun AccountBottomSheet(
                     OutlinedTextField(
                         value = newPw,
                         onValueChange = { newPw = it },
-                        label = { Text("Yeni Parola (En az 12 karakter)") },
+                        label = { Text("New Password (At least 12 characters)") },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -415,12 +534,12 @@ fun AccountBottomSheet(
                         onChangePassword(oldPw, newPw)
                     }
                 ) {
-                    Text("Parolayı Güncelle")
+                    Text("Update Password")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showChangePasswordDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -431,13 +550,13 @@ fun AccountBottomSheet(
         var curPw by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showChangeEmailDialog = false },
-            title = { Text("Birincil E-postayı Değiştir") },
+            title = { Text("Change Primary Email") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = newEm,
                         onValueChange = { newEm = it },
-                        label = { Text("Yeni E-posta Adresi") },
+                        label = { Text("New Email Address") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -445,7 +564,7 @@ fun AccountBottomSheet(
                     OutlinedTextField(
                         value = curPw,
                         onValueChange = { curPw = it },
-                        label = { Text("Doğrulama İçin Mevcut Parolanız") },
+                        label = { Text("Current Password for Verification") },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -461,12 +580,12 @@ fun AccountBottomSheet(
                         onChangeEmail(newEm, curPw)
                     }
                 ) {
-                    Text("Güncelle")
+                    Text("Update")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showChangeEmailDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -477,13 +596,13 @@ fun AccountBottomSheet(
         var expiryDays by remember { mutableStateOf("30") }
         AlertDialog(
             onDismissRequest = { showCreateKeyDialog = false },
-            title = { Text("Yeni Erişim Anahtarı Oluştur") },
+            title = { Text("Create New Access Key") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = keyName,
                         onValueChange = { keyName = it },
-                        label = { Text("Anahtar Adı (Örn: Android Telefon)") },
+                        label = { Text("Key Name (e.g. Android Phone)") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -491,7 +610,7 @@ fun AccountBottomSheet(
                     OutlinedTextField(
                         value = expiryDays,
                         onValueChange = { expiryDays = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("Geçerlilik Süresi (Gün, süresiz için boş bırakın)") },
+                        label = { Text("Expiration Days (leave blank for no expiry)") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -505,12 +624,12 @@ fun AccountBottomSheet(
                         onCreateAccessKey(keyName, expiryDays.toIntOrNull())
                     }
                 ) {
-                    Text("Oluştur")
+                    Text("Create")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateKeyDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -520,12 +639,12 @@ fun AccountBottomSheet(
         var otp by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showDisableTotpDialog = false },
-            title = { Text("2FA Doğrulamasını Devre Dışı Bırak") },
+            title = { Text("Disable Two-Factor Authentication") },
             text = {
                 OutlinedTextField(
                     value = otp,
                     onValueChange = { otp = it.take(6) },
-                    label = { Text("6 Haneli TOTP Kodu") },
+                    label = { Text("6-Digit TOTP Code") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -539,12 +658,12 @@ fun AccountBottomSheet(
                         onDisableTotp(otp)
                     }
                 ) {
-                    Text("Devre Dışı Bırak")
+                    Text("Disable")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDisableTotpDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -553,7 +672,7 @@ fun AccountBottomSheet(
     exportedCsvPreview?.let { csv ->
         AlertDialog(
             onDismissRequest = { exportedCsvPreview = null },
-            title = { Text("Takma Adlar CSV Dışa Aktarımı") },
+            title = { Text("Aliases CSV Export") },
             text = {
                 Column(
                     modifier = Modifier
@@ -573,30 +692,153 @@ fun AccountBottomSheet(
             confirmButton = {
                 Button(
                     onClick = {
-                        copyToClipboard(context, "Mailx Aliases CSV", csv, "CSV içeriği panoya kopyalandı")
+                        copyToClipboard(context, "Mailx Aliases CSV", csv, "CSV content copied to clipboard")
                         exportedCsvPreview = null
                     }
                 ) {
-                    Text("CSV'yi Panoya Kopyala")
+                    Text("Copy CSV to Clipboard")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { exportedCsvPreview = null }) {
-                    Text("Kapat")
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showImportCsvDialog) {
+        var csvInput by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showImportCsvDialog = false },
+            title = { Text("Import Aliases from CSV") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Paste CSV lines in format:\nalias,description,enabled,recipients",
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = csvInput,
+                        onValueChange = { csvInput = it },
+                        placeholder = {
+                            Text("alias,description,enabled,recipients\nshop@mydomain.com,Shopping,true,me@proton.me")
+                        },
+                        minLines = 5,
+                        maxLines = 10,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = csvInput.isNotBlank(),
+                    onClick = {
+                        val content = csvInput
+                        showImportCsvDialog = false
+                        onImportAliasesCsv(content)
+                    }
+                ) {
+                    Text("Import Aliases")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportCsvDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        var stepPassword by remember { mutableStateOf("") }
+        var confirmCode by remember { mutableStateOf("") }
+        val expectedCode = userAccount.deleteAccountOtp
+
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text("Delete Account") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "WARNING: This operation cannot be undone. Deleting your account permanently removes all your aliases and data.",
+                        fontSize = 13.sp,
+                        color = AddyPalette.SoftRed
+                    )
+                    if (expectedCode.isBlank()) {
+                        OutlinedTextField(
+                            value = stepPassword,
+                            onValueChange = { stepPassword = it },
+                            label = { Text("Enter Current Password to Request Code") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text(
+                            text = "Enter the following 8-character confirmation code to permanently delete your account: $expectedCode",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        OutlinedTextField(
+                            value = confirmCode,
+                            onValueChange = { confirmCode = it.take(8) },
+                            label = { Text("8-Symbol Confirmation Code") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (expectedCode.isBlank()) {
+                    Button(
+                        enabled = stepPassword.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AddyPalette.SoftRed,
+                            contentColor = Color.White
+                        ),
+                        onClick = { onRequestDeleteAccount(stepPassword) }
+                    ) {
+                        Text("Request Deletion Code")
+                    }
+                } else {
+                    Button(
+                        enabled = confirmCode.trim().length == 8,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AddyPalette.SoftRed,
+                            contentColor = Color.White
+                        ),
+                        onClick = {
+                            showDeleteAccountDialog = false
+                            onConfirmDeleteAccount(confirmCode.trim())
+                        }
+                    ) {
+                        Text("Permanently Delete")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                    Text("Cancel")
                 }
             }
         )
     }
 }
 
-/**
- * Mailx `Diagnostics` (`43672.jpg`, `43690.jpg`: Delivery/Bounce/Block Logs, View Log File, Delete All Logs).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiagnosticsBottomSheet(
     logs: List<UiDiagnosticLog>,
     logIssuesEnabled: Boolean,
+    serverHealthStatus: String = "",
+    onCheckServerHealth: () -> Unit = {},
     onToggleLogIssues: (Boolean) -> Unit,
     onFetchBounceFile: (logId: String, onLoaded: (String) -> Unit) -> Unit,
     onDeleteAllLogs: () -> Unit,
@@ -627,20 +869,27 @@ fun DiagnosticsBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Tanılama Günlükleri (Diagnostics)",
+                    text = "Diagnostics & Delivery Logs",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium
                 )
                 IconButton(onClick = onRefreshLogs) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Yenile")
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                 }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
             AddySectionView(
-                title = "Tanılama Kaydını Etkinleştir (Enable Diagnostics)",
-                description = "İletim hatalarını, geri dönen (bounce) ve kural tarafından engellenen iletileri kaydet",
+                title = "Server Health Check (/livez & /readyz)",
+                description = serverHealthStatus.ifBlank { "Tap to verify live connectivity with the Mailx API server" },
+                startIcon = Icons.Default.Dns,
+                onClick = onCheckServerHealth
+            )
+
+            AddySectionView(
+                title = "Enable Diagnostics Logging",
+                description = "Record delivery errors, bounced messages, and rule-blocked emails",
                 startIcon = Icons.Default.BugReport,
                 showSwitch = true,
                 switchChecked = logIssuesEnabled,
@@ -659,15 +908,15 @@ fun DiagnosticsBottomSheet(
                 ) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Tüm Günlükleri Sil (Delete All Logs)")
+                    Text("Delete All Logs")
                 }
             }
 
             if (logs.isEmpty()) {
                 EmptyStateBox(
                     icon = Icons.Default.Verified,
-                    title = "Kayıtlı tanılama günlüğü bulunmuyor",
-                    subtitle = "Şu ana kadar kaydedilmiş bir iletim hatası, geri dönen (bounce) veya engellenen ileti kaydı yok."
+                    title = "No diagnostic logs found",
+                    subtitle = "There are no recorded delivery failures, bounces, or blocked message logs."
                 )
             } else {
                 logs.forEach { log ->
@@ -720,7 +969,7 @@ fun DiagnosticsBottomSheet(
                             }
                             if (log.remoteMta.isNotBlank() || log.status.isNotBlank()) {
                                 Text(
-                                    text = "Durum: ${log.status} • MTA: ${log.remoteMta}",
+                                    text = "Status: ${log.status} • MTA: ${log.remoteMta}",
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -736,7 +985,7 @@ fun DiagnosticsBottomSheet(
     viewingRawBounceText?.let { raw ->
         AlertDialog(
             onDismissRequest = { viewingRawBounceText = null },
-            title = { Text("Ham Günlük Detayı (Bounce Log)") },
+            title = { Text("Raw Log Details (Bounce Log)") },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     SelectionContainer {
@@ -746,7 +995,7 @@ fun DiagnosticsBottomSheet(
             },
             confirmButton = {
                 TextButton(onClick = { viewingRawBounceText = null }) {
-                    Text("Kapat")
+                    Text("Close")
                 }
             }
         )
@@ -776,7 +1025,7 @@ fun AnnouncementsBottomSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Duyurular (Announcements)",
+                text = "Announcements",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
@@ -787,8 +1036,8 @@ fun AnnouncementsBottomSheet(
             if (announcements.isEmpty()) {
                 EmptyStateBox(
                     icon = Icons.Default.Campaign,
-                    title = "Yeni duyuru bulunmuyor",
-                    subtitle = "Mailx servisiyle ilgili yeni bir duyuru yayınlandığında burada görüntülenecektir."
+                    title = "No announcements",
+                    subtitle = "Service updates and announcements from Mailx will appear here."
                 )
             } else {
                 announcements.forEach { ann ->
@@ -805,6 +1054,157 @@ fun AnnouncementsBottomSheet(
                         ) {
                             Text(ann.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text(ann.body, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (ann.link.isNotBlank()) {
+                                SelectionContainer {
+                                    Text(
+                                        text = ann.link,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TrackersReportBottomSheet(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var inputUrlOrHash by remember { mutableStateOf("") }
+    var decodedReport by remember { mutableStateOf<UiTrackersReport?>(null) }
+    var decodeError by remember { mutableStateOf<String?>(null) }
+
+    fun decodeInput(raw: String) {
+        if (raw.isBlank()) {
+            decodedReport = null
+            decodeError = null
+            return
+        }
+        val res = JSONObject(MailxRustBridge.nativeDecodeTrackersReport(raw))
+        if (res.optBoolean("ok", false)) {
+            decodedReport = UiTrackersReport.fromJson(res.optJSONObject("data"))
+            decodeError = null
+        } else {
+            decodedReport = null
+            decodeError = res.optString("error", "Invalid report link or fragment")
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Trackers Report Inspector",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+            Text(
+                text = "Paste a 'View report' link (or its #fragment) from any forwarded email. The report is decoded locally on your device using Rust and never contacts any server.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedTextField(
+                value = inputUrlOrHash,
+                onValueChange = {
+                    inputUrlOrHash = it
+                    decodeInput(it)
+                },
+                label = { Text("Trackers Report URL or #fragment") },
+                placeholder = { Text("https://mailx.net/trackers-report#eyJuI...") },
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
+                            if (clip.isNotEmpty()) {
+                                inputUrlOrHash = clip
+                                decodeInput(clip)
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            decodeError?.let { err ->
+                Text(
+                    text = err,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            decodedReport?.let { report ->
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Mailx removed ${report.total} ${if (report.total == 1) "tracker" else "trackers"} from this email before forwarding it.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+
+                report.trackers.forEachIndexed { idx, tracker ->
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "${idx + 1}. ${tracker.domain}",
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Element: ${tracker.elementLabel} • Reason: ${tracker.reasonLabel}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -21,13 +20,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import net.mailx.android.ui.theme.AddyPalette
 
-/**
- * `anonaddy/addy-android` içindeki `DonutProgressView` (`AliasAdapter.kt` ve `ManageAliasActivity.kt`)
- * bileşeninin Compose karşılığı.
- * - Aktifken: portalOrange (#FF9800), portalBlue (#4289FD), easternBlue (#16A8B8), softRed (#FD5842)
- * - Pasifken: md_grey_500..800
- * - Hiç istatistik yoksa `emptyDonut = 1` ile tam turuncu/gri halka çizer.
- */
 @Composable
 fun AddyDonutChart(
     forwards: Int,

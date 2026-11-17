@@ -36,10 +36,6 @@ import net.mailx.android.ui.theme.MailxAddyTheme
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * `anonaddy/addy-android` içindeki `IntentSendMailRecipientBottomDialogFragment.kt` ve
- * `IntentContextMenuAliasActivity.kt` sınıflarından uyarlanmıştır.
- */
 class ReverseAliasSendActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +44,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
         val initialTarget = extractTargetEmail(intent)
         val prefs = EncryptedPrefsManager(this)
         val cachedAliases = loadCachedAliasNames(prefs.cachedAliasesJson)
-        val defaultAlias = cachedAliases.firstOrNull() ?: "ornek.alias@${prefs.defaultDomain}"
+        val defaultAlias = cachedAliases.firstOrNull() ?: "example.alias@${prefs.defaultDomain}"
 
         setContent {
             val systemDark = isSystemInDarkTheme()
@@ -82,7 +78,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                         errorText = null
                     } else {
                         generatedSendAddress = ""
-                        errorText = res.optString("error", "Geçersiz adres")
+                        errorText = res.optString("error", "Invalid email address")
                     }
                 }
 
@@ -106,7 +102,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                         modifier = Modifier.padding(bottom = 20.dp)
                     ) {
                         Text(
-                            text = "Takma Addan İleti Gönder",
+                            text = "Send from Alias",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -126,7 +122,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "Gerçek e-posta adresinizi gizleyerek takma adınız üzerinden ileti göndermek için alıcı adresini girin.",
+                                text = "Enter the destination email address to generate a reverse-alias forwarding address that hides your real email.",
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 textAlign = TextAlign.Center,
@@ -159,7 +155,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                                     aliasEmail = it
                                     recompute(it, targetEmail)
                                 },
-                                label = { Text("Gönderici Takma Adınız") },
+                                label = { Text("Your Sender Alias") },
                                 leadingIcon = { Icon(Icons.Default.AlternateEmail, contentDescription = null) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
@@ -172,7 +168,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                                     targetEmail = it
                                     recompute(aliasEmail, it)
                                 },
-                                label = { Text("Alıcı E-posta Adresi") },
+                                label = { Text("Recipient Email Address") },
                                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
@@ -200,7 +196,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
-                                            text = "Üretilen Yönlendirme Adresi:",
+                                            text = "Generated Reverse-Alias Address:",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -223,7 +219,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 TextButton(onClick = { finish() }) {
-                                    Text("Kapat")
+                                    Text("Close")
                                 }
                                 Spacer(modifier = Modifier.weight(1f))
                                 FilledTonalButton(
@@ -236,14 +232,14 @@ class ReverseAliasSendActivity : ComponentActivity() {
                                         )
                                         Toast.makeText(
                                             this@ReverseAliasSendActivity,
-                                            "Yönlendirme adresi kopyalandı",
+                                            "Reverse-alias address copied",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
                                 ) {
                                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Kopyala")
+                                    Text("Copy")
                                 }
                                 Button(
                                     enabled = generatedSendAddress.isNotEmpty(),
@@ -254,13 +250,13 @@ class ReverseAliasSendActivity : ComponentActivity() {
                                             ClipData.newPlainText("Mailx Send Address", generatedSendAddress)
                                         )
                                         val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generatedSendAddress"))
-                                        startActivity(Intent.createChooser(mailIntent, "E-posta İstemcisi Seçin"))
+                                        startActivity(Intent.createChooser(mailIntent, "Choose Email App"))
                                         finish()
                                     }
                                 ) {
                                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("İleti Gönder")
+                                    Text("Send Email")
                                 }
                             }
                         }

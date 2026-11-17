@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,15 +25,12 @@ import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.AddyPalette
 
-/**
- * Mailx `Rules` (`43658.jpg`..`43664.jpg`: Koşullar, Operatörler, Eylemler, Sıralama) ve
- * Mailx `Blocklist` (`43656.jpg`: E-posta / Alan Adı Engelleme) ekranı (`addy-android` Material 3 tasarımında).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RulesAndBlocklistTab(
     rules: List<UiRule>,
     blocklist: List<UiBlocklistItem>,
+    recipients: List<UiRecipient> = emptyList(),
     availableRecipients: List<String>,
     onSaveRule: (
         ruleId: String?,
@@ -54,10 +50,21 @@ fun RulesAndBlocklistTab(
     onDeleteBlocklistItem: (id: String) -> Unit,
     onRefresh: () -> Unit
 ) {
-    var selectedSection by remember { mutableIntStateOf(0) } // 0 = Kurallar (Rules), 1 = Engellenenler (Blocklist)
+    var selectedSection by remember { mutableIntStateOf(0) }
     var editingRule by remember { mutableStateOf<UiRule?>(null) }
+    var isDuplicatingRule by remember { mutableStateOf(false) }
     var showCreateRuleSheet by remember { mutableStateOf(false) }
     var showAddBlockDialog by remember { mutableStateOf(false) }
+
+    val recipientIdToEmail = remember(recipients, availableRecipients) {
+        buildMap {
+            recipients.forEach { r ->
+                if (r.id.isNotBlank()) put(r.id, r.email)
+                if (r.email.isNotBlank()) put(r.email, r.email)
+            }
+            availableRecipients.forEach { em -> put(em, em) }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -70,27 +77,28 @@ fun RulesAndBlocklistTab(
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     selected = selectedSection == 0,
                     onClick = { selectedSection = 0 },
-                    label = { Text("Kurallar (${rules.size})") }
+                    label = { Text("Rules (${rules.size})") }
                 )
                 SegmentedButton(
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     selected = selectedSection == 1,
                     onClick = { selectedSection = 1 },
-                    label = { Text("Engellenenler (${blocklist.size})") }
+                    label = { Text("Blocklist (${blocklist.size})") }
                 )
             }
         }
 
         if (selectedSection == 0) {
-            // =================================================================
-            // KURALLAR (`43658.jpg`, `43660.jpg`, `43662.jpg`, `43664.jpg`)
-            // =================================================================
             item(key = "rules_header") {
                 AddySectionHeader(
-                    title = "Gelen & Giden İleti Kuralları",
+                    title = "Email Processing Rules",
                     countBadge = rules.size,
-                    actionText = "Yeni Kural",
-                    onActionClick = { showCreateRuleSheet = true }
+                    actionText = "New Rule",
+                    onActionClick = {
+                        editingRule = null
+                        isDuplicatingRule = false
+                        showCreateRuleSheet = true
+                    }
                 )
             }
 
@@ -98,10 +106,14 @@ fun RulesAndBlocklistTab(
                 item(key = "rules_empty") {
                     EmptyStateBox(
                         icon = Icons.Default.FilterAlt,
-                        title = "Henüz tanımlı kuralınız yok",
-                        subtitle = "Gönderici, konu, takma ad veya ek dosya durumuna göre iletileri otomatik engellemek, yönlendirmek veya başlığı değiştirmek için kural oluşturun.",
-                        actionLabel = "Yeni Kural Oluştur",
-                        onActionClick = { showCreateRuleSheet = true }
+                        title = "No rules configured yet",
+                        subtitle = "Create rules to automatically block, forward, replace subjects, or strip attachments based on sender, subject, or alias conditions.",
+                        actionLabel = "Create Rule",
+                        onActionClick = {
+                            editingRule = null
+                            isDuplicatingRule = false
+                            showCreateRuleSheet = true
+                        }
                     )
                 }
             } else {
@@ -151,8 +163,13 @@ fun RulesAndBlocklistTab(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
+                                        val relayLabels = buildList {
+                                            if (rule.forwards) add("Forwards")
+                                            if (rule.replies) add("Replies")
+                                            if (rule.sends) add("Sends")
+                                        }.joinToString(", ")
                                         Text(
-                                            text = "Uygulandı: ${rule.applied} kez • Operatör: ${rule.operator}",
+                                            text = "Applied: ${rule.applied} times • $relayLabels",
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -165,8 +182,8 @@ fun RulesAndBlocklistTab(
                                 )
                             }
 
-                            // Koşullar Özeti (IF)
                             rule.conditions.forEachIndexed { cIdx, cond ->
+                                val isBool = MailxRuleCatalog.booleanConditionTypes.contains(cond.type)
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -174,12 +191,14 @@ fun RulesAndBlocklistTab(
                                 ) {
                                     Text(
                                         text = buildString {
-                                            append(if (cIdx == 0) "EĞER: " else "${rule.operator}: ")
+                                            append(if (cIdx == 0) "IF: " else "${rule.operator}: ")
                                             append(MailxRuleCatalog.conditionLabel(cond.type))
-                                            append(" • ")
-                                            append(MailxRuleCatalog.matchLabel(cond.match))
-                                            if (cond.values.isNotEmpty()) {
-                                                append(" -> \"${cond.values.joinToString(", ")}\"")
+                                            if (!isBool) {
+                                                append(" • ")
+                                                append(MailxRuleCatalog.matchLabel(cond.match))
+                                                if (cond.values.isNotEmpty()) {
+                                                    append(" -> \"${cond.values.joinToString(", ")}\"")
+                                                }
                                             }
                                         },
                                         fontSize = 12.sp,
@@ -189,8 +208,15 @@ fun RulesAndBlocklistTab(
                                 }
                             }
 
-                            // Eylemler Özeti (THEN)
                             rule.actions.forEach { act ->
+                                val displayVal = if (act.type == "forward_to") {
+                                    act.value.split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotEmpty() }
+                                        .joinToString(", ") { id -> recipientIdToEmail[id] ?: id }
+                                } else {
+                                    act.value
+                                }
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
@@ -198,10 +224,10 @@ fun RulesAndBlocklistTab(
                                 ) {
                                     Text(
                                         text = buildString {
-                                            append("O ZAMAN: ")
+                                            append("THEN: ")
                                             append(MailxRuleCatalog.actionLabel(act.type))
-                                            if (act.value.isNotBlank() && act.value != "true") {
-                                                append(" -> \"${act.value}\"")
+                                            if (displayVal.isNotBlank() && displayVal != "true") {
+                                                append(" -> \"$displayVal\"")
                                             }
                                         },
                                         fontSize = 12.sp,
@@ -212,7 +238,6 @@ fun RulesAndBlocklistTab(
                                 }
                             }
 
-                            // Alt Butonlar (Yukarı/Aşağı Sırala, Düzenle, Sil)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -223,24 +248,35 @@ fun RulesAndBlocklistTab(
                                         onClick = { onMoveRuleOrder(rule.id, true) },
                                         enabled = index > 0
                                     ) {
-                                        Icon(Icons.Default.ArrowUpward, contentDescription = "Yukarı Taşı")
+                                        Icon(Icons.Default.ArrowUpward, contentDescription = "Move Up")
                                     }
                                     IconButton(
                                         onClick = { onMoveRuleOrder(rule.id, false) },
                                         enabled = index < rules.lastIndex
                                     ) {
-                                        Icon(Icons.Default.ArrowDownward, contentDescription = "Aşağı Taşı")
+                                        Icon(Icons.Default.ArrowDownward, contentDescription = "Move Down")
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            editingRule = rule
+                                            isDuplicatingRule = true
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate Rule")
                                     }
                                 }
 
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     FilledTonalButton(
-                                        onClick = { editingRule = rule },
+                                        onClick = {
+                                            editingRule = rule
+                                            isDuplicatingRule = false
+                                        },
                                         shape = CircleShape
                                     ) {
                                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Düzenle")
+                                        Text("Edit")
                                     }
                                     FilledTonalButton(
                                         onClick = { onDeleteRule(rule.id) },
@@ -250,7 +286,7 @@ fun RulesAndBlocklistTab(
                                             contentColor = AddyPalette.SoftRed
                                         )
                                     ) {
-                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Sil", modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -259,14 +295,11 @@ fun RulesAndBlocklistTab(
                 }
             }
         } else {
-            // =================================================================
-            // ENGELLENENLER LİSTESİ (BLOCKLIST - `43656.jpg`)
-            // =================================================================
             item(key = "blocklist_header") {
                 AddySectionHeader(
-                    title = "Engellenen Göndericiler & Alan Adları",
+                    title = "Blocked Senders & Domains",
                     countBadge = blocklist.size,
-                    actionText = "Engelleme Ekle",
+                    actionText = "Add Block",
                     onActionClick = { showAddBlockDialog = true }
                 )
             }
@@ -275,9 +308,9 @@ fun RulesAndBlocklistTab(
                 item(key = "blocklist_empty") {
                     EmptyStateBox(
                         icon = Icons.Default.Block,
-                        title = "Engelleme listeniz boş",
-                        subtitle = "İstenmeyen bir e-posta adresini (örn: spam@example.com) veya tüm bir alan adını (örn: spammer.com) engelleyebilirsiniz.",
-                        actionLabel = "E-posta veya Alan Adı Engelle",
+                        title = "Your blocklist is empty",
+                        subtitle = "Block unwanted sender email addresses (e.g. spam@example.com) or entire domains (e.g. spammer.com).",
+                        actionLabel = "Block Email or Domain",
                         onActionClick = { showAddBlockDialog = true }
                     )
                 }
@@ -317,8 +350,8 @@ fun RulesAndBlocklistTab(
                                     )
                                     Text(
                                         text = buildString {
-                                            append(if (item.type == "domain") "Alan Adı" else "E-posta Adresi")
-                                            append(" • Engellenen ileti: ${item.blocked}")
+                                            append(if (item.type == "domain") "Domain" else "Email Address")
+                                            append(" • Blocked: ${item.blocked}")
                                             if (item.createdAt.isNotBlank()) {
                                                 append(" • ${formatIsoDateShort(item.createdAt)}")
                                             }
@@ -332,7 +365,7 @@ fun RulesAndBlocklistTab(
                             IconButton(onClick = { onDeleteBlocklistItem(item.id) }) {
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = "Kaldır",
+                                    contentDescription = "Remove",
                                     tint = AddyPalette.SoftRed
                                 )
                             }
@@ -349,7 +382,7 @@ fun RulesAndBlocklistTab(
 
         AlertDialog(
             onDismissRequest = { showAddBlockDialog = false },
-            title = { Text("E-posta veya Alan Adı Engelle") },
+            title = { Text("Block Email or Domain") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -357,13 +390,13 @@ fun RulesAndBlocklistTab(
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                             selected = blockType == "email",
                             onClick = { blockType = "email" },
-                            label = { Text("E-posta Adresi") }
+                            label = { Text("Email Address") }
                         )
                         SegmentedButton(
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                             selected = blockType == "domain",
                             onClick = { blockType = "domain" },
-                            label = { Text("Alan Adı") }
+                            label = { Text("Domain") }
                         )
                     }
 
@@ -371,7 +404,7 @@ fun RulesAndBlocklistTab(
                         value = blockValue,
                         onValueChange = { blockValue = it },
                         label = {
-                            Text(if (blockType == "domain") "Alan Adı (örn: spam.com)" else "E-posta (örn: info@spam.com)")
+                            Text(if (blockType == "domain") "Domain (e.g. spam.com)" else "Email (e.g. info@spam.com)")
                         },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -389,12 +422,12 @@ fun RulesAndBlocklistTab(
                         onAddBlocklistItem(t, v)
                     }
                 ) {
-                    Text("Engelle")
+                    Text("Block")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddBlockDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -403,27 +436,30 @@ fun RulesAndBlocklistTab(
     if (showCreateRuleSheet || editingRule != null) {
         RuleEditorBottomSheet(
             initialRule = editingRule,
+            duplicateMode = isDuplicatingRule,
+            recipients = recipients,
             availableRecipients = availableRecipients,
             onDismiss = {
                 showCreateRuleSheet = false
                 editingRule = null
+                isDuplicatingRule = false
             },
             onSave = { id, name, op, fw, rp, sn, conds, acts, act ->
                 showCreateRuleSheet = false
                 editingRule = null
+                isDuplicatingRule = false
                 onSaveRule(id, name, op, fw, rp, sn, conds, acts, act)
             }
         )
     }
 }
 
-/**
- * `43660.jpg`, `43662.jpg`, `43664.jpg`: NEW RULE / EDIT RULE alt penceresi.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RuleEditorBottomSheet(
     initialRule: UiRule?,
+    duplicateMode: Boolean,
+    recipients: List<UiRecipient>,
     availableRecipients: List<String>,
     onDismiss: () -> Unit,
     onSave: (
@@ -439,42 +475,74 @@ private fun RuleEditorBottomSheet(
     ) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var name by remember(initialRule) { mutableStateOf(initialRule?.name ?: "") }
+    var name by remember(initialRule, duplicateMode) {
+        val base = initialRule?.name ?: ""
+        mutableStateOf(
+            if (duplicateMode && base.isNotEmpty()) {
+                "${base.take(43).trimEnd()} (copy)"
+            } else {
+                base
+            }
+        )
+    }
     var operator by remember(initialRule) { mutableStateOf(initialRule?.operator ?: "AND") }
     var forwards by remember(initialRule) { mutableStateOf(initialRule?.forwards ?: true) }
     var replies by remember(initialRule) { mutableStateOf(initialRule?.replies ?: false) }
     var sends by remember(initialRule) { mutableStateOf(initialRule?.sends ?: false) }
 
-    var condType by remember(initialRule) {
-        mutableStateOf(initialRule?.conditions?.firstOrNull()?.type ?: "sender")
-    }
-    var condMatch by remember(initialRule) {
-        mutableStateOf(initialRule?.conditions?.firstOrNull()?.match ?: "contains")
-    }
-    var condValue by remember(initialRule) {
-        mutableStateOf(initialRule?.conditions?.firstOrNull()?.values?.joinToString(", ") ?: "")
+    var conditions by remember(initialRule) {
+        mutableStateOf(
+            if (!initialRule?.conditions.isNullOrEmpty()) {
+                initialRule!!.conditions
+            } else {
+                listOf(UiRuleCondition(type = "subject", match = "contains", values = emptyList()))
+            }
+        )
     }
 
-    var actionType by remember(initialRule) {
+    var actions by remember(initialRule) {
         mutableStateOf(
-            initialRule?.actions?.firstOrNull { it.type != "stop" }?.type ?: "block"
+            if (!initialRule?.actions.isNullOrEmpty()) {
+                initialRule!!.actions.filter { it.type != "stop" }.ifEmpty {
+                    listOf(UiRuleAction(type = "block", value = ""))
+                }
+            } else {
+                listOf(UiRuleAction(type = "block", value = ""))
+            }
         )
     }
-    var actionValue by remember(initialRule) {
-        mutableStateOf(
-            initialRule?.actions?.firstOrNull { it.type != "stop" }?.value ?: "true"
-        )
-    }
+
     var stopProcessingMore by remember(initialRule) {
         mutableStateOf(initialRule?.actions?.any { it.type == "stop" } ?: false)
     }
 
-    var showCondTypeDialog by remember { mutableStateOf(false) }
-    var showMatchTypeDialog by remember { mutableStateOf(false) }
-    var showActionTypeDialog by remember { mutableStateOf(false) }
+    var pickingCondTypeIndex by remember { mutableStateOf<Int?>(null) }
+    var pickingMatchTypeIndex by remember { mutableStateOf<Int?>(null) }
+    var pickingActionTypeIndex by remember { mutableStateOf<Int?>(null) }
 
-    val isBooleanCondition = MailxRuleCatalog.booleanConditionTypes.contains(condType)
-    val needsActionText = MailxRuleCatalog.textValueActions.contains(actionType)
+    val verifiedRecipientPairs = remember(recipients, availableRecipients) {
+        val realVerified = recipients.filter { it.isActive && !it.id.startsWith("fallback_") && !it.id.startsWith("default_") }
+        if (realVerified.isNotEmpty()) {
+            realVerified.map { it.id to it.email }
+        } else {
+            availableRecipients.map { it to it }
+        }
+    }
+
+    val isValid = remember(name, forwards, replies, sends, conditions, actions) {
+        name.trim().isNotEmpty() &&
+            (forwards || replies || sends) &&
+            conditions.all { c ->
+                MailxRuleCatalog.booleanConditionTypes.contains(c.type) ||
+                    c.values.any { it.isNotBlank() }
+            } &&
+            actions.all { a ->
+                when (a.type) {
+                    "replace_subject", "set_display_name", "forward_to" -> a.value.isNotBlank()
+                    else -> true
+                }
+            }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -492,7 +560,10 @@ private fun RuleEditorBottomSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = if (initialRule == null) "Yeni Kural Oluştur (New Rule)" else "Kuralı Düzenle",
+                text = when {
+                    initialRule == null || duplicateMode -> "New Rule"
+                    else -> "Edit Rule"
+                },
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -502,16 +573,15 @@ private fun RuleEditorBottomSheet(
 
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
-                label = { Text("Kural Adı (Rule Name)") },
-                placeholder = { Text("Örn: Pazarlama Bültenlerini Engelle") },
+                onValueChange = { name = it.take(50) },
+                label = { Text("Rule Name") },
+                placeholder = { Text("e.g. Block Marketing Newsletters") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Hangi ileti türlerinde çalışsın (`Forwards`, `Replies`, `Sends`)
-            Text("Uygulanacak İleti Türleri:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text("Apply to Email Types:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -519,190 +589,297 @@ private fun RuleEditorBottomSheet(
                 FilterChip(
                     selected = forwards,
                     onClick = { forwards = !forwards },
-                    label = { Text("İletilen (Forwards)") }
+                    label = { Text("Forwards") }
                 )
                 FilterChip(
                     selected = replies,
                     onClick = { replies = !replies },
-                    label = { Text("Yanıtlar (Replies)") }
+                    label = { Text("Replies") }
                 )
                 FilterChip(
                     selected = sends,
                     onClick = { sends = !sends },
-                    label = { Text("Gönderim (Sends)") }
+                    label = { Text("Sends") }
                 )
             }
 
-            // Operatör Seçimi (`AND` / `OR`)
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     selected = operator == "AND",
                     onClick = { operator = "AND" },
-                    label = { Text("VE (AND - Tüm Koşullar)") }
+                    label = { Text("AND (All Conditions)") }
                 )
                 SegmentedButton(
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     selected = operator == "OR",
                     onClick = { operator = "OR" },
-                    label = { Text("VEYA (OR - Herhangi Biri)") }
+                    label = { Text("OR (Any Condition)") }
                 )
             }
 
-            // KOŞUL (IF) KARTI (`43662.jpg`)
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("KOŞUL (IF)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
-                    OutlinedButton(
-                        onClick = { showCondTypeDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
+                Text("CONDITIONS (${conditions.size}/5)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                if (conditions.size < 5) {
+                    TextButton(
+                        onClick = {
+                            conditions = conditions + UiRuleCondition(type = "subject", match = "contains", values = emptyList())
+                        }
                     ) {
-                        Text("Alan: ${MailxRuleCatalog.conditionLabel(condType)}")
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Condition")
                     }
+                }
+            }
 
-                    if (!isBooleanCondition) {
+            conditions.forEachIndexed { idx, cond ->
+                val isBool = MailxRuleCatalog.booleanConditionTypes.contains(cond.type)
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (idx == 0) "IF" else operator,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (conditions.size > 1) {
+                                IconButton(
+                                    onClick = { conditions = conditions.filterIndexed { i, _ -> i != idx } },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Remove Condition", modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+
                         OutlinedButton(
-                            onClick = { showMatchTypeDialog = true },
+                            onClick = { pickingCondTypeIndex = idx },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("Eşleşme: ${MailxRuleCatalog.matchLabel(condMatch)}")
+                            Text("If: ${MailxRuleCatalog.conditionLabel(cond.type)}")
                         }
 
-                        OutlinedTextField(
-                            value = condValue,
-                            onValueChange = { condValue = it },
-                            label = { Text("Aranan Değer (Virgülle birden fazla girilebilir)") },
-                            placeholder = { Text("newsletter, promo@example.com") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Koşul Değeri Doğru mu? (True/False)", fontSize = 13.sp)
-                            Switch(
-                                checked = condValue != "false",
-                                onCheckedChange = { condValue = if (it) "true" else "false" }
+                        if (!isBool) {
+                            OutlinedButton(
+                                onClick = { pickingMatchTypeIndex = idx },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Match: ${MailxRuleCatalog.matchLabel(cond.match.ifEmpty { "contains" })}")
+                            }
+
+                            OutlinedTextField(
+                                value = cond.values.joinToString(", "),
+                                onValueChange = { raw ->
+                                    val split = raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                    conditions = conditions.toMutableList().also { list ->
+                                        list[idx] = cond.copy(values = split)
+                                    }
+                                },
+                                label = { Text("Values (comma-separated)") },
+                                placeholder = { Text("newsletter, promo@example.com") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
                 }
             }
 
-            // EYLEM (THEN) KARTI (`43664.jpg`)
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text("EYLEM (THEN)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
-                    OutlinedButton(
-                        onClick = { showActionTypeDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Eylem: ${MailxRuleCatalog.actionLabel(actionType)}")
-                    }
-
-                    if (needsActionText) {
-                        if (actionType == "forward_to" && availableRecipients.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                availableRecipients.forEach { r ->
-                                    FilterChip(
-                                        selected = actionValue == r,
-                                        onClick = { actionValue = r },
-                                        label = { Text(r) }
-                                    )
-                                }
-                            }
+                Text("ACTIONS (${actions.size}/5)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                if (actions.size < 5) {
+                    TextButton(
+                        onClick = {
+                            actions = actions + UiRuleAction(type = "replace_subject", value = "")
                         }
-                        OutlinedTextField(
-                            value = if (actionValue == "true") "" else actionValue,
-                            onValueChange = { actionValue = it },
-                            label = { Text("Eylem Değeri") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Bu kural eşleştiğinde sonraki kuralları işlemeyi durdur (Stop processing more rules)",
-                            fontSize = 13.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Checkbox(
-                            checked = stopProcessingMore,
-                            onCheckedChange = { stopProcessingMore = it }
-                        )
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Action")
                     }
                 }
             }
 
+            actions.forEachIndexed { idx, act ->
+                val needsText = MailxRuleCatalog.textValueActions.contains(act.type)
+                val isForwardTo = act.type == "forward_to"
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (idx == 0) "THEN" else "AND",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (actions.size > 1) {
+                                IconButton(
+                                    onClick = { actions = actions.filterIndexed { i, _ -> i != idx } },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Remove Action", modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { pickingActionTypeIndex = idx },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Action: ${MailxRuleCatalog.actionLabel(act.type)}")
+                        }
+
+                        if (isForwardTo) {
+                            if (verifiedRecipientPairs.isNotEmpty()) {
+                                val currentIds = act.value.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    verifiedRecipientPairs.forEach { (recId, recEmail) ->
+                                        val isChecked = currentIds.contains(recId) || currentIds.contains(recEmail)
+                                        FilterChip(
+                                            selected = isChecked,
+                                            onClick = {
+                                                val next = currentIds.toMutableSet()
+                                                if (isChecked) {
+                                                    next.remove(recId)
+                                                    next.remove(recEmail)
+                                                } else {
+                                                    next.add(recId)
+                                                }
+                                                actions = actions.toMutableList().also { list ->
+                                                    list[idx] = act.copy(value = next.joinToString(","))
+                                                }
+                                            },
+                                            label = { Text(recEmail) }
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "No verified recipients found.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        } else if (needsText) {
+                            OutlinedTextField(
+                                value = act.value,
+                                onValueChange = { v ->
+                                    actions = actions.toMutableList().also { list ->
+                                        list[idx] = act.copy(value = v.take(100))
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        when (act.type) {
+                                            "replace_subject" -> "Replacement Subject (use {subject} for original)"
+                                            "set_display_name" -> "Sender Display Name"
+                                            else -> "Alias Description"
+                                        }
+                                    )
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Stop processing more rules when this rule matches",
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Checkbox(
+                    checked = stopProcessingMore,
+                    onCheckedChange = { stopProcessingMore = it }
+                )
+            }
+
             Button(
-                enabled = name.isNotBlank() && (isBooleanCondition || condValue.isNotBlank()),
+                enabled = isValid,
                 onClick = {
-                    val valuesList = if (isBooleanCondition) {
-                        listOf(if (condValue == "false") "false" else "true")
-                    } else {
-                        condValue.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                    }
-                    val condObj = UiRuleCondition(
-                        type = condType,
-                        match = if (isBooleanCondition) "is" else condMatch,
-                        values = valuesList
-                    )
-                    val actList = mutableListOf(
-                        UiRuleAction(
-                            type = actionType,
-                            value = if (needsActionText) actionValue.trim() else "true"
+                    val normalizedConditions = conditions.map { c ->
+                        val isBool = MailxRuleCatalog.booleanConditionTypes.contains(c.type)
+                        UiRuleCondition(
+                            type = c.type,
+                            match = if (isBool) "" else c.match.ifEmpty { "contains" },
+                            values = if (isBool) emptyList() else c.values
                         )
-                    )
-                    if (stopProcessingMore && actionType != "stop") {
-                        actList.add(UiRuleAction(type = "stop", value = "true"))
                     }
+                    val normalizedActions = actions.map { a ->
+                        val needsVal = MailxRuleCatalog.textValueActions.contains(a.type) || a.type == "forward_to"
+                        UiRuleAction(
+                            type = a.type,
+                            value = if (needsVal) a.value.trim() else ""
+                        )
+                    }.toMutableList()
+
+                    if (stopProcessingMore && normalizedActions.none { it.type == "stop" }) {
+                        normalizedActions.add(UiRuleAction(type = "stop", value = ""))
+                    }
+
                     onSave(
-                        initialRule?.id,
+                        if (duplicateMode) null else initialRule?.id,
                         name.trim(),
                         operator,
                         forwards,
                         replies,
                         sends,
-                        listOf(condObj),
-                        actList,
+                        normalizedConditions,
+                        normalizedActions,
                         initialRule?.active ?: true
                     )
                 },
@@ -711,50 +888,61 @@ private fun RuleEditorBottomSheet(
                     .height(54.dp),
                 shape = CircleShape
             ) {
-                Text(if (initialRule == null) "Kuralı Oluştur" else "Kuralı Güncelle", fontSize = 16.sp)
+                Text(
+                    text = if (initialRule == null || duplicateMode) "Create Rule" else "Save Changes",
+                    fontSize = 16.sp
+                )
             }
         }
     }
 
-    if (showCondTypeDialog) {
+    pickingCondTypeIndex?.let { idx ->
         SimplePickerDialog(
-            title = "Koşul Alanı Seçin (IF)",
+            title = "Select Condition (IF)",
             options = MailxRuleCatalog.conditionTypes,
-            selectedKey = condType,
-            onSelect = {
-                condType = it
-                showCondTypeDialog = false
-            },
-            onDismiss = { showCondTypeDialog = false }
-        )
-    }
-
-    if (showMatchTypeDialog) {
-        SimplePickerDialog(
-            title = "Eşleşme Türü Seçin",
-            options = MailxRuleCatalog.matchTypes,
-            selectedKey = condMatch,
-            onSelect = {
-                condMatch = it
-                showMatchTypeDialog = false
-            },
-            onDismiss = { showMatchTypeDialog = false }
-        )
-    }
-
-    if (showActionTypeDialog) {
-        SimplePickerDialog(
-            title = "Eylem Seçin (THEN)",
-            options = MailxRuleCatalog.actionTypes,
-            selectedKey = actionType,
-            onSelect = {
-                actionType = it
-                if (!MailxRuleCatalog.textValueActions.contains(it)) {
-                    actionValue = "true"
+            selectedKey = conditions[idx].type,
+            onSelect = { selectedType ->
+                val isBool = MailxRuleCatalog.booleanConditionTypes.contains(selectedType)
+                conditions = conditions.toMutableList().also { list ->
+                    list[idx] = conditions[idx].copy(
+                        type = selectedType,
+                        match = if (isBool) "" else "contains",
+                        values = emptyList()
+                    )
                 }
-                showActionTypeDialog = false
+                pickingCondTypeIndex = null
             },
-            onDismiss = { showActionTypeDialog = false }
+            onDismiss = { pickingCondTypeIndex = null }
+        )
+    }
+
+    pickingMatchTypeIndex?.let { idx ->
+        SimplePickerDialog(
+            title = "Select Match Type",
+            options = MailxRuleCatalog.matchTypes,
+            selectedKey = conditions[idx].match.ifEmpty { "contains" },
+            onSelect = { selectedMatch ->
+                conditions = conditions.toMutableList().also { list ->
+                    list[idx] = conditions[idx].copy(match = selectedMatch)
+                }
+                pickingMatchTypeIndex = null
+            },
+            onDismiss = { pickingMatchTypeIndex = null }
+        )
+    }
+
+    pickingActionTypeIndex?.let { idx ->
+        SimplePickerDialog(
+            title = "Select Action (THEN)",
+            options = MailxRuleCatalog.actionTypes,
+            selectedKey = actions[idx].type,
+            onSelect = { selectedAction ->
+                actions = actions.toMutableList().also { list ->
+                    list[idx] = UiRuleAction(type = selectedAction, value = "")
+                }
+                pickingActionTypeIndex = null
+            },
+            onDismiss = { pickingActionTypeIndex = null }
         )
     }
 }
@@ -798,7 +986,7 @@ private fun SimplePickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Kapat")
+                Text("Close")
             }
         }
     )

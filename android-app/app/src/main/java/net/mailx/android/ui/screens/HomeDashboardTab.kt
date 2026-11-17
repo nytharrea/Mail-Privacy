@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -37,10 +38,6 @@ import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.UiUserStats
 import net.mailx.android.ui.theme.AddyPalette
 
-/**
- * `anonaddy/addy-android` içindeki `res/layout/fragment_home.xml` (`HomeFragment.kt`) +
- * Mailx `Stats` (`43668.jpg`, `43670.jpg`) 7 günlük grafik ve 90 günlük sunucu istatistikleri.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeDashboardTab(
@@ -57,6 +54,7 @@ fun HomeDashboardTab(
     onNavigateToRules: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
     onOpenAccountSheet: () -> Unit = {},
+    onOpenTrackersReport: () -> Unit = {},
     onSelectAlias: (UiAlias) -> Unit,
     onCopyOrWildcard: (UiAlias) -> Unit,
     onToggleEnabled: (UiAlias, Boolean) -> Unit,
@@ -93,39 +91,36 @@ fun HomeDashboardTab(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 1. Üst Durum Kartı (home_stat_card_bandwidth karşılığı)
             item(key = "home_stat_card_bandwidth") {
                 AddyHomeStatCard(
-                    title = "Varsayılan Alan Adı",
-                    description = "@$defaultDomain • $activeCount/${aliases.size} aktif takma ad",
+                    title = "Default Domain",
+                    description = "@$defaultDomain • $activeCount/${aliases.size} active aliases",
                     icon = Icons.Default.Speed,
                     progressFraction = activeRatio,
                     onClick = { onNavigateToFilter("active_inactive") }
                 )
             }
 
-            // 2. İstatistikler Başlığı (R.string.statistics)
             item(key = "header_statistics") {
                 AddySectionHeader(
-                    title = "İstatistikler (Son 90 Gün / Toplam)",
+                    title = "Statistics (Last 90 Days / Total)",
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
-            // İstatistikler 2x2 Grid (home_stats_gridlayout)
             item(key = "home_stats_grid_row1") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AddyHomeStatCard(
-                        title = "İletilen E-postalar",
+                        title = "Forwarded",
                         description = totalForwards.toString(),
                         icon = Icons.Default.Inbox,
                         modifier = Modifier.weight(1f)
                     )
                     AddyHomeStatCard(
-                        title = "Engellenenler",
+                        title = "Blocked",
                         description = totalBlocks.toString(),
                         icon = Icons.Default.Block,
                         modifier = Modifier.weight(1f)
@@ -139,13 +134,13 @@ fun HomeDashboardTab(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AddyHomeStatCard(
-                        title = "Yanıtlananlar",
+                        title = "Replied",
                         description = totalReplies.toString(),
                         icon = Icons.AutoMirrored.Filled.Reply,
                         modifier = Modifier.weight(1f)
                     )
                     AddyHomeStatCard(
-                        title = "Gönderilenler",
+                        title = "Sent",
                         description = totalSends.toString(),
                         icon = Icons.AutoMirrored.Filled.ForwardToInbox,
                         modifier = Modifier.weight(1f)
@@ -153,38 +148,35 @@ fun HomeDashboardTab(
                 }
             }
 
-            // Mailx Son 7 Günlük İleti Grafiği (`43668.jpg`)
             if (userStats.dailyPoints.isNotEmpty()) {
                 item(key = "mailx_7day_chart") {
                     MailxSevenDayChartCard(userStats = userStats)
                 }
             }
 
-            // 3. Takma Adlar Başlığı (R.string.aliases)
             item(key = "header_aliases") {
                 AddySectionHeader(
-                    title = "Takma Adlar",
-                    actionText = "Takma Ad Ekle",
+                    title = "Aliases",
+                    actionText = "New Alias",
                     onActionClick = onOpenCreateAlias,
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
 
-            // Takma Adlar 2x3 Grid (home_stats_aliases_gridlayout)
             item(key = "home_aliases_grid_row1") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AddyHomeStatCard(
-                        title = "Toplam Takma Ad",
+                        title = "Total Aliases",
                         description = aliases.size.toString(),
                         icon = Icons.Default.AlternateEmail,
                         modifier = Modifier.weight(1f),
                         onClick = { onNavigateToFilter("active_inactive") }
                     )
                     AddyHomeStatCard(
-                        title = "Aktif Takma Adlar",
+                        title = "Active Aliases",
                         description = activeCount.toString(),
                         icon = Icons.Default.Check,
                         modifier = Modifier.weight(1f),
@@ -199,14 +191,14 @@ fun HomeDashboardTab(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AddyHomeStatCard(
-                        title = "Pasif Takma Adlar",
+                        title = "Disabled Aliases",
                         description = inactiveCount.toString(),
                         icon = Icons.Default.Close,
                         modifier = Modifier.weight(1f),
                         onClick = { onNavigateToFilter("inactive") }
                     )
                     AddyHomeStatCard(
-                        title = "Sabitlenenler",
+                        title = "Pinned",
                         description = pinnedCount.toString(),
                         icon = Icons.Default.PushPin,
                         modifier = Modifier.weight(1f),
@@ -228,7 +220,7 @@ fun HomeDashboardTab(
                         onClick = { onNavigateToFilter("wildcard_only") }
                     )
                     AddyHomeStatCard(
-                        title = "Silinenler",
+                        title = "Deleted",
                         description = deletedCount.toString(),
                         icon = Icons.Default.DeleteOutline,
                         modifier = Modifier.weight(1f),
@@ -237,10 +229,9 @@ fun HomeDashboardTab(
                 }
             }
 
-            // 4. Alıcılar, Kurallar ve Araçlar Başlığı
             item(key = "header_recipients_tools") {
                 AddySectionHeader(
-                    title = "Alıcılar, Kurallar ve Araçlar",
+                    title = "Recipients, Rules & Tools",
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
@@ -251,15 +242,15 @@ fun HomeDashboardTab(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AddyHomeStatCard(
-                        title = "Alıcılar & Alan Adı",
-                        description = "$recipientCount alıcı",
+                        title = "Recipients & Domains",
+                        description = "$recipientCount recipients",
                         icon = Icons.Default.Inbox,
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToRecipients
                     )
                     AddyHomeStatCard(
-                        title = "Kurallar & Engel",
-                        description = "$ruleCount kural • $blocklistCount engel",
+                        title = "Rules & Blocklist",
+                        description = "$ruleCount rules • $blocklistCount blocked",
                         icon = Icons.Default.FilterAlt,
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToRules
@@ -273,15 +264,15 @@ fun HomeDashboardTab(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     AddyHomeStatCard(
-                        title = "Ters-Alias Gönder",
-                        description = "Takma Addan İleti",
+                        title = "Send from Alias",
+                        description = "Reverse-Alias Tool",
                         icon = Icons.AutoMirrored.Filled.ForwardToInbox,
                         modifier = Modifier.weight(1f),
                         onClick = onOpenReverseAliasTool
                     )
                     AddyHomeStatCard(
-                        title = "Tanılama Günlükleri",
-                        description = "İletim & Hata Kayıtları",
+                        title = "Diagnostics Logs",
+                        description = "Delivery & Bounce Logs",
                         icon = Icons.Default.BugReport,
                         modifier = Modifier.weight(1f),
                         onClick = onOpenDiagnostics
@@ -289,13 +280,26 @@ fun HomeDashboardTab(
                 }
             }
 
-            item(key = "home_account_row") {
-                AddyHomeStatCard(
-                    title = "Hesap, Abonelik & Erişim Anahtarları",
-                    description = "2FA TOTP, CSV İçe/Dışa Aktar ve API Anahtarları",
-                    icon = Icons.Default.Key,
-                    onClick = onOpenAccountSheet
-                )
+            item(key = "home_trackers_account_row") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AddyHomeStatCard(
+                        title = "Trackers Report",
+                        description = "Inspect Removed Trackers",
+                        icon = Icons.Default.Shield,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenTrackersReport
+                    )
+                    AddyHomeStatCard(
+                        title = "Account & Keys",
+                        description = "2FA, Passkeys & CSV",
+                        icon = Icons.Default.Key,
+                        modifier = Modifier.weight(1f),
+                        onClick = onOpenAccountSheet
+                    )
+                }
             }
         }
     }
@@ -327,16 +331,16 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Son 7 Günlük İleti Trafiği",
+                    text = "Last 7 Days Email Traffic",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ChartLegendDot(color = AddyPalette.PortalOrange, label = "İletilen")
-                    ChartLegendDot(color = AddyPalette.PortalBlue, label = "Yanıt")
-                    ChartLegendDot(color = AddyPalette.EasternBlue, label = "Gönderim")
-                    ChartLegendDot(color = AddyPalette.SoftRed, label = "Engel")
+                    ChartLegendDot(color = AddyPalette.PortalOrange, label = "Forwarded")
+                    ChartLegendDot(color = AddyPalette.PortalBlue, label = "Replied")
+                    ChartLegendDot(color = AddyPalette.EasternBlue, label = "Sent")
+                    ChartLegendDot(color = AddyPalette.SoftRed, label = "Blocked")
                 }
             }
 

@@ -1,48 +1,38 @@
-use crate::models::AliasFilter;
+use crate::models::{AliasFilter, RemovedTrackerItem, TrackersReport};
 
-/// Mailx Access Key uzunluk ve biçim doğrulaması (`req.go`: `validate:"required,min=85,max=85"`).
-/// Format: `<36-char-uuid>.<48-char-token>` = toplam 85 karakter.
 pub fn validate_access_key(access_key: &str) -> Result<(), String> {
     let trimmed = access_key.trim();
     if trimmed.len() != 85 {
         return Err(format!(
-            "Geçersiz Access Key uzunluğu: {} karakter (tam 85 karakter olmalı).",
+            "Invalid Access Key length: {} characters (must be exactly 85 characters).",
             trimmed.len()
         ));
     }
     let parts: Vec<&str> = trimmed.split('.').collect();
     if parts.len() != 2 || parts[0].len() != 36 || parts[1].len() != 48 {
         return Err(
-            "Geçersiz Access Key formatı: '<36-karakter-UUID>.<48-karakter-token>' bekleniyor."
-                .to_string(),
+            "Invalid Access Key format: expected '<36-char-UUID>.<48-char-token>'.".to_string(),
         );
     }
     Ok(())
 }
 
-/// Mailx Ters-Alias (Send from Alias) adres üreticisi (`app/src/components/AliasSend.vue` satır 91).
-///
-/// Formül: `alias.name.replace('@', '+' + toEmail.replace('@', '=') + '@')`
-/// Örnek:
-/// - Alias: `autumn.wind42@mailx.net`
-/// - Alıcı: `destek@ornek.com`
-/// - Üretilen Gönderim Adresi: `autumn.wind42+destek=ornek.com@mailx.net`
 pub fn generate_reverse_alias(alias_email: &str, target_email: &str) -> Result<String, String> {
     let alias_trimmed = alias_email.trim();
     let target_trimmed = target_email.trim();
 
     let (alias_local, alias_domain) = alias_trimmed
         .split_once('@')
-        .ok_or_else(|| "Geçersiz alias e-posta adresi".to_string())?;
+        .ok_or_else(|| "Invalid alias email address".to_string())?;
     if alias_local.is_empty() || alias_domain.is_empty() || !alias_domain.contains('.') {
-        return Err("Geçersiz alias e-posta adresi".to_string());
+        return Err("Invalid alias email address".to_string());
     }
 
     let (target_local, target_domain) = target_trimmed
         .split_once('@')
-        .ok_or_else(|| "Geçersiz hedef e-posta adresi".to_string())?;
+        .ok_or_else(|| "Invalid recipient email address".to_string())?;
     if target_local.is_empty() || target_domain.is_empty() || !target_domain.contains('.') {
-        return Err("Geçersiz hedef e-posta adresi".to_string());
+        return Err("Invalid recipient email address".to_string());
     }
 
     Ok(format!(
@@ -51,13 +41,6 @@ pub fn generate_reverse_alias(alias_email: &str, target_email: &str) -> Result<S
     ))
 }
 
-/// Wildcard alias (`*+suffix@domain` veya `*.suffix@domain`) üzerinden anında (on-the-fly)
-/// yeni bir takma ad üretir (`api/internal/model/alias_name.go` & `Mailx FAQ`).
-///
-/// Örnek:
-/// - Wildcard Alias: `*+shopping@mailx.net`
-/// - Önek (Prefix): `amazon`
-/// - Sonuç: `amazon+shopping@mailx.net`
 pub fn generate_wildcard_on_the_fly(wildcard_alias: &str, prefix: &str) -> Result<String, String> {
     let prefix_trimmed = prefix.trim();
     if prefix_trimmed.is_empty()
@@ -65,19 +48,126 @@ pub fn generate_wildcard_on_the_fly(wildcard_alias: &str, prefix: &str) -> Resul
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err("Önek yalnızca harf, rakam, '-' veya '_' içerebilir.".to_string());
+        return Err(
+            "Prefix may only contain letters, digits, '-' or '_'.".to_string(),
+        );
     }
 
     if !wildcard_alias.starts_with("*+") && !wildcard_alias.starts_with("*.") {
         return Err(
-            "Seçilen adres bir Wildcard alias ('*+' veya '*.' ile başlayan) değil.".to_string(),
+            "Selected address is not a Wildcard alias (must start with '*+' or '*.')."
+                .to_string(),
         );
     }
 
     Ok(wildcard_alias.replacen('*', prefix_trimmed, 1))
 }
 
-/// URL sorgu parametresi kodlayıcı (harici crate gerektirmeden RFC 3986 yüzde kodlaması)
+fn decode_base64_url(input: &str) -> Result<Vec<u8>, String> {
+    let mut normalized = input
+        .trim()
+        .replace('-', "+")
+        .replace('_', "/")
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>();
+
+    while normalized.len() % 4 != 0 {
+        normalized.push('=');
+    }
+
+    fn val(b: u8) -> Result<u8, String> {
+        match b {
+            b'A'..=b'Z' => Ok(b - b'A'),
+            b'a'..=b'z' => Ok(b - b'a' + 26),
+            b'0'..=b'9' => Ok(b - b'0' + 52),
+            b'+' => Ok(62),
+            b'/' => Ok(63),
+            _ => Err("Invalid base64url character".to_string()),
+        }
+    }
+
+    let bytes = normalized.as_bytes();
+    let mut out = Vec::with_capacity((bytes.len() / 4) * 3);
+    for chunk in bytes.chunks(4) {
+        if chunk.len() < 4 {
+            return Err("Invalid base64url length".to_string());
+        }
+        let v0 = val(chunk[0])?;
+        let v1 = val(chunk[1])?;
+        out.push((v0 << 2) | (v1 >> 4));
+        if chunk[2] != b'=' {
+            let v2 = val(chunk[2])?;
+            out.push((v1 << 4) | (v2 >> 2));
+            if chunk[3] != b'=' {
+                let v3 = val(chunk[3])?;
+                out.push((v2 << 6) | v3);
+            }
+        }
+    }
+    Ok(out)
+}
+
+pub fn decode_trackers_report(raw: &str) -> Result<TrackersReport, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("Please paste a Trackers Report URL or encoded fragment.".to_string());
+    }
+    let fragment = if let Some((_, hash_part)) = trimmed.split_once('#') {
+        hash_part.trim()
+    } else {
+        trimmed.trim_start_matches('#')
+    };
+
+    if fragment.is_empty() {
+        return Err("Report link is missing the encoded fragment.".to_string());
+    }
+
+    let decoded_bytes = decode_base64_url(fragment)?;
+    let decoded_str = String::from_utf8(decoded_bytes)
+        .map_err(|_| "Invalid UTF-8 in trackers report".to_string())?;
+    let json_val: serde_json::Value = serde_json::from_str(&decoded_str)
+        .map_err(|_| "Invalid JSON in trackers report".to_string())?;
+
+    let n = json_val
+        .get("n")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| "Missing tracker count in report".to_string())? as usize;
+    let t_arr = json_val
+        .get("t")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "Missing trackers array in report".to_string())?;
+
+    let mut trackers = Vec::with_capacity(t_arr.len());
+    for item in t_arr {
+        if let Some(obj) = item.as_object() {
+            let domain = obj
+                .get("d")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let element = obj
+                .get("e")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let reason = obj
+                .get("r")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            trackers.push(RemovedTrackerItem {
+                domain,
+                element,
+                reason,
+            });
+        }
+    }
+
+    let total = n.max(trackers.len());
+    Ok(TrackersReport { total, trackers })
+}
+
 pub fn url_encode(input: &str) -> String {
     let mut encoded = String::with_capacity(input.len());
     for byte in input.bytes() {
@@ -93,7 +183,6 @@ pub fn url_encode(input: &str) -> String {
     encoded
 }
 
-/// `GET /v1/api/aliases` için sorgu dizgesini oluşturur.
 pub fn build_aliases_query_path(filter: &AliasFilter) -> String {
     let limit = filter.limit.clamp(1, 1000);
     let page = filter.page.max(1);
@@ -139,11 +228,20 @@ mod tests {
 
     #[test]
     fn test_generate_wildcard_on_the_fly() {
-        let plus_alias = generate_wildcard_on_the_fly("*+rehber@mailx.net", "signal").unwrap();
-        assert_eq!(plus_alias, "signal+rehber@mailx.net");
+        let plus_alias = generate_wildcard_on_the_fly("*+contacts@mailx.net", "signal").unwrap();
+        assert_eq!(plus_alias, "signal+contacts@mailx.net");
 
-        let dot_alias = generate_wildcard_on_the_fly("*.rehber@mailx.net", "dentist").unwrap();
-        assert_eq!(dot_alias, "dentist.rehber@mailx.net");
+        let dot_alias = generate_wildcard_on_the_fly("*.contacts@mailx.net", "dentist").unwrap();
+        assert_eq!(dot_alias, "dentist.contacts@mailx.net");
+    }
+
+    #[test]
+    fn test_decode_trackers_report() {
+        let encoded = "eyJuIjoyLCJ0IjpbeyJkIjoidHJhY2suZXhhbXBsZS5jb20iLCJlIjoiaW1nIiwiciI6ImRvbWFpbiJ9LHsiZCI6Im1haWxjaGltcC5jb20iLCJlIjoiaW1nIiwiciI6InRpbnkifV19";
+        let report = decode_trackers_report(&format!("https://mailx.net/trackers-report#{encoded}")).unwrap();
+        assert_eq!(report.total, 2);
+        assert_eq!(report.trackers.len(), 2);
+        assert_eq!(report.trackers[0].domain, "track.example.com");
     }
 
     #[test]

@@ -91,11 +91,14 @@ fun MailxAppScreen(vm: MailxViewModel) {
     val customDomains by vm.customDomains.collectAsStateWithLifecycle()
     val dnsConfig by vm.dnsConfig.collectAsStateWithLifecycle()
     val dnsCheckResults by vm.dnsCheckResults.collectAsStateWithLifecycle()
+    val wildcardDomainInfo by vm.wildcardDomainInfo.collectAsStateWithLifecycle()
     val blocklist by vm.blocklist.collectAsStateWithLifecycle()
     val rules by vm.rules.collectAsStateWithLifecycle()
     val userStats by vm.userStats.collectAsStateWithLifecycle()
     val diagnosticLogs by vm.diagnosticLogs.collectAsStateWithLifecycle()
+    val serverHealthStatus by vm.serverHealthStatus.collectAsStateWithLifecycle()
     val accessKeys by vm.accessKeys.collectAsStateWithLifecycle()
+    val passkeys by vm.passkeys.collectAsStateWithLifecycle()
     val userAccount by vm.userAccount.collectAsStateWithLifecycle()
     val announcements by vm.announcements.collectAsStateWithLifecycle()
     val activeSheet by vm.activeSheet.collectAsStateWithLifecycle()
@@ -153,7 +156,9 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onOtpChange = vm::updateOtpInput,
             onAccessKeyChange = vm::updateAccessKeyInput,
             onConnectWithCredentials = vm::connectWithCredentials,
-            onConnectWithAccessKey = vm::connectWithAccessKey
+            onConnectWithAccessKey = vm::connectWithAccessKey,
+            onInitiatePasswordReset = vm::initiatePasswordReset,
+            onConfirmPasswordReset = vm::confirmPasswordReset
         )
         return
     }
@@ -170,11 +175,11 @@ fun MailxAppScreen(vm: MailxViewModel) {
         topBar = {
             AddyMainTopAppBar(
                 title = currentTab.label,
-                subtitle = if (isLoading) "Veriler yenileniyor..." else "@${defaultsState.defaultDomain}",
+                subtitle = if (isLoading) "Refreshing data..." else "@${defaultsState.defaultDomain}",
                 userInitials = userInitials,
                 onSendMailClick = {
                     val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
-                        ?: "ornek.alias@${defaultsState.defaultDomain}"
+                        ?: "example.alias@${defaultsState.defaultDomain}"
                     vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                 },
                 onRefreshClick = vm::refreshAllData,
@@ -235,7 +240,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Takma Ad Ekle"
+                        contentDescription = "New Alias"
                     )
                 }
             }
@@ -279,6 +284,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onNavigateToRules = { vm.selectTab(MainNavTab.RULES) },
                         onOpenDiagnostics = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
+                        onOpenTrackersReport = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
                         onSelectAlias = { vm.openSheet(ActiveSheet.ManageAlias(it.id)) },
                         onCopyOrWildcard = { alias ->
                             if (alias.wildcard) {
@@ -291,7 +297,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onOpenCreateAlias = { vm.openSheet(ActiveSheet.CreateAlias) },
                         onOpenReverseAliasTool = {
                             val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
-                                ?: "ornek.alias@${defaultsState.defaultDomain}"
+                                ?: "example.alias@${defaultsState.defaultDomain}"
                             vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                         }
                     )
@@ -313,6 +319,11 @@ fun MailxAppScreen(vm: MailxViewModel) {
                             }
                         },
                         onToggleEnabled = vm::toggleAliasEnabled,
+                        onBulkSetEnabled = vm::bulkSetAliasesEnabled,
+                        onBulkSetPinned = vm::bulkSetAliasesPinned,
+                        onBulkDelete = vm::bulkDeleteAliases,
+                        onBulkRestore = vm::bulkRestoreAliases,
+                        onBulkForget = vm::bulkForgetAliases,
                         onOpenCreateSheet = { vm.openSheet(ActiveSheet.CreateAlias) }
                     )
 
@@ -341,6 +352,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     MainNavTab.RULES -> RulesAndBlocklistTab(
                         rules = rules,
                         blocklist = blocklist,
+                        recipients = recipients,
                         availableRecipients = defaultsState.availableRecipients,
                         onSaveRule = vm::saveRule,
                         onToggleRuleActive = vm::toggleRuleActive,
@@ -372,9 +384,10 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onSyncDefaults = { vm.syncServerDefaults(silent = false) },
                         onOpenReverseAliasTool = {
                             val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
-                                ?: "ornek.alias@${defaultsState.defaultDomain}"
+                                ?: "example.alias@${defaultsState.defaultDomain}"
                             vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                         },
+                        onOpenTrackersReportSheet = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
                         onOpenDiagnosticsSheet = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
                         onOpenAnnouncementsSheet = { vm.openSheet(ActiveSheet.AnnouncementsSheet) },
@@ -415,9 +428,10 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onOpenDiagnostics = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
             onOpenAccount = { vm.openSheet(ActiveSheet.AccountSheet) },
             onOpenAnnouncements = { vm.openSheet(ActiveSheet.AnnouncementsSheet) },
+            onOpenTrackersReport = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
             onOpenReverseSend = {
                 val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
-                    ?: "ornek.alias@${defaultsState.defaultDomain}"
+                    ?: "example.alias@${defaultsState.defaultDomain}"
                 vm.openSheet(ActiveSheet.ReverseSend(firstActive))
             },
             onRequestLogout = { vm.openSheet(ActiveSheet.ConfirmLogout) }
@@ -426,22 +440,31 @@ fun MailxAppScreen(vm: MailxViewModel) {
         ActiveSheet.AccountSheet -> AccountBottomSheet(
             userAccount = userAccount,
             accessKeys = accessKeys,
+            passkeys = passkeys,
             aliasCount = aliases.size,
             onDismiss = vm::closeSheet,
+            onSendAccountOtp = vm::sendAccountVerificationOtp,
+            onVerifyAccountOtp = vm::verifyAccountEmailOtp,
             onChangePassword = vm::changeAccountPassword,
             onChangeEmail = vm::changeAccountEmail,
             onInitiateTotp = vm::initiateTotpSetup,
             onConfirmTotp = vm::confirmTotpSetup,
             onDisableTotp = vm::disableTotp,
+            onDeletePasskey = vm::deletePasskeyCredential,
             onCreateAccessKey = vm::createAccessKey,
             onClearNewAccessKeyToken = vm::clearNewlyCreatedAccessKeyToken,
             onDeleteAccessKey = vm::deleteAccessKey,
-            onExportAliasesCsv = vm::exportAliasesCsv
+            onExportAliasesCsv = vm::exportAliasesCsv,
+            onImportAliasesCsv = vm::importAliasesFromCsvText,
+            onRequestDeleteAccount = vm::requestAccountDeletion,
+            onConfirmDeleteAccount = vm::confirmAccountDeletion
         )
 
         ActiveSheet.DiagnosticsSheet -> DiagnosticsBottomSheet(
             logs = diagnosticLogs,
             logIssuesEnabled = defaultsState.logIssues,
+            serverHealthStatus = serverHealthStatus,
+            onCheckServerHealth = vm::checkServerHealth,
             onToggleLogIssues = vm::updateLogIssues,
             onFetchBounceFile = vm::fetchBounceLogFile,
             onDeleteAllLogs = vm::deleteAllDiagnosticLogs,
@@ -454,8 +477,15 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onDismiss = vm::closeSheet
         )
 
+        ActiveSheet.TrackersReportSheet -> TrackersReportBottomSheet(
+            onDismiss = vm::closeSheet
+        )
+
         ActiveSheet.CreateAlias -> AddAliasBottomSheet(
             defaultsState = defaultsState,
+            customDomains = customDomains,
+            wildcardDomainInfo = wildcardDomainInfo,
+            onFetchWildcardDomainInfo = vm::fetchWildcardDomainInfo,
             onDismiss = vm::closeSheet,
             onCreateAlias = { reqJson ->
                 vm.createAlias(reqJson) { createdName ->
@@ -463,7 +493,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         context,
                         "Mailx Alias",
                         createdName,
-                        "Takma ad oluşturuldu ve kopyalandı: $createdName"
+                        "Alias created and copied: $createdName"
                     )
                 }
             }
@@ -519,10 +549,10 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     tint = AddyPalette.SoftRed
                 )
             },
-            title = { Text("Takma Adı Sil") },
+            title = { Text("Delete Alias") },
             text = {
                 Text(
-                    text = "${sheet.alias.name} adresini silmek istediğinize emin misiniz? Silinen takma adlar gelen e-postaları reddeder."
+                    text = "Are you sure you want to delete ${sheet.alias.name}? Deleted aliases reject incoming emails and can be restored within 90 days."
                 )
             },
             confirmButton = {
@@ -533,12 +563,12 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     ),
                     onClick = { vm.deleteAliasConfirmed(sheet.alias) }
                 ) {
-                    Text("Sil", fontWeight = FontWeight.Medium)
+                    Text("Delete", fontWeight = FontWeight.Medium)
                 }
             },
             dismissButton = {
                 TextButton(onClick = vm::closeSheet) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -552,9 +582,9 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     tint = AddyPalette.SoftRed
                 )
             },
-            title = { Text("Uygulamayı Sıfırla") },
+            title = { Text("Reset App") },
             text = {
-                Text("Bu cihazdaki oturum anahtarı ve önbellek temizlenecek. Çıkış yapmak istiyor musunuz?")
+                Text("This will clear your local session credentials and offline cache on this device. Do you want to log out?")
             },
             confirmButton = {
                 Button(
@@ -564,12 +594,12 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     ),
                     onClick = vm::logoutConfirmed
                 ) {
-                    Text("Çıkış Yap", fontWeight = FontWeight.Medium)
+                    Text("Log Out", fontWeight = FontWeight.Medium)
                 }
             },
             dismissButton = {
                 TextButton(onClick = vm::closeSheet) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -634,7 +664,7 @@ private fun AddyMainTopAppBar(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ForwardToInbox,
-                        contentDescription = "Takma Addan İleti Gönder",
+                        contentDescription = "Send from Alias",
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -649,7 +679,7 @@ private fun AddyMainTopAppBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Yenile",
+                        contentDescription = "Refresh",
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -674,11 +704,6 @@ private fun AddyMainTopAppBar(
     }
 }
 
-/**
- * `anonaddy/addy-android` `bottomsheet_profile.xml` + Mailx navigasyon menüsü (`43634.jpg`):
- * Tüm Mailx bölümlerine (Aliases, Wildcard, Recipients, Domains, Blocklist, Rules, Diagnostics,
- * Settings, Account, Announcements) tek dokunuşla geçiş sağlar.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddyProfileBottomSheet(
@@ -695,6 +720,7 @@ private fun AddyProfileBottomSheet(
     onOpenDiagnostics: () -> Unit,
     onOpenAccount: () -> Unit,
     onOpenAnnouncements: () -> Unit,
+    onOpenTrackersReport: () -> Unit,
     onOpenReverseSend: () -> Unit,
     onRequestLogout: () -> Unit
 ) {
@@ -745,14 +771,13 @@ private fun AddyProfileBottomSheet(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "@${defaultsState.defaultDomain} • $aliasCount takma ad • Abonelik: ${userAccount.subStatus}",
+                text = "@${defaultsState.defaultDomain} • $aliasCount aliases • Subscription: ${userAccount.subStatus}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Grup 1: Tüm Mailx Özellikleri (`43634.jpg` + `bottomsheet_profile.xml`)
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -764,38 +789,38 @@ private fun AddyProfileBottomSheet(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     ProfileMenuItemRow(
                         icon = Icons.Default.AlternateEmail,
-                        title = "Takma Adlar (Aliases)",
-                        subtitle = "$aliasCount toplam takma ad",
+                        title = "Aliases",
+                        subtitle = "$aliasCount total aliases",
                         onClick = { onNavigateToAliases("active_inactive") }
                     )
                     ProfileMenuItemRow(
                         icon = Icons.Default.AutoAwesome,
-                        title = "Wildcard Takma Adlar (*)",
-                        subtitle = "Anında özel önekli adres üretimi",
+                        title = "Wildcard Aliases (*)",
+                        subtitle = "Generate on-the-fly custom prefix addresses",
                         onClick = { onNavigateToAliases("wildcard_only") }
                     )
                     ProfileMenuItemRow(
                         icon = Icons.Default.Inbox,
-                        title = "Alıcılar ve PGP Şifreleme",
-                        subtitle = defaultsState.defaultRecipient.ifBlank { "${defaultsState.availableRecipients.size} doğrulanmış alıcı" },
+                        title = "Recipients & PGP Encryption",
+                        subtitle = defaultsState.defaultRecipient.ifBlank { "${defaultsState.availableRecipients.size} verified recipients" },
                         onClick = onNavigateToRecipients
                     )
                     ProfileMenuItemRow(
                         icon = Icons.Default.Language,
-                        title = "Özel Alan Adları ve DNS",
-                        subtitle = "Varsayılan: @${defaultsState.defaultDomain}",
+                        title = "Custom Domains & DNS",
+                        subtitle = "Default: @${defaultsState.defaultDomain}",
                         onClick = onNavigateToRecipients
                     )
                     ProfileMenuItemRow(
                         icon = Icons.Default.FilterAlt,
-                        title = "Kurallar ve Engellenenler (Rules & Blocklist)",
-                        subtitle = "Otomatik filtreleme kuralları ve kara liste",
+                        title = "Rules & Blocklist",
+                        subtitle = "Automated email filtering rules and sender blocklist",
                         onClick = onNavigateToRules
                     )
                     ProfileMenuItemRow(
                         icon = Icons.AutoMirrored.Filled.ForwardToInbox,
-                        title = "Takma Addan İleti Gönder",
-                        subtitle = "Ters-alias (Send from alias) adresi üret",
+                        title = "Send from Alias",
+                        subtitle = "Generate reverse-alias forwarding addresses",
                         onClick = onOpenReverseSend
                     )
                 }
@@ -803,7 +828,6 @@ private fun AddyProfileBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Grup 2: Tanılama, Hesap, Duyurular ve Ayarlar
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -815,32 +839,38 @@ private fun AddyProfileBottomSheet(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     ProfileMenuItemRow(
                         icon = Icons.Default.ManageAccounts,
-                        title = "Hesap, Abonelik & Erişim Anahtarları",
-                        subtitle = "2FA TOTP, parola, erişim anahtarları ve CSV dışa aktarım",
+                        title = "Account, Subscription & Keys",
+                        subtitle = "2FA TOTP, passkeys, access keys, password, and CSV import/export",
                         onClick = onOpenAccount
                     )
                     ProfileMenuItemRow(
+                        icon = Icons.Default.Policy,
+                        title = "Trackers Report Inspector",
+                        subtitle = "Decode removed email tracker links locally",
+                        onClick = onOpenTrackersReport
+                    )
+                    ProfileMenuItemRow(
                         icon = Icons.Default.BugReport,
-                        title = "Tanılama Günlükleri (Diagnostics)",
-                        subtitle = "İletim, bounce ve engelleme kayıtları",
+                        title = "Diagnostics Logs",
+                        subtitle = "Delivery, bounce, and blocked email logs",
                         onClick = onOpenDiagnostics
                     )
                     ProfileMenuItemRow(
                         icon = Icons.Default.Campaign,
-                        title = "Duyurular (Announcements)",
-                        subtitle = "Mailx sistem duyuruları",
+                        title = "Announcements",
+                        subtitle = "Mailx service announcements",
                         onClick = onOpenAnnouncements
                     )
                     ProfileMenuItemRow(
                         icon = Icons.Default.Settings,
-                        title = "Sunucu ve Uygulama Ayarları",
-                        subtitle = "Varsayılanlar, takipçi engelleme, başlık ve tema • v0.3.0",
+                        title = "Server & App Settings",
+                        subtitle = "Defaults, tracker blocking, header & theme • v0.3.0",
                         onClick = onNavigateToSettings
                     )
                     ProfileMenuItemRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
-                        title = "Uygulamayı Sıfırla (Çıkış Yap)",
-                        subtitle = "Bu cihazdaki oturum verilerini temizle",
+                        title = "Reset App (Log Out)",
+                        subtitle = "Clear local session data on this device",
                         iconTint = AddyPalette.SoftRed,
                         titleColor = AddyPalette.SoftRed,
                         onClick = onRequestLogout
@@ -861,7 +891,7 @@ private fun AddyProfileBottomSheet(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Text(
-                    text = "Gizlilik ve özenle tasarlandı",
+                    text = "Designed with privacy and care",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )

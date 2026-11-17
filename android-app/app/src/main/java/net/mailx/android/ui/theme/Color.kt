@@ -2,39 +2,31 @@ package net.mailx.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * `anonaddy/addy-android` (`anonaddy_shared/src/main/res/values/colors.xml` ve
- * `values-night/colors.xml`) resmi Material 3 renk paleti.
- */
 object AddyPalette {
-    // Addy.io Kurumsal Sabit İndigo (Setup ekranı ve marka vurguları)
     val PrimaryColorStatic = Color(0xFF19216C)
     val PrimaryInnerStatic = Color(0xFF2D38A1)
     val LauncherForeground = Color(0xFFDFE0FF)
 
-    // Semantik İstatistik & Durum Renkleri (addy-android colors.xml birebir değerleri)
-    val PortalOrange = Color(0xFFFF9800)      // Forwarded (İletilen)
-    val PortalBlue = Color(0xFF4289FD)        // Replied (Yanıtlanan)
-    val EasternBlue = Color(0xFF16A8B8)       // Sent (Gönderilen)
-    val SoftRed = Color(0xFFFD5842)           // Blocked (Engellenen) & Tehlike Aksiyonu
+    val PortalOrange = Color(0xFFFF9800)
+    val PortalBlue = Color(0xFF4289FD)
+    val EasternBlue = Color(0xFF16A8B8)
+    val SoftRed = Color(0xFFFD5842)
     val HardRed = Color(0xFFFF0000)
-    val Green = Color(0xFF8BC34A)             // Aktif / Bilgi
+    val Green = Color(0xFF8BC34A)
 
-    // Geriye dönük uyumluluk takma adları
     val ForwardedOrange = PortalOrange
     val RepliedBlue = PortalBlue
     val SentCyan = EasternBlue
     val BlockedRed = SoftRed
     val ActiveGreen = Green
+    val GreenActive = Green
     val PinnedAmber = PortalOrange
 
-    // Pasif Donut Halka Grileri (addy-android md_grey_500..800)
     val Grey500 = Color(0xFF9E9E9E)
     val Grey600 = Color(0xFF757575)
     val Grey700 = Color(0xFF616161)
     val Grey800 = Color(0xFF424242)
 
-    // Material 3 Karanlık Tema (values-night/colors.xml)
     val PrimaryDark = Color(0xFFBEC2FF)
     val OnPrimaryDark = Color(0xFF272B60)
     val PrimaryContainerDark = Color(0xFF3D4278)
@@ -70,7 +62,6 @@ object AddyPalette {
     val DarkSurfaceHigh = Color(0xFF2A292F)
     val DarkSurfaceHighest = Color(0xFF34343A)
 
-    // Saf Siyah (AMOLED) Yüzey Hiyerarşisi (keskin çerçeve olmadan yumuşak ton ayrımı)
     val AmoledBackground = Color(0xFF000000)
     val AmoledSurface = Color(0xFF000000)
     val AmoledSurfaceLowest = Color(0xFF000000)
@@ -81,7 +72,6 @@ object AddyPalette {
     val AmoledOutline = Color(0xFF8A8994)
     val AmoledOutlineVariant = Color(0xFF383844)
 
-    // Material 3 Açık Tema (values/colors.xml)
     val PrimaryLight = Color(0xFF555A92)
     val OnPrimaryLight = Color(0xFFFFFFFF)
     val PrimaryContainerLight = Color(0xFFE0E0FF)

@@ -15,11 +15,6 @@ import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
 import org.json.JSONObject
 
-/**
- * `anonaddy/addy-android` içindeki `QuickAliasTileService.kt` sınıfından Mailx'e uyarlanmıştır.
- * Bildirim panelindeki Hızlı Ayarlar (Quick Settings) kutucuğuna dokunulduğunda Rust çekirdeği
- * üzerinden anında yeni bir Mailx takma adı oluşturur ve panoya kopyalar.
- */
 class QuickAliasTileService : TileService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -29,7 +24,7 @@ class QuickAliasTileService : TileService() {
         val prefs = EncryptedPrefsManager(applicationContext)
         qsTile?.apply {
             state = if (prefs.isConfigured()) Tile.STATE_INACTIVE else Tile.STATE_UNAVAILABLE
-            subtitle = if (prefs.isConfigured()) prefs.defaultDomain else "Giriş yapılmadı"
+            subtitle = if (prefs.isConfigured()) prefs.defaultDomain else "Not signed in"
             updateTile()
         }
     }
@@ -38,13 +33,17 @@ class QuickAliasTileService : TileService() {
         super.onClick()
         val prefs = EncryptedPrefsManager(applicationContext)
         if (!prefs.isConfigured()) {
-            Toast.makeText(this, "Önce Mailx uygulamasına Access Key ile giriş yapın", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                "Please sign in to the Mailx app first",
+                Toast.LENGTH_LONG
+            ).show()
             return
         }
 
         qsTile?.apply {
             state = Tile.STATE_ACTIVE
-            subtitle = "Oluşturuluyor..."
+            subtitle = "Creating..."
             updateTile()
         }
 
@@ -76,12 +75,12 @@ class QuickAliasTileService : TileService() {
                     clipboard.setPrimaryClip(ClipData.newPlainText("Mailx Alias", createdAlias))
                     Toast.makeText(
                         applicationContext,
-                        "Kopyalandı: $createdAlias",
+                        "Copied: $createdAlias",
                         Toast.LENGTH_LONG
                     ).show()
                 }
             } else {
-                val err = response.optString("error", "Alias oluşturulamadı")
+                val err: String = response.optString("error", "Failed to create alias")
                 Toast.makeText(applicationContext, err, Toast.LENGTH_LONG).show()
             }
 

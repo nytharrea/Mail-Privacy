@@ -4,11 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-/**
- * `libmailx_core.so` (Rust çekirdeği) ile doğrudan JNI üzerinden konuşan tekil köprü.
- * Hem Access Key (`Bearer`) hem de E-posta/Parola (`Cookie: authn=...`) oturumlarını
- * ve tüm `/v1/*` Mailx API uç noktalarını destekler.
- */
 object MailxRustBridge {
     init {
         System.loadLibrary("mailx_core")
@@ -22,6 +17,9 @@ object MailxRustBridge {
 
     @JvmStatic
     external fun nativeGenerateWildcard(wildcardAlias: String, prefix: String): String
+
+    @JvmStatic
+    external fun nativeDecodeTrackersReport(rawInput: String): String
 
     @JvmStatic
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String

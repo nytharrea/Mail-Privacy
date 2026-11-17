@@ -40,11 +40,6 @@ import net.mailx.android.ui.model.AuthUiState
 import net.mailx.android.ui.theme.AddyPalette
 import kotlin.random.Random
 
-/**
- * `anonaddy/addy-android` içindeki `activity_setup.xml` (`SetupActivity.kt`) ve
- * `bottomsheet_api.xml` (`AddApiBottomDialogFragment.kt`) tasarımlarının birebir uyarlaması.
- * Hem E-posta/Parola (+ 2FA TOTP) hem de 85 karakterlik Access Key ile girişi destekler.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SetupScreen(
@@ -56,7 +51,9 @@ fun SetupScreen(
     onOtpChange: (String) -> Unit,
     onAccessKeyChange: (String) -> Unit,
     onConnectWithCredentials: () -> Unit,
-    onConnectWithAccessKey: () -> Unit
+    onConnectWithAccessKey: () -> Unit,
+    onInitiatePasswordReset: (email: String) -> Unit = {},
+    onConfirmPasswordReset: (otpToken: String, newPassword: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     var showLoginSheet by remember { mutableStateOf(false) }
@@ -124,7 +121,7 @@ fun SetupScreen(
                     modifier = Modifier.size(28.dp)
                 )
                 Text(
-                    text = "Merhaba!",
+                    text = "Hello!",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.White
@@ -136,7 +133,7 @@ fun SetupScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Hoş geldiniz",
+                    text = "Welcome to",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.White
@@ -172,7 +169,7 @@ fun SetupScreen(
                 }
 
                 Text(
-                    text = "Anonim E-posta Yönlendirme",
+                    text = "Anonymous Email Forwarding",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.White.copy(alpha = 0.6f),
@@ -206,7 +203,7 @@ fun SetupScreen(
                     )
                 ) {
                     Text(
-                        text = "Başla",
+                        text = "Get Started",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -237,7 +234,7 @@ fun SetupScreen(
                         contentPadding = PaddingValues(horizontal = 14.dp)
                     ) {
                         Text(
-                            text = "Anahtar Yapıştır",
+                            text = "Paste Key",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1
@@ -266,7 +263,7 @@ fun SetupScreen(
                         contentPadding = PaddingValues(horizontal = 14.dp)
                     ) {
                         Text(
-                            text = "Özel Sunucu",
+                            text = "Self-Hosted",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1
@@ -294,6 +291,8 @@ fun SetupScreen(
             onAccessKeyChange = onAccessKeyChange,
             onConnectWithCredentials = onConnectWithCredentials,
             onConnectWithAccessKey = onConnectWithAccessKey,
+            onInitiatePasswordReset = onInitiatePasswordReset,
+            onConfirmPasswordReset = onConfirmPasswordReset,
             onDismiss = { if (!authState.isLoading) showLoginSheet = false }
         )
     }
@@ -311,11 +310,14 @@ private fun AddyApiLoginBottomSheet(
     onAccessKeyChange: (String) -> Unit,
     onConnectWithCredentials: () -> Unit,
     onConnectWithAccessKey: () -> Unit,
+    onInitiatePasswordReset: (email: String) -> Unit,
+    onConfirmPasswordReset: (otpToken: String, newPassword: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSecret by remember { mutableStateOf(false) }
+    var showResetPasswordDialog by remember { mutableStateOf(false) }
     val isOfficial = authState.baseUrl.contains("api.mailx.net") || authState.baseUrl.isBlank()
     val isCredentialsMode = authState.loginMode == "credentials"
 
@@ -333,7 +335,7 @@ private fun AddyApiLoginBottomSheet(
                 .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Giriş Yap",
+                text = "Sign In",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -354,29 +356,27 @@ private fun AddyApiLoginBottomSheet(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Giriş yöntemi seçici: E-posta & Parola vs Erişim Anahtarı (Access Key)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                         selected = isCredentialsMode,
                         onClick = { onLoginModeChange("credentials") },
-                        label = { Text("E-posta & Parola") }
+                        label = { Text("Email & Password") }
                     )
                     SegmentedButton(
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                         selected = !isCredentialsMode,
                         onClick = { onLoginModeChange("access_key") },
-                        label = { Text("Erişim Anahtarı") }
+                        label = { Text("Access Key") }
                     )
                 }
 
-                // Sunucu seçici (Resmi Sunucu / Özel Sunucu)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                         selected = isOfficial,
                         onClick = { onBaseUrlChange("https://api.mailx.net") },
-                        label = { Text("Resmi Sunucu") }
+                        label = { Text("Official Instance") }
                     )
                     SegmentedButton(
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
@@ -386,7 +386,7 @@ private fun AddyApiLoginBottomSheet(
                                 onBaseUrlChange("https://")
                             }
                         },
-                        label = { Text("Özel Sunucu") }
+                        label = { Text("Self-Hosted") }
                     )
                 }
 
@@ -394,7 +394,7 @@ private fun AddyApiLoginBottomSheet(
                     OutlinedTextField(
                         value = authState.baseUrl,
                         onValueChange = onBaseUrlChange,
-                        label = { Text("Mailx Sunucu Adresi") },
+                        label = { Text("Mailx API Server URL") },
                         leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -406,7 +406,7 @@ private fun AddyApiLoginBottomSheet(
                     OutlinedTextField(
                         value = authState.emailInput,
                         onValueChange = onEmailChange,
-                        label = { Text("E-posta Adresi") },
+                        label = { Text("Email Address") },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -416,13 +416,13 @@ private fun AddyApiLoginBottomSheet(
                     OutlinedTextField(
                         value = authState.passwordInput,
                         onValueChange = onPasswordChange,
-                        label = { Text("Parola") },
+                        label = { Text("Password") },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showSecret = !showSecret }) {
                                 Icon(
                                     imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Göster / Gizle"
+                                    contentDescription = "Show / Hide"
                                 )
                             }
                         },
@@ -436,18 +436,27 @@ private fun AddyApiLoginBottomSheet(
                         OutlinedTextField(
                             value = authState.otpInput,
                             onValueChange = onOtpChange,
-                            label = { Text("2FA Doğrulama Kodu (6 Haneli TOTP)") },
+                            label = { Text("2FA Verification Code (6-Digit TOTP)") },
                             leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showResetPasswordDialog = true }) {
+                            Text("Forgot Password?", fontSize = 13.sp)
+                        }
+                    }
                 } else {
                     OutlinedTextField(
                         value = authState.accessKeyInput,
                         onValueChange = onAccessKeyChange,
-                        label = { Text("Erişim Anahtarı (Access Key)") },
+                        label = { Text("Access Key") },
                         leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                         trailingIcon = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -456,19 +465,19 @@ private fun AddyApiLoginBottomSheet(
                                     val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
                                     if (clipText.isNotEmpty()) onAccessKeyChange(clipText)
                                 }) {
-                                    Icon(Icons.Default.ContentPaste, contentDescription = "Yapıştır")
+                                    Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
                                 }
                                 IconButton(onClick = { showSecret = !showSecret }) {
                                     Icon(
                                         imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = "Göster / Gizle"
+                                        contentDescription = "Show / Hide"
                                     )
                                 }
                             }
                         },
                         supportingText = {
                             Text(
-                                text = "${authState.accessKeyInput.trim().length} / 85 karakter",
+                                text = "${authState.accessKeyInput.trim().length} / 85 characters",
                                 fontSize = 12.sp
                             )
                         },
@@ -527,12 +536,107 @@ private fun AddyApiLoginBottomSheet(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text("Giriş yapılıyor...", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text("Signing in...", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     } else {
-                        Text("Giriş Yap", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
         }
+    }
+
+    if (showResetPasswordDialog) {
+        var resetStep by remember { mutableIntStateOf(0) }
+        var resetEmail by remember { mutableStateOf(authState.emailInput) }
+        var resetToken by remember { mutableStateOf("") }
+        var newPw by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showResetPasswordDialog = false },
+            title = { Text("Reset Password") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            selected = resetStep == 0,
+                            onClick = { resetStep = 0 },
+                            label = { Text("1. Request Code") }
+                        )
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            selected = resetStep == 1,
+                            onClick = { resetStep = 1 },
+                            label = { Text("2. Set Password") }
+                        )
+                    }
+
+                    if (resetStep == 0) {
+                        Text(
+                            text = "Enter your registered email address to receive a password reset link/code:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        OutlinedTextField(
+                            value = resetEmail,
+                            onValueChange = { resetEmail = it },
+                            label = { Text("Email Address") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text(
+                            text = "Enter the 32-character reset token from your email and choose a new password (12+ chars):",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        OutlinedTextField(
+                            value = resetToken,
+                            onValueChange = { resetToken = it.trim() },
+                            label = { Text("Reset Token (32 chars)") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = newPw,
+                            onValueChange = { newPw = it },
+                            label = { Text("New Password") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (resetStep == 0) {
+                    Button(
+                        enabled = resetEmail.contains("@"),
+                        onClick = {
+                            onInitiatePasswordReset(resetEmail.trim())
+                            resetStep = 1
+                        }
+                    ) {
+                        Text("Send Instructions")
+                    }
+                } else {
+                    Button(
+                        enabled = resetToken.length == 32 && newPw.length >= 12,
+                        onClick = {
+                            showResetPasswordDialog = false
+                            onConfirmPasswordReset(resetToken, newPw)
+                        }
+                    ) {
+                        Text("Update Password")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetPasswordDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }

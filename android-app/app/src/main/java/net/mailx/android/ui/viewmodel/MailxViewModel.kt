@@ -69,7 +69,6 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     )
     val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
 
-    // Mailx tam özellik durum akışları
     private val _recipients = MutableStateFlow<List<UiRecipient>>(emptyList())
     val recipients: StateFlow<List<UiRecipient>> = _recipients.asStateFlow()
 
@@ -81,6 +80,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     private val _dnsCheckResults = MutableStateFlow<Map<String, List<UiDnsCheckResult>>>(emptyMap())
     val dnsCheckResults: StateFlow<Map<String, List<UiDnsCheckResult>>> = _dnsCheckResults.asStateFlow()
+
+    private val _wildcardDomainInfo = MutableStateFlow(UiWildcardDomainInfo())
+    val wildcardDomainInfo: StateFlow<UiWildcardDomainInfo> = _wildcardDomainInfo.asStateFlow()
 
     private val _blocklist = MutableStateFlow<List<UiBlocklistItem>>(emptyList())
     val blocklist: StateFlow<List<UiBlocklistItem>> = _blocklist.asStateFlow()
@@ -94,8 +96,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     private val _diagnosticLogs = MutableStateFlow<List<UiDiagnosticLog>>(emptyList())
     val diagnosticLogs: StateFlow<List<UiDiagnosticLog>> = _diagnosticLogs.asStateFlow()
 
+    private val _serverHealthStatus = MutableStateFlow("")
+    val serverHealthStatus: StateFlow<String> = _serverHealthStatus.asStateFlow()
+
     private val _accessKeys = MutableStateFlow<List<UiAccessKey>>(emptyList())
     val accessKeys: StateFlow<List<UiAccessKey>> = _accessKeys.asStateFlow()
+
+    private val _passkeys = MutableStateFlow<List<UiPasskeyCredential>>(emptyList())
+    val passkeys: StateFlow<List<UiPasskeyCredential>> = _passkeys.asStateFlow()
 
     private val _userAccount = MutableStateFlow(
         UiUserAccount(email = prefs.accountEmail.ifBlank { prefs.defaultRecipient })
@@ -145,6 +153,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 fetchDomains()
             }
             MainNavTab.RULES -> {
+                fetchRecipients()
                 fetchRules()
                 fetchBlocklist()
             }
@@ -193,13 +202,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _authState.update { it.copy(accessKeyInput = key, errorMessage = null) }
     }
 
-    /**
-     * `POST /v1/login` ile E-posta, Parola ve 2FA TOTP kodu kullanarak tam yetkili Web Oturumu başlatır.
-     */
     fun connectWithCredentials() {
         val currentAuth = _authState.value
         if (currentAuth.emailInput.isBlank() || currentAuth.passwordInput.isEmpty()) {
-            _authState.update { it.copy(errorMessage = "Lütfen e-posta adresinizi ve parolanızı girin.") }
+            _authState.update { it.copy(errorMessage = "Please enter your email address and password.") }
             return
         }
 
@@ -235,13 +241,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 refreshAllData()
             } else {
                 val errCode = loginRes.optInt("error_code", 0)
-                val errMsg = loginRes.optString("error", "Giriş başarısız")
+                val errMsg = loginRes.optString("error", "Sign in failed")
                 _authState.update {
                     it.copy(
                         isLoading = false,
                         totpRequired = it.totpRequired || errCode == 70001,
                         errorMessage = if (errCode == 70001) {
-                            "İki aşamalı doğrulama (2FA) aktif. Lütfen 6 haneli doğrulama kodunu girin."
+                            "Two-factor authentication (2FA) is enabled. Please enter your 6-digit verification code."
                         } else {
                             errMsg
                         }
@@ -251,9 +257,6 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
-    /**
-     * `POST /v1/api/authenticate` ile 85 karakterlik Access Key kullanarak oturum açar.
-     */
     fun connectWithAccessKey() {
         val currentAuth = _authState.value
         val check = JSONObject(MailxRustBridge.nativeValidateAccessKey(currentAuth.accessKeyInput))
@@ -288,8 +291,59 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 _authState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = authRes.optString("error", "Kimlik doğrulama başarısız")
+                        errorMessage = authRes.optString("error", "Authentication failed")
                     )
+                }
+            }
+        }
+    }
+
+    fun initiatePasswordReset(email: String) {
+        val clean = email.trim()
+        if (clean.isEmpty()) return
+        viewModelScope.launch {
+            val body = JSONObject().put("email", clean).toString()
+            val res = MailxRustBridge.apiRequest(
+                _authState.value.baseUrl,
+                "",
+                "",
+                "POST",
+                "/v1/initiatepasswordreset",
+                body
+            )
+            if (res.optBoolean("ok", false)) {
+                _authState.update {
+                    it.copy(errorMessage = "Password reset instructions have been sent to $clean if the account exists.")
+                }
+            } else {
+                _authState.update {
+                    it.copy(errorMessage = res.optString("error", "Could not initiate password reset"))
+                }
+            }
+        }
+    }
+
+    fun confirmPasswordReset(otpToken: String, newPassword: String) {
+        viewModelScope.launch {
+            val body = JSONObject().apply {
+                put("otp", otpToken.trim())
+                put("password", newPassword)
+            }.toString()
+            val res = MailxRustBridge.apiRequest(
+                _authState.value.baseUrl,
+                "",
+                "",
+                "PUT",
+                "/v1/resetpassword",
+                body
+            )
+            if (res.optBoolean("ok", false)) {
+                _authState.update {
+                    it.copy(errorMessage = "Your password has been updated. You can now sign in.")
+                }
+            } else {
+                _authState.update {
+                    it.copy(errorMessage = res.optString("error", "Failed to reset password"))
                 }
             }
         }
@@ -387,7 +441,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 prefs.cachedAliasesJson = arr.toString()
             }
         } else {
-            emitToast(res.optString("error", "Takma ad listesi alınamadı"))
+            emitToast(res.optString("error", "Failed to fetch aliases"))
         }
         _isLoadingAliases.value = false
     }
@@ -404,10 +458,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 res.optJSONObject("data")?.let { defObj ->
                     prefs.applyServerDefaults(defObj)
                     applyDefaultsJsonToState(defObj)
-                    if (!silent) emitToast("Sunucu ayarları senkronize edildi")
+                    if (!silent) emitToast("Server settings synchronized")
                 }
             } else if (!silent) {
-                emitToast(res.optString("error", "Senkronizasyon başarısız"))
+                emitToast(res.optString("error", "Synchronization failed"))
             }
         }
     }
@@ -460,7 +514,6 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
         }
 
-        // Eğer henüz `/v1/recipients` çekilmediyse varsayılan alıcılardan liste oluştur
         if (_recipients.value.isEmpty() && recSet.isNotEmpty()) {
             _recipients.value = recSet.mapIndexed { idx, email ->
                 UiRecipient(
@@ -476,10 +529,6 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
-    // =========================================================================
-    // SUNUCU AYARLARI (`/v1/settings/*` - `43678.jpg`..`43690.jpg`)
-    // =========================================================================
-
     fun updateDefaultDomain(domain: String) {
         prefs.defaultDomain = domain
         _defaultsState.update { it.copy(defaultDomain = domain) }
@@ -490,9 +539,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/domain", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Varsayılan alan adı güncellendi: @$domain")
+                emitToast("Default domain updated: @$domain")
             } else {
-                emitToast("Yerel varsayılan alan adı: @$domain")
+                emitToast("Local default domain set: @$domain")
             }
         }
     }
@@ -507,9 +556,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/recipient", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Varsayılan alıcı güncellendi")
+                emitToast("Default recipient updated")
             } else {
-                emitToast("Varsayılan alıcı kaydedildi: $recipient")
+                emitToast("Default recipient saved: $recipient")
             }
         }
     }
@@ -524,9 +573,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/alias-format", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Varsayılan format güncellendi: ${formatAliasTypeLabel(format)}")
+                emitToast("Default format updated: ${formatAliasTypeLabel(format)}")
             } else {
-                emitToast("Varsayılan format: ${formatAliasTypeLabel(format)}")
+                emitToast("Default format set: ${formatAliasTypeLabel(format)}")
             }
         }
     }
@@ -542,17 +591,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/from-name", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Gönderici adı (From Name) güncellendi")
+                emitToast("From Name updated")
             } else {
-                emitToast(res.optString("error", "Gönderici adı yerel olarak kaydedildi"))
+                emitToast(res.optString("error", "From Name saved locally"))
             }
         }
     }
 
-    /**
-     * `43682.jpg`: "Add Mailx Header" (`Sent to <alias> from <sender>`).
-     * Backend'de `remove_header = !includeMailxHeader` olarak saklanır.
-     */
     fun updateIncludeMailxHeader(includeHeader: Boolean) {
         val removeHeader = !includeHeader
         prefs.removeHeader = removeHeader
@@ -564,9 +609,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/remove-header", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast(if (includeHeader) "Mailx başlığı eklenecek" else "Mailx başlığı gizlendi")
+                emitToast(if (includeHeader) "Mailx header enabled" else "Mailx header hidden")
             } else {
-                emitToast(res.optString("error", "Ayar güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update setting"))
             }
         }
     }
@@ -581,9 +626,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/block-trackers", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast(if (block) "E-posta takipçileri engelleniyor" else "Takipçi engelleme kapatıldı")
+                emitToast(if (block) "Email tracker blocking enabled" else "Email tracker blocking disabled")
             } else {
-                emitToast(res.optString("error", "Ayar güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update setting"))
             }
         }
     }
@@ -598,9 +643,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/list-unsubscribe-behaviour", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Abonelikten çıkma davranışı güncellendi")
+                emitToast("Unsubscribe behaviour updated")
             } else {
-                emitToast(res.optString("error", "Ayar güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update setting"))
             }
         }
     }
@@ -615,16 +660,12 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/settings/log-issues", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast(if (enable) "Tanılama günlükleri etkinleştirildi" else "Tanılama günlükleri kapatıldı")
+                emitToast(if (enable) "Diagnostics logging enabled" else "Diagnostics logging disabled")
             } else {
-                emitToast(res.optString("error", "Ayar güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update setting"))
             }
         }
     }
-
-    // =========================================================================
-    // TEMA VE GÖRÜNÜM
-    // =========================================================================
 
     fun updateDarkModeMode(mode: Int) {
         prefs.darkModeMode = mode
@@ -641,9 +682,20 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _themeState.update { it.copy(amoledDarkEnabled = enabled) }
     }
 
-    // =========================================================================
-    // TAKMA AD İŞLEMLERİ (Pause, Restore, Forget, Bulk, CSV Import/Export)
-    // =========================================================================
+    fun fetchWildcardDomainInfo(domainParam: String) {
+        if (!prefs.isConfigured() || domainParam.isBlank()) return
+        viewModelScope.launch {
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "GET", "/v1/alias/wildcard-domain-info?domain=$domainParam"
+            )
+            if (res.optBoolean("ok", false)) {
+                _wildcardDomainInfo.value = UiWildcardDomainInfo.fromJson(res.optJSONObject("data"))
+            } else {
+                _wildcardDomainInfo.value = UiWildcardDomainInfo()
+            }
+        }
+    }
 
     fun createAlias(requestJson: String, onCreated: (String) -> Unit) {
         viewModelScope.launch {
@@ -664,7 +716,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 loadAliasesInternal()
             } else {
                 _isLoadingAliases.value = false
-                emitToast(res.optString("error", "Takma ad oluşturulamadı"))
+                emitToast(res.optString("error", "Failed to create alias"))
             }
         }
     }
@@ -691,7 +743,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             prefs.syncRefreshedTokenIfPresent(res)
             if (!res.optBoolean("ok", false)) {
-                emitToast(res.optString("error", "Durum güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update alias status"))
             }
             loadAliasesInternal()
         }
@@ -711,7 +763,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             prefs.syncRefreshedTokenIfPresent(res)
             if (!res.optBoolean("ok", false)) {
-                emitToast(res.optString("error", "Sabitleme güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update pin status"))
             }
             loadAliasesInternal()
         }
@@ -736,17 +788,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             prefs.syncRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
-                emitToast("Takma ad güncellendi")
+                emitToast("Alias updated")
                 loadAliasesInternal()
             } else {
-                emitToast(res.optString("error", "Güncelleme başarısız"))
+                emitToast(res.optString("error", "Update failed"))
             }
         }
     }
 
-    /**
-     * `PUT /v1/alias/:id/pause` (`value`: 1..10, `unit`: `"hours"` | `"days"` | `"weeks"`)
-     */
     fun pauseAlias(aliasId: String, value: Int, unit: String) {
         viewModelScope.launch {
             val body = JSONObject().apply {
@@ -758,17 +807,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/alias/$aliasId/pause", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Takma ad geçici olarak duraklatıldı")
+                emitToast("Alias paused temporarily")
                 loadAliasesInternal()
             } else {
-                emitToast(res.optString("error", "Takma ad duraklatılamadı"))
+                emitToast(res.optString("error", "Failed to pause alias"))
             }
         }
     }
 
-    /**
-     * `DELETE /v1/alias/:id/pause`
-     */
     fun unpauseAlias(aliasId: String) {
         viewModelScope.launch {
             val res = MailxRustBridge.apiRequest(
@@ -776,17 +822,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "DELETE", "/v1/alias/$aliasId/pause"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Duraklatma kaldırıldı")
+                emitToast("Alias unpaused")
                 loadAliasesInternal()
             } else {
-                emitToast(res.optString("error", "Duraklatma kaldırılamadı"))
+                emitToast(res.optString("error", "Failed to unpause alias"))
             }
         }
     }
 
-    /**
-     * `POST /v1/alias/restore/:id` (Silinen takma adı geri yükle)
-     */
     fun restoreAlias(alias: UiAlias) {
         viewModelScope.launch {
             val res = MailxRustBridge.apiRequest(
@@ -794,18 +837,15 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "POST", "/v1/alias/restore/${alias.id}"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Takma ad geri yüklendi: ${alias.name}")
+                emitToast("Alias restored: ${alias.name}")
                 _activeSheet.value = ActiveSheet.None
                 loadAliasesInternal()
             } else {
-                emitToast(res.optString("error", "Takma ad geri yüklenemedi"))
+                emitToast(res.optString("error", "Failed to restore alias"))
             }
         }
     }
 
-    /**
-     * `DELETE /v1/alias/forget/:id` (Özel alan adı takma adını kalıcı olarak sil / unut)
-     */
     fun forgetAlias(alias: UiAlias) {
         viewModelScope.launch {
             val res = MailxRustBridge.apiRequest(
@@ -813,11 +853,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "DELETE", "/v1/alias/forget/${alias.id}"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Takma ad kalıcı olarak unutuldu: ${alias.name}")
+                emitToast("Alias permanently forgotten: ${alias.name}")
                 _activeSheet.value = ActiveSheet.None
                 loadAliasesInternal()
             } else {
-                emitToast(res.optString("error", "İşlem başarısız"))
+                emitToast(res.optString("error", "Operation failed"))
             }
         }
     }
@@ -833,17 +873,109 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             prefs.syncRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
-                emitToast("Takma ad silindi: ${alias.name}")
+                emitToast("Alias deleted: ${alias.name}")
                 loadAliasesInternal()
             } else {
-                emitToast(res.optString("error", "Silinemedi"))
+                emitToast(res.optString("error", "Failed to delete alias"))
             }
         }
     }
 
-    // =========================================================================
-    // ALICILAR VE PGP ŞİFRELEME (`/v1/recipients`, `/v1/recipient` - `43640.jpg`..`43646.jpg`)
-    // =========================================================================
+    fun bulkSetAliasesEnabled(ids: List<String>, enabled: Boolean) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            val idsArr = JSONArray().apply { ids.forEach { put(it) } }
+            val body = JSONObject().apply {
+                put("ids", idsArr)
+                put("enabled", enabled)
+            }.toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/aliases/bulk/enable", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Updated ${ids.size} aliases")
+                loadAliasesInternal()
+            } else {
+                emitToast(res.optString("error", "Bulk update failed"))
+            }
+        }
+    }
+
+    fun bulkSetAliasesPinned(ids: List<String>, pinned: Boolean) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            val idsArr = JSONArray().apply { ids.forEach { put(it) } }
+            val body = JSONObject().apply {
+                put("ids", idsArr)
+                put("pinned", pinned)
+            }.toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/aliases/bulk/pin", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Updated pin status for ${ids.size} aliases")
+                loadAliasesInternal()
+            } else {
+                emitToast(res.optString("error", "Bulk pin failed"))
+            }
+        }
+    }
+
+    fun bulkDeleteAliases(ids: List<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            val idsArr = JSONArray().apply { ids.forEach { put(it) } }
+            val body = JSONObject().put("ids", idsArr).toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/aliases/bulk/delete", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Deleted ${ids.size} aliases")
+                loadAliasesInternal()
+            } else {
+                emitToast(res.optString("error", "Bulk delete failed"))
+            }
+        }
+    }
+
+    fun bulkRestoreAliases(ids: List<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            val idsArr = JSONArray().apply { ids.forEach { put(it) } }
+            val body = JSONObject().put("ids", idsArr).toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/aliases/bulk/restore", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Restored ${ids.size} aliases")
+                loadAliasesInternal()
+            } else {
+                emitToast(res.optString("error", "Bulk restore failed"))
+            }
+        }
+    }
+
+    fun bulkForgetAliases(ids: List<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            val idsArr = JSONArray().apply { ids.forEach { put(it) } }
+            val body = JSONObject().put("ids", idsArr).toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/aliases/bulk/forget", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Permanently deleted ${ids.size} aliases")
+                loadAliasesInternal()
+            } else {
+                emitToast(res.optString("error", "Bulk forget failed"))
+            }
+        }
+    }
 
     fun fetchRecipients() {
         if (!prefs.isConfigured()) return
@@ -876,10 +1008,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "POST", "/v1/recipient", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Alıcı eklendi. Doğrulama kodu e-postanıza gönderildi.")
+                emitToast("Recipient added. Verification code sent to your email.")
                 fetchRecipients()
             } else {
-                emitToast(res.optString("error", "Alıcı eklenemedi"))
+                emitToast(res.optString("error", "Failed to add recipient"))
             }
         }
     }
@@ -891,9 +1023,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "POST", "/v1/recipient/sendotp/$recipientId"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("6 haneli doğrulama kodu gönderildi")
+                emitToast("6-digit verification code sent")
             } else {
-                emitToast(res.optString("error", "Kod gönderilemedi"))
+                emitToast(res.optString("error", "Failed to send code"))
             }
         }
     }
@@ -906,11 +1038,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "POST", "/v1/recipient/activate/$recipientId", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Alıcı e-posta adresi doğrulandı!")
+                emitToast("Recipient email address verified!")
                 fetchRecipients()
                 syncServerDefaults(silent = true)
             } else {
-                emitToast(res.optString("error", "Doğrulama kodu geçersiz"))
+                emitToast(res.optString("error", "Invalid verification code"))
             }
         }
     }
@@ -933,10 +1065,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/recipient", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("PGP şifreleme ayarları güncellendi")
+                emitToast("PGP encryption settings updated")
                 fetchRecipients()
             } else {
-                emitToast(res.optString("error", "PGP ayarları güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update PGP settings"))
             }
         }
     }
@@ -949,18 +1081,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/recipient/delete/$recipientId", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Alıcı adresi silindi")
+                emitToast("Recipient address deleted")
                 fetchRecipients()
                 syncServerDefaults(silent = true)
             } else {
-                emitToast(res.optString("error", "Alıcı silinemedi"))
+                emitToast(res.optString("error", "Failed to delete recipient"))
             }
         }
     }
-
-    // =========================================================================
-    // ÖZEL ALAN ADLARI (`/v1/domains`, `/v1/domains/dns-config`, `/v1/domain/:id/verify-dns` - `43648.jpg`..`43654.jpg`)
-    // =========================================================================
 
     fun fetchDomains() {
         if (!prefs.isConfigured()) return
@@ -997,11 +1125,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (res.optBoolean("ok", false)) {
                 val domObj = res.optJSONObject("data")?.optJSONObject("domain")
                 val created = domObj?.let { UiCustomDomain.fromJson(it) }
-                emitToast("Alan adı eklendi: $clean. Şimdi DNS TXT kaydını doğrulayın.")
+                emitToast("Domain added: $clean. Now verify your DNS TXT record.")
                 fetchDomains()
                 onCreated(created)
             } else {
-                emitToast(res.optString("error", "Alan adı eklenemedi"))
+                emitToast(res.optString("error", "Failed to add domain"))
             }
         }
     }
@@ -1030,11 +1158,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 _dnsCheckResults.update { it + (domainId to list) }
             }
             if (res.optBoolean("ok", false)) {
-                emitToast(dataObj?.optString("message", "DNS kayıtları doğrulandı!") ?: "DNS doğrulandı")
+                emitToast(dataObj?.optString("message", "DNS records verified!") ?: "DNS verified")
                 fetchDomains()
                 syncServerDefaults(silent = true)
             } else {
-                emitToast(res.optString("error", "DNS doğrulaması başarısız, kayıtları kontrol edin"))
+                emitToast(res.optString("error", "DNS verification failed, please check your records"))
                 fetchDomains()
             }
         }
@@ -1064,11 +1192,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/domain/${domain.id}", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Alan adı ayarları güncellendi")
+                emitToast("Domain settings updated")
                 fetchDomains()
                 syncServerDefaults(silent = true)
             } else {
-                emitToast(res.optString("error", "Alan adı güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update domain"))
             }
         }
     }
@@ -1080,18 +1208,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "DELETE", "/v1/domain/$domainId"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Alan adı silindi")
+                emitToast("Domain deleted")
                 fetchDomains()
                 syncServerDefaults(silent = true)
             } else {
-                emitToast(res.optString("error", "Alan adı silinemedi"))
+                emitToast(res.optString("error", "Failed to delete domain"))
             }
         }
     }
-
-    // =========================================================================
-    // ENGELLENENLER LİSTESİ (`/v1/blocklist` - `43656.jpg`)
-    // =========================================================================
 
     fun fetchBlocklist() {
         if (!prefs.isConfigured()) return
@@ -1120,10 +1244,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "POST", "/v1/blocklist", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Engelleme listesine eklendi: $clean")
+                emitToast("Added to blocklist: $clean")
                 fetchBlocklist()
             } else {
-                emitToast(res.optString("error", "Engelleme listesine eklenemedi"))
+                emitToast(res.optString("error", "Failed to add blocklist item"))
             }
         }
     }
@@ -1135,17 +1259,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "DELETE", "/v1/blocklist/$id"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Engelleme kaldırıldı")
+                emitToast("Removed from blocklist")
                 fetchBlocklist()
             } else {
-                emitToast(res.optString("error", "Silinemedi"))
+                emitToast(res.optString("error", "Failed to remove item"))
             }
         }
     }
-
-    // =========================================================================
-    // KURALLAR (`/v1/rules`, `/v1/rule` - `43658.jpg`..`43664.jpg`)
-    // =========================================================================
 
     fun fetchRules() {
         if (!prefs.isConfigured()) return
@@ -1195,10 +1315,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 method, path, body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast(if (isUpdate) "Kural güncellendi" else "Yeni kural oluşturuldu")
+                emitToast(if (isUpdate) "Rule updated" else "New rule created")
                 fetchRules()
             } else {
-                emitToast(res.optString("error", "Kural kaydedilemedi"))
+                emitToast(res.optString("error", "Failed to save rule"))
             }
         }
     }
@@ -1214,7 +1334,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (res.optBoolean("ok", false)) {
                 fetchRules()
             } else {
-                emitToast(res.optString("error", "Kural durumu güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update rule status"))
                 fetchRules()
             }
         }
@@ -1241,7 +1361,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (res.optBoolean("ok", false)) {
                 fetchRules()
             } else {
-                emitToast(res.optString("error", "Sıralama güncellenemedi"))
+                emitToast(res.optString("error", "Failed to update rule order"))
             }
         }
     }
@@ -1253,17 +1373,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "DELETE", "/v1/rule/$ruleId"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Kural silindi")
+                emitToast("Rule deleted")
                 fetchRules()
             } else {
-                emitToast(res.optString("error", "Kural silinemedi"))
+                emitToast(res.optString("error", "Failed to delete rule"))
             }
         }
     }
-
-    // =========================================================================
-    // İSTATİSTİKLER VE TANILAMA GÜNLÜKLERİ (`/v1/user/stats`, `/v1/logs` - `43668.jpg`..`43672.jpg`)
-    // =========================================================================
 
     fun fetchUserStats() {
         if (!prefs.isConfigured()) return
@@ -1276,7 +1392,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 val data = res.optJSONObject("data") ?: return@launch
                 val msgsArr = data.optJSONArray("messages")
                 val today = runCatching { LocalDate.now(ZoneOffset.UTC) }.getOrDefault(LocalDate.of(2026, 11, 17))
-                val dayBuckets = linkedMapOf<LocalDate, IntArray>() // [forwards, replies, sends, blocks]
+                val dayBuckets = linkedMapOf<LocalDate, IntArray>()
                 for (offset in 6 downTo 0) {
                     dayBuckets[today.minusDays(offset.toLong())] = intArrayOf(0, 0, 0, 0)
                 }
@@ -1327,6 +1443,24 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
+    fun checkServerHealth() {
+        viewModelScope.launch {
+            _serverHealthStatus.value = "Checking server health..."
+            val liveRes = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "GET", "/livez"
+            )
+            if (liveRes.optBoolean("ok", false)) {
+                _serverHealthStatus.value = "Online (HTTP 200 OK - ${prefs.baseUrl})"
+                emitToast("Server is online and healthy")
+            } else {
+                val err = liveRes.optString("error", "Unreachable")
+                _serverHealthStatus.value = "Issue detected: $err"
+                emitToast("Server health check: $err")
+            }
+        }
+    }
+
     fun fetchDiagnosticLogs() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
@@ -1348,11 +1482,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "GET", "/v1/log/file/$logId"
             )
             if (res.optBoolean("ok", false)) {
-                val text = res.optJSONObject("data")?.optString("text", "")
+                val text: String = res.optJSONObject("data")?.optString("text", "")
                     ?: res.optString("data", "")
-                onLoaded(text.ifBlank { "Günlük dosyası içeriği boş." })
+                onLoaded(text.ifBlank { "Log file content is empty." })
             } else {
-                emitToast(res.optString("error", "Günlük dosyası alınamadı"))
+                emitToast(res.optString("error", "Failed to load log file"))
             }
         }
     }
@@ -1365,16 +1499,12 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 _diagnosticLogs.value = emptyList()
-                emitToast("Tüm tanılama günlükleri silindi")
+                emitToast("All diagnostic logs deleted")
             } else {
-                emitToast(res.optString("error", "Günlükler silinemedi"))
+                emitToast(res.optString("error", "Failed to delete logs"))
             }
         }
     }
-
-    // =========================================================================
-    // HESAP, ABONELİK, 2FA TOTP, ERİŞİM ANAHTARLARI VE CSV İÇE/DIŞA AKTARIM (`43692.jpg`..`43702.jpg`)
-    // =========================================================================
 
     fun fetchAccountAndSubscription() {
         if (!prefs.isConfigured()) return
@@ -1386,7 +1516,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (userRes.optBoolean("ok", false)) {
                 val u = userRes.optJSONObject("data")
                 if (u != null) {
-                    val em = u.optString("email", "").ifBlank { prefs.accountEmail }
+                    val em: String = u.optString("email", "").ifBlank { prefs.accountEmail }
                     if (em.isNotBlank()) prefs.accountEmail = em
                     _userAccount.update { prev ->
                         prev.copy(
@@ -1425,6 +1555,59 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (keysRes.optBoolean("ok", false)) {
                 _accessKeys.value = UiAccessKey.listFromJsonArray(keysRes.optJSONArray("data"))
             }
+
+            val credsRes = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "GET", "/v1/user/credentials"
+            )
+            if (credsRes.optBoolean("ok", false)) {
+                _passkeys.value = UiPasskeyCredential.listFromJsonArray(credsRes.optJSONArray("data"))
+            }
+        }
+    }
+
+    fun sendAccountVerificationOtp() {
+        viewModelScope.launch {
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/user/sendotp"
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Verification OTP sent to your primary email")
+            } else {
+                emitToast(res.optString("error", "Failed to send OTP"))
+            }
+        }
+    }
+
+    fun verifyAccountEmailOtp(otp: String) {
+        viewModelScope.launch {
+            val body = JSONObject().put("otp", otp.trim()).toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/user/activate", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Primary email address verified!")
+                fetchAccountAndSubscription()
+            } else {
+                emitToast(res.optString("error", "Invalid OTP code"))
+            }
+        }
+    }
+
+    fun deletePasskeyCredential(credentialId: String) {
+        viewModelScope.launch {
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "DELETE", "/v1/user/credential/$credentialId"
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Passkey removed")
+                fetchAccountAndSubscription()
+            } else {
+                emitToast(res.optString("error", "Failed to remove passkey"))
+            }
         }
     }
 
@@ -1451,9 +1634,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/user/changepassword", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Parolanız başarıyla değiştirildi")
+                emitToast("Your password has been updated")
             } else {
-                emitToast(res.optString("error", "Parola değiştirilemedi"))
+                emitToast(res.optString("error", "Failed to change password"))
             }
         }
     }
@@ -1473,10 +1656,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "PUT", "/v1/user/changeemail", body
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("E-posta güncellendi. Doğrulama kodu yeni adresinize gönderildi.")
+                emitToast("Email updated. A verification code has been sent to your new address.")
                 fetchAccountAndSubscription()
             } else {
-                emitToast(res.optString("error", "E-posta adresi değiştirilemedi"))
+                emitToast(res.optString("error", "Failed to change email address"))
             }
         }
     }
@@ -1496,7 +1679,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                     )
                 }
             } else {
-                emitToast(res.optString("error", "2FA kurulumu başlatılamadı"))
+                emitToast(res.optString("error", "Failed to initiate 2FA setup"))
             }
         }
     }
@@ -1518,9 +1701,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                         totpBackupCodes = backup
                     )
                 }
-                emitToast("İki aşamalı doğrulama (2FA) etkinleştirildi!")
+                emitToast("Two-factor authentication (2FA) enabled!")
             } else {
-                emitToast(res.optString("error", "2FA doğrulama kodu hatalı"))
+                emitToast(res.optString("error", "Invalid 2FA verification code"))
             }
         }
     }
@@ -1534,9 +1717,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 _userAccount.update { it.copy(totpEnabled = false, totpBackupCodes = "") }
-                emitToast("İki aşamalı doğrulama devre dışı bırakıldı")
+                emitToast("Two-factor authentication disabled")
             } else {
-                emitToast(res.optString("error", "2FA devre dışı bırakılamadı"))
+                emitToast(res.optString("error", "Failed to disable 2FA"))
             }
         }
     }
@@ -1557,10 +1740,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             if (res.optBoolean("ok", false)) {
                 val tok = res.optJSONObject("data")?.optString("token", "") ?: ""
                 _userAccount.update { it.copy(newlyCreatedAccessKeyToken = tok) }
-                emitToast("Yeni erişim anahtarı oluşturuldu")
+                emitToast("New access key created")
                 fetchAccountAndSubscription()
             } else {
-                emitToast(res.optString("error", "Erişim anahtarı oluşturulamadı"))
+                emitToast(res.optString("error", "Failed to create access key"))
             }
         }
     }
@@ -1576,10 +1759,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 "DELETE", "/v1/accesskeys/$id"
             )
             if (res.optBoolean("ok", false)) {
-                emitToast("Erişim anahtarı silindi")
+                emitToast("Access key deleted")
                 fetchAccountAndSubscription()
             } else {
-                emitToast(res.optString("error", "Erişim anahtarı silinemedi"))
+                emitToast(res.optString("error", "Failed to delete access key"))
             }
         }
     }
@@ -1597,12 +1780,113 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                     return@launch
                 }
             }
-            // API scope'unda ise mevcut takma adlardan resmi CSV formatında üret (`43700.jpg`)
             val sb = StringBuilder("alias,description,enabled,recipients\n")
             _aliases.value.forEach { a ->
                 sb.append("${a.name},${a.description.replace(",", " ")},${a.enabled},${a.recipients.replace(",", " ")}\n")
             }
             onCsvReady(sb.toString())
+        }
+    }
+
+    fun importAliasesFromCsvText(csvText: String) {
+        viewModelScope.launch {
+            val lines = csvText.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            if (lines.isEmpty()) return@launch
+
+            val dataLines = if (lines.first().lowercase().startsWith("alias,")) {
+                lines.drop(1)
+            } else {
+                lines
+            }
+
+            var importedCount = 0
+            var skippedCount = 0
+
+            for (line in dataLines.take(500)) {
+                val cols = line.split(",")
+                if (cols.size < 4) {
+                    skippedCount++
+                    continue
+                }
+                val fullAlias = cols[0].trim()
+                val description = cols[1].trim()
+                val enabled = cols[2].trim().equals("true", ignoreCase = true)
+                val recipients = cols.drop(3).joinToString(",").trim().replace(" ", ",")
+                    .ifBlank { prefs.defaultRecipient }
+
+                val localPart = fullAlias.substringBefore("@", "")
+                val domainName = fullAlias.substringAfter("@", "")
+                if (localPart.isBlank() || domainName.isBlank() || recipients.isBlank()) {
+                    skippedCount++
+                    continue
+                }
+
+                val customDom = _customDomains.value.find { it.name.equals(domainName, ignoreCase = true) }
+                val domainParam = customDom?.id?.ifBlank { domainName } ?: domainName
+
+                val reqJson = JSONObject().apply {
+                    put("description", description)
+                    put("enabled", enabled)
+                    put("recipients", recipients)
+                    put("from_name", "")
+                    put("format", "custom")
+                    put("domain", domainParam)
+                    put("local_part", localPart)
+                }.toString()
+
+                val res = MailxRustBridge.createAlias(
+                    prefs.baseUrl,
+                    prefs.accessKey,
+                    prefs.bearerToken,
+                    reqJson
+                )
+                if (res.optBoolean("ok", false)) {
+                    importedCount++
+                } else {
+                    skippedCount++
+                }
+            }
+
+            emitToast("Imported $importedCount aliases ($skippedCount skipped)")
+            loadAliasesInternal()
+        }
+    }
+
+    fun requestAccountDeletion(currentPassword: String) {
+        viewModelScope.launch {
+            if (currentPassword.isNotEmpty()) {
+                val stepBody = JSONObject().put("password", currentPassword).toString()
+                MailxRustBridge.apiRequest(
+                    prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                    "POST", "/v1/user/stepup/password", stepBody
+                )
+            }
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/user/delete/request"
+            )
+            if (res.optBoolean("ok", false)) {
+                val code = res.optJSONObject("data")?.optString("otp", "") ?: ""
+                _userAccount.update { it.copy(deleteAccountOtp = code) }
+            } else {
+                emitToast(res.optString("error", "Failed to request account deletion code"))
+            }
+        }
+    }
+
+    fun confirmAccountDeletion(otp: String) {
+        viewModelScope.launch {
+            val body = JSONObject().put("otp", otp.trim()).toString()
+            val res = MailxRustBridge.apiRequest(
+                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                "POST", "/v1/user/delete", body
+            )
+            if (res.optBoolean("ok", false)) {
+                emitToast("Account deleted permanently")
+                logoutConfirmed()
+            } else {
+                emitToast(res.optString("error", "Account deletion failed"))
+            }
         }
     }
 
@@ -1617,6 +1901,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _rules.value = emptyList()
         _diagnosticLogs.value = emptyList()
         _accessKeys.value = emptyList()
+        _passkeys.value = emptyList()
         _activeSheet.value = ActiveSheet.None
         _authState.update {
             it.copy(

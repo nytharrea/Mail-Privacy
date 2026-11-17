@@ -8,12 +8,10 @@ repository.workspace = true
 
 [lib]
 name = "mailx_core"
-# cdylib: Android JNI (.so) çıktısı için, rlib: Rust birim testleri ve CLI kullanımı için
 crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["network"]
-# network özelliği aktifken ureq (rustls TLS) ile gerçek HTTPS istekleri atılır
 network = ["dep:ureq"]
 jni = ["dep:jni"]
 

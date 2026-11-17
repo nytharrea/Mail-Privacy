@@ -1,12 +1,9 @@
-//! Android (Kotlin) <-> Rust JNI Köprüsü
-//!
-//! Kotlin paket yolu: `net.mailx.android.core.MailxRustBridge`
-//! Tüm yanıtlar JSON zarfı (`{"ok": true, "data": ...}` veya `{"ok": false, "error": "...", "error_code": ...}`)
-//! olarak döndürülür; böylece JNI sınırında exception/panic oluşmaz.
-
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
-use crate::utils::{generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key};
+use crate::utils::{
+    decode_trackers_report, generate_reverse_alias, generate_wildcard_on_the_fly,
+    validate_access_key,
+};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -82,6 +79,13 @@ pub fn handle_generate_wildcard(wildcard_alias: &str, prefix: &str) -> String {
     match generate_wildcard_on_the_fly(wildcard_alias, prefix) {
         Ok(addr) => JniEnvelope::success(addr),
         Err(e) => JniEnvelope::<String>::failure(e),
+    }
+}
+
+pub fn handle_decode_trackers_report(raw_input: &str) -> String {
+    match decode_trackers_report(raw_input) {
+        Ok(report) => JniEnvelope::success(report),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
     }
 }
 
@@ -306,7 +310,6 @@ pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
     }
 }
 
-// Android JNI sembol dışa aktarımları (`feature = "jni"` aktifken derlenir)
 #[cfg(feature = "jni")]
 mod android_exports {
     use super::*;
@@ -373,6 +376,18 @@ mod android_exports {
             let wc = jstring_to_rust(env, wildcard_alias);
             let pfx = jstring_to_rust(env, prefix);
             handle_generate_wildcard(&wc, &pfx)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeDecodeTrackersReport(
+        env: JNIEnv,
+        _class: JClass,
+        raw_input: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, raw_input);
+            handle_decode_trackers_report(&raw)
         })
     }
 

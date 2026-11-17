@@ -31,17 +31,17 @@ impl MailxError {
 impl std::fmt::Display for MailxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MailxError::InvalidBaseUrl(msg) => write!(f, "Geçersiz sunucu adresi: {}", msg),
+            MailxError::InvalidBaseUrl(msg) => write!(f, "Invalid server URL: {}", msg),
             MailxError::InvalidAccessKey(msg) => write!(f, "{}", msg),
-            MailxError::Unauthorized(msg) => write!(f, "Oturum yetkisi geçersiz: {}", msg),
-            MailxError::RateLimited(msg) => write!(f, "İstek sınırı aşıldı: {}", msg),
+            MailxError::Unauthorized(msg) => write!(f, "Session unauthorized: {}", msg),
+            MailxError::RateLimited(msg) => write!(f, "Rate limit exceeded: {}", msg),
             MailxError::TotpRequired(msg) => write!(f, "{}", msg),
             MailxError::StepUpRequired(msg) => write!(f, "{}", msg),
             MailxError::ApiError { status, message } => {
-                write!(f, "API Hatası ({}): {}", status, message)
+                write!(f, "API Error ({}): {}", status, message)
             }
-            MailxError::NetworkError(msg) => write!(f, "Ağ hatası: {}", msg),
-            MailxError::SerializationError(msg) => write!(f, "Veri çözümleme hatası: {}", msg),
+            MailxError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            MailxError::SerializationError(msg) => write!(f, "Data parsing error: {}", msg),
         }
     }
 }
@@ -53,14 +53,6 @@ struct ApiErrorBody {
     code: Option<i64>,
 }
 
-/// Mailx REST API İstemcisi (`ivpn/mailx` Go/Fiber sunucusu uyumlu)
-///
-/// - Hem **Access Key (`POST /v1/api/authenticate` -> `Authorization: Bearer <token>`)**
-///   hem de **E-posta & Parola + 2FA (`POST /v1/login` -> `Cookie: authn=<token>`)**
-///   oturum kapsamlarını (`SessionScopeAPI` ve `SessionScopeWeb`) destekler.
-/// - `bearer_token` değeri `"cookie:<authn_token>"` önekine sahipse tüm `/v1/*` uç noktalarını
-///   doğrudan `Cookie: authn=<authn_token>` başlığıyla çağırır ve `/v1/api/*` yollarını
-///   otomatik olarak `/v1/*` karşılıklarına dönüştürür.
 #[derive(Clone)]
 pub struct MailxClient {
     base_url: String,
@@ -107,7 +99,7 @@ impl MailxClient {
                 || trimmed.starts_with("http://10.0.2.2");
             if !(allow_insecure_localhost && is_localhost) {
                 return Err(MailxError::InvalidBaseUrl(
-                    "Güvenlik nedeniyle yalnızca HTTPS sunucu adresleri desteklenir.".to_string(),
+                    "Only HTTPS server URLs are supported for security reasons.".to_string(),
                 ));
             }
         }
@@ -146,7 +138,6 @@ impl MailxClient {
             .unwrap_or(false)
     }
 
-    /// Oturum türüne göre (`/v1/api/*` veya `/v1/*`) doğru API yolunu çözümler.
     pub fn resolve_scoped_path(path: &str, is_cookie_session: bool) -> String {
         if is_cookie_session {
             if path == "/v1/api/logout" {
@@ -230,7 +221,7 @@ impl MailxClient {
                             &clean_text
                         };
                         format!(
-                            "Sunucu POST isteğini reddetti ({}). Web arayüzü yerine API sunucu adresini (https://api.mailx.net) kullandığınızdan emin olun.",
+                            "Server rejected POST request ({}). Ensure you are using the API server URL (https://api.mailx.net) instead of the web frontend.",
                             detail
                         )
                     } else if clean_text.is_empty() {
@@ -301,8 +292,6 @@ impl MailxClient {
         }
     }
 
-    /// `POST /v1/login` ile E-posta, Parola ve opsiyonel 2FA TOTP kodu kullanarak
-    /// tam yetkili Web oturumu (`SessionScopeWeb`, `Cookie: authn=<token>`) başlatır.
     #[cfg(feature = "network")]
     pub fn login_with_credentials(
         &self,
@@ -313,7 +302,7 @@ impl MailxClient {
         let clean_email = email.trim();
         if clean_email.is_empty() || password.is_empty() {
             return Err(MailxError::InvalidAccessKey(
-                "E-posta adresi ve parola boş bırakılamaz.".to_string(),
+                "Email address and password cannot be empty.".to_string(),
             ));
         }
         let payload = serde_json::json!({
@@ -338,14 +327,13 @@ impl MailxClient {
                 Ok(r) => {
                     let authn_cookie = Self::extract_authn_cookie(&r).ok_or_else(|| {
                         MailxError::Unauthorized(
-                            "Sunucu oturum çerezi (authn) döndürmedi.".to_string(),
+                            "Server did not return a session cookie (authn).".to_string(),
                         )
                     })?;
                     let _ = r.into_string();
                     let cookie_token = format!("cookie:{}", authn_cookie);
                     self.set_credentials(None, Some(cookie_token.clone()));
 
-                    // Oturum açıldıktan hemen sonra `/v1/defaults` üzerinden kullanıcı varsayılanlarını çek
                     match self.fetch_defaults() {
                         Ok(def) => {
                             return Ok(AuthResponse {
@@ -402,7 +390,7 @@ impl MailxClient {
         }
 
         Err(last_err.unwrap_or_else(|| {
-            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+            MailxError::NetworkError("Could not reach the API server.".to_string())
         }))
     }
 
@@ -461,7 +449,7 @@ impl MailxClient {
         }
 
         Err(last_err.unwrap_or_else(|| {
-            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+            MailxError::NetworkError("Could not reach the API server.".to_string())
         }))
     }
 
@@ -475,7 +463,7 @@ impl MailxClient {
     ) -> Result<T, MailxError> {
         let raw_token = self
             .current_token()
-            .ok_or_else(|| MailxError::Unauthorized("Oturum anahtarı bulunamadı.".to_string()))?;
+            .ok_or_else(|| MailxError::Unauthorized("Session token not found.".to_string()))?;
 
         let is_cookie = raw_token.starts_with("cookie:");
         let scoped_path = Self::resolve_scoped_path(path, is_cookie);
@@ -562,12 +550,10 @@ impl MailxClient {
         }
 
         Err(last_err.unwrap_or_else(|| {
-            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+            MailxError::NetworkError("Could not reach the API server.".to_string())
         }))
     }
 
-    /// Tüm `/v1/*` ve `/v1/api/*` uç noktalarını (JSON veya düz metin / CSV döndürenler dahil)
-    /// çağırmak için kullanılan genel amaçlı kimlik doğrulamalı istek yürütücüsü.
     #[cfg(feature = "network")]
     pub fn execute_raw_json(
         &self,
@@ -575,10 +561,7 @@ impl MailxClient {
         path: &str,
         json_body: Option<&str>,
     ) -> Result<serde_json::Value, MailxError> {
-        let raw_token = self
-            .current_token()
-            .ok_or_else(|| MailxError::Unauthorized("Oturum anahtarı bulunamadı.".to_string()))?;
-
+        let raw_token = self.current_token().unwrap_or_default();
         let is_cookie = raw_token.starts_with("cookie:");
         let scoped_path = Self::resolve_scoped_path(path, is_cookie);
         let candidates = self.candidate_urls(&scoped_path);
@@ -589,10 +572,12 @@ impl MailxClient {
                 .set("Accept", "application/json, text/plain, text/csv, */*")
                 .timeout(std::time::Duration::from_secs(20));
 
-            if let Some(cookie_val) = raw_token.strip_prefix("cookie:") {
-                req = req.set("Cookie", &format!("authn={}", cookie_val));
-            } else {
-                req = req.set("Authorization", &format!("Bearer {}", raw_token));
+            if !raw_token.is_empty() {
+                if let Some(cookie_val) = raw_token.strip_prefix("cookie:") {
+                    req = req.set("Cookie", &format!("authn={}", cookie_val));
+                } else {
+                    req = req.set("Authorization", &format!("Bearer {}", raw_token));
+                }
             }
 
             let resp = if let Some(body) = json_body {
@@ -641,7 +626,7 @@ impl MailxClient {
         }
 
         Err(last_err.unwrap_or_else(|| {
-            MailxError::NetworkError("API sunucusuna ulaşılamadı.".to_string())
+            MailxError::NetworkError("Could not reach the API server.".to_string())
         }))
     }
 

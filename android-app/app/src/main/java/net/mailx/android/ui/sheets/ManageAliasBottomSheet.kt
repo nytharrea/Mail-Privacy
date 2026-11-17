@@ -1,7 +1,6 @@
 package net.mailx.android.ui.sheets
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,7 +16,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -36,12 +34,6 @@ import net.mailx.android.ui.model.copyToClipboard
 import net.mailx.android.ui.model.formatIsoDateShort
 import net.mailx.android.ui.theme.AddyPalette
 
-/**
- * `anonaddy/addy-android` içindeki `res/layout/activity_manage_alias.xml` ve
- * `res/layout/alias_general_actions.xml` (`ManageAliasActivity.kt`) ekranının birebir karşılığı +
- * Mailx özel işlevleri: Takma Adı Duraklat (`PUT /v1/alias/:id/pause`), Silineni Geri Yükle (`POST /v1/alias/restore/:id`),
- * Kalıcı Olarak Unut (`DELETE /v1/alias/forget/:id`).
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageAliasBottomSheet(
@@ -89,7 +81,7 @@ fun ManageAliasBottomSheet(
                 IconButton(onClick = { showNato = !showNato }) {
                     Icon(
                         imageVector = Icons.Default.Spellcheck,
-                        contentDescription = "NATO Fonetik Alfabe",
+                        contentDescription = "NATO Phonetic Alphabet",
                         tint = if (showNato) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -99,7 +91,7 @@ fun ManageAliasBottomSheet(
                 }
 
                 Text(
-                    text = "Takma Adı Düzenle",
+                    text = "Manage Alias",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -109,7 +101,7 @@ fun ManageAliasBottomSheet(
                 IconButton(onClick = { onTogglePinned(!alias.pinned) }) {
                     Icon(
                         imageVector = Icons.Default.PushPin,
-                        contentDescription = "Sabitle",
+                        contentDescription = "Pin",
                         tint = if (alias.pinned) {
                             AddyPalette.PortalOrange
                         } else {
@@ -150,7 +142,7 @@ fun ManageAliasBottomSheet(
                         color = AddyPalette.PortalOrange.copy(alpha = 0.16f)
                     ) {
                         Text(
-                            text = "Duraklatıldı: ${formatIsoDateShort(alias.pausedUntil)} tarihine kadar",
+                            text = "Paused until ${formatIsoDateShort(alias.pausedUntil)}",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = AddyPalette.PortalOrange,
@@ -222,22 +214,22 @@ fun ManageAliasBottomSheet(
                         ManageAliasStatLegendRow(
                             icon = Icons.Default.Inbox,
                             tint = AddyPalette.PortalOrange,
-                            text = "${alias.forwards} iletilen"
+                            text = "${alias.forwards} forwarded"
                         )
                         ManageAliasStatLegendRow(
                             icon = Icons.AutoMirrored.Filled.Reply,
                             tint = AddyPalette.PortalBlue,
-                            text = "${alias.replies} yanıtlanan"
+                            text = "${alias.replies} replied"
                         )
                         ManageAliasStatLegendRow(
                             icon = Icons.AutoMirrored.Filled.ForwardToInbox,
                             tint = AddyPalette.EasternBlue,
-                            text = "${alias.sends} gönderilen"
+                            text = "${alias.sends} sent"
                         )
                         ManageAliasStatLegendRow(
                             icon = Icons.Default.Block,
                             tint = AddyPalette.SoftRed,
-                            text = "${alias.blocks} engellenen"
+                            text = "${alias.blocks} blocked"
                         )
                     }
                 }
@@ -270,7 +262,7 @@ fun ManageAliasBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (alias.wildcard) "Wildcard Üret" else "Takma Adı Kopyala",
+                            text = if (alias.wildcard) "Generate Wildcard" else "Copy Alias",
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.Medium
@@ -295,7 +287,7 @@ fun ManageAliasBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "İleti Gönder",
+                            text = "Send Email",
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.Medium
@@ -315,20 +307,20 @@ fun ManageAliasBottomSheet(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                AddySectionHeader(title = "Genel")
+                AddySectionHeader(title = "General")
 
                 if (alias.deletedAt.isNotBlank()) {
                     AddySectionView(
-                        title = "Silinen Takma Adı Geri Yükle",
-                        description = "Bu takma adı silinenler kutusundan çıkarıp tekrar kullanılabilir yap",
+                        title = "Restore Deleted Alias",
+                        description = "Restore this alias from the deleted items bin and make it active again",
                         startIcon = Icons.Default.Restore,
                         accentColor = AddyPalette.GreenActive,
                         onClick = onRestoreAlias
                     )
                     if (alias.isCustomDomain) {
                         AddySectionView(
-                            title = "Kalıcı Olarak Unut (Forget)",
-                            description = "Özel alan adına ait bu takma adı veritabanından tamamen kaldır",
+                            title = "Permanently Forget",
+                            description = "Completely remove this custom-domain alias from the database",
                             startIcon = Icons.Default.DeleteForever,
                             accentColor = AddyPalette.SoftRed,
                             onClick = onForgetAlias
@@ -336,8 +328,8 @@ fun ManageAliasBottomSheet(
                     }
                 } else {
                     AddySectionView(
-                        title = if (alias.enabled) "Takma Ad Aktif" else "Takma Ad Devre Dışı",
-                        description = "Bu takma ad için e-posta yönlendirmeyi aç veya kapat",
+                        title = if (alias.enabled) "Alias Enabled" else "Alias Disabled",
+                        description = "Turn email forwarding on or off for this alias",
                         startIcon = Icons.Default.CheckCircleOutline,
                         showSwitch = true,
                         switchChecked = alias.enabled,
@@ -345,11 +337,11 @@ fun ManageAliasBottomSheet(
                     )
 
                     AddySectionView(
-                        title = if (alias.isPaused) "Duraklatmayı Kaldır" else "Geçici Olarak Duraklat (Snooze)",
+                        title = if (alias.isPaused) "Unpause Alias" else "Pause Alias Temporarily",
                         description = if (alias.isPaused) {
-                            "${formatIsoDateShort(alias.pausedUntil)} tarihine kadar duraklatıldı • Kaldırmak için dokunun"
+                            "Paused until ${formatIsoDateShort(alias.pausedUntil)} • Tap to resume forwarding"
                         } else {
-                            "Belirli bir süre (saat, gün veya hafta) boyunca iletileri sessize al"
+                            "Discard incoming forwards for 1-10 hours, days, or weeks"
                         },
                         startIcon = if (alias.isPaused) Icons.Default.PlayCircleOutline else Icons.Default.PauseCircleOutline,
                         onClick = {
@@ -362,8 +354,8 @@ fun ManageAliasBottomSheet(
                     )
 
                     AddySectionView(
-                        title = "Takma Adı Sabitle",
-                        description = "Bu takma adı listenin üstünde sabit tut",
+                        title = "Pin Alias",
+                        description = "Keep this alias pinned at the top of your list",
                         startIcon = Icons.Default.PushPin,
                         showSwitch = true,
                         switchChecked = alias.pinned,
@@ -372,49 +364,58 @@ fun ManageAliasBottomSheet(
                 }
 
                 AddySectionView(
-                    title = "Açıklama",
-                    description = alias.description.ifBlank { "Açıklama yok" },
+                    title = "Description",
+                    description = alias.description.ifBlank { "No description" },
                     startIcon = Icons.Default.Notes,
                     endIcon = Icons.Default.Edit,
                     onClick = { editingField = "description" }
                 )
 
                 AddySectionView(
-                    title = "Alıcılar",
-                    description = alias.recipients.ifBlank { "Varsayılan alıcı" },
+                    title = "Recipients",
+                    description = alias.recipients.ifBlank { "Default recipient" },
                     startIcon = Icons.Default.Inbox,
                     endIcon = Icons.Default.Edit,
                     onClick = { editingField = "recipients" }
                 )
 
                 AddySectionView(
-                    title = "Gönderici Adı",
-                    description = alias.fromName.ifBlank { "Gönderici adı yok" },
+                    title = "From Name",
+                    description = alias.fromName.ifBlank { "No custom sender name" },
                     startIcon = Icons.Default.Badge,
                     endIcon = Icons.Default.Edit,
                     onClick = { editingField = "from_name" }
                 )
 
                 AddySectionView(
-                    title = "Oluşturulma Tarihi",
+                    title = "Date Created",
                     description = formatIsoDateShort(alias.createdAt),
                     startIcon = Icons.Default.Schedule
                 )
 
                 AddySectionView(
-                    title = "Son Güncellenme",
+                    title = "Last Updated",
                     description = formatIsoDateShort(alias.updatedAt),
                     startIcon = Icons.Default.History
                 )
 
                 if (alias.deletedAt.isBlank()) {
                     AddySectionView(
-                        title = "Takma Adı Sil",
-                        description = "Bu takma adı silinenler kutusuna taşıyarak devre dışı bırak",
+                        title = "Delete Alias",
+                        description = "Move this alias to the deleted items bin and stop forwarding",
                         startIcon = Icons.Default.DeleteOutline,
                         accentColor = AddyPalette.SoftRed,
                         onClick = onRequestDelete
                     )
+                    if (alias.isCustomDomain) {
+                        AddySectionView(
+                            title = "Permanently Forget",
+                            description = "Bypass soft-delete and permanently delete this custom-domain alias",
+                            startIcon = Icons.Default.DeleteForever,
+                            accentColor = AddyPalette.SoftRed,
+                            onClick = onForgetAlias
+                        )
+                    }
                 }
             }
         }
@@ -424,18 +425,18 @@ fun ManageAliasBottomSheet(
         var durationVal by remember { mutableIntStateOf(1) }
         var durationUnit by remember { mutableStateOf("days") }
         val units = listOf(
-            "hours" to "Saat",
-            "days" to "Gün",
-            "weeks" to "Hafta"
+            "hours" to "Hours",
+            "days" to "Days",
+            "weeks" to "Weeks"
         )
 
         AlertDialog(
             onDismissRequest = { showPauseDialog = false },
-            title = { Text("Takma Adı Duraklat") },
+            title = { Text("Pause Alias") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "Bu takma adı ne kadar süreyle geçici olarak duraklatmak istiyorsunuz?",
+                        text = "How long would you like to pause incoming forwards for this alias?",
                         style = MaterialTheme.typography.bodyMedium
                     )
 
@@ -444,7 +445,7 @@ fun ManageAliasBottomSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Süre: $durationVal", fontWeight = FontWeight.SemiBold)
+                        Text("Duration: $durationVal", fontWeight = FontWeight.SemiBold)
                         Slider(
                             value = durationVal.toFloat(),
                             onValueChange = { durationVal = it.toInt().coerceIn(1, 10) },
@@ -473,12 +474,12 @@ fun ManageAliasBottomSheet(
                         onPauseAlias(durationVal, durationUnit)
                     }
                 ) {
-                    Text("Duraklat")
+                    Text("Pause")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showPauseDialog = false }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )
@@ -500,9 +501,9 @@ fun ManageAliasBottomSheet(
             title = {
                 Text(
                     when (field) {
-                        "description" -> "Açıklamayı Düzenle"
-                        "from_name" -> "Gönderici Adını Düzenle"
-                        else -> "Alıcıları Düzenle"
+                        "description" -> "Edit Description"
+                        "from_name" -> "Edit From Name"
+                        else -> "Edit Recipients"
                     }
                 )
             },
@@ -554,12 +555,12 @@ fun ManageAliasBottomSheet(
                         onUpdateMetadata(d, f, r)
                     }
                 ) {
-                    Text("Kaydet")
+                    Text("Save")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { editingField = null }) {
-                    Text("İptal")
+                    Text("Cancel")
                 }
             }
         )

@@ -100,9 +100,6 @@ data class UiAlias(
     }
 }
 
-/**
- * Mailx Alıcı modeli (`GET /v1/recipients` - `43640.jpg`, `43642.jpg`, `43644.jpg`, `43646.jpg`)
- */
 @Immutable
 data class UiRecipient(
     val id: String,
@@ -143,9 +140,6 @@ data class UiRecipient(
     }
 }
 
-/**
- * Mailx Özel Alan Adı modeli (`GET /v1/domains` - `43648.jpg`, `43650.jpg`, `43652.jpg`, `43654.jpg`)
- */
 @Immutable
 data class UiCustomDomain(
     val id: String,
@@ -247,14 +241,39 @@ data class UiDnsCheckResult(
     val error: String
 )
 
-/**
- * Mailx Engellenenler Listesi modeli (`GET /v1/blocklist` - `43656.jpg`)
- */
+@Immutable
+data class UiWildcardDomainInfo(
+    val count: Int = 0,
+    val limit: Int = 2,
+    val delimitersUsed: List<String> = emptyList()
+) {
+    val isAtLimit: Boolean
+        get() = count >= limit
+
+    companion object {
+        fun fromJson(obj: JSONObject?): UiWildcardDomainInfo {
+            if (obj == null) return UiWildcardDomainInfo()
+            val used = mutableListOf<String>()
+            obj.optJSONArray("delimiters_used")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val d = arr.optString(i).trim()
+                    if (d.isNotEmpty()) used.add(d)
+                }
+            }
+            return UiWildcardDomainInfo(
+                count = obj.optInt("count", 0),
+                limit = obj.optInt("limit", 2).coerceAtLeast(1),
+                delimitersUsed = used
+            )
+        }
+    }
+}
+
 @Immutable
 data class UiBlocklistItem(
     val id: String,
     val createdAt: String,
-    val type: String, // "email" | "domain"
+    val type: String,
     val value: String,
     val blocked: Int
 ) {
@@ -279,20 +298,20 @@ data class UiBlocklistItem(
     }
 }
 
-/**
- * Mailx Kural Koşulu ve Eylemi (`GET /v1/rules` - `43658.jpg`, `43660.jpg`, `43662.jpg`, `43664.jpg`)
- */
 @Immutable
 data class UiRuleCondition(
     val type: String = "sender",
-    val match: String = "is",
+    val match: String = "contains",
     val values: List<String> = emptyList()
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
+        val isBool = MailxRuleCatalog.booleanConditionTypes.contains(type)
         put("type", type)
-        put("match", match)
+        put("match", if (isBool) "" else match)
         val arr = JSONArray()
-        values.forEach { arr.put(it) }
+        if (!isBool) {
+            values.forEach { arr.put(it) }
+        }
         put("values", arr)
     }
 
@@ -306,7 +325,7 @@ data class UiRuleCondition(
             }
             return UiRuleCondition(
                 type = obj.optString("type", "sender"),
-                match = obj.optString("match", "is"),
+                match = obj.optString("match", "contains"),
                 values = vals
             )
         }
@@ -316,11 +335,16 @@ data class UiRuleCondition(
 @Immutable
 data class UiRuleAction(
     val type: String = "block",
-    val value: String = "true"
+    val value: String = ""
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("type", type)
-        put("value", value)
+        val needsVal = MailxRuleCatalog.textValueActions.contains(type) || type == "forward_to"
+        if (needsVal && value.isNotBlank()) {
+            put("value", value.trim())
+        } else {
+            put("value", "")
+        }
     }
 
     companion object {
@@ -337,7 +361,7 @@ data class UiRule(
     val createdAt: String,
     val name: String,
     val order: Int,
-    val operator: String, // "AND" | "OR"
+    val operator: String,
     val conditions: List<UiRuleCondition>,
     val actions: List<UiRuleAction>,
     val forwards: Boolean,
@@ -345,7 +369,8 @@ data class UiRule(
     val sends: Boolean,
     val active: Boolean,
     val applied: Int,
-    val lastAppliedAt: String
+    val lastAppliedAt: String,
+    val invalidRecipients: Boolean = false
 ) {
     companion object {
         fun fromJson(obj: JSONObject): UiRule {
@@ -376,7 +401,8 @@ data class UiRule(
                 sends = obj.optBoolean("sends", false),
                 active = obj.optBoolean("active", true),
                 applied = obj.optInt("applied", 0),
-                lastAppliedAt = lastStr
+                lastAppliedAt = lastStr,
+                invalidRecipients = obj.optBoolean("invalid_recipients", false)
             )
         }
 
@@ -392,9 +418,6 @@ data class UiRule(
     }
 }
 
-/**
- * Mailx 7 Günlük & 90 Günlük İstatistikler (`GET /v1/user/stats` - `43668.jpg`, `43670.jpg`)
- */
 @Immutable
 data class UiDailyStatPoint(
     val dateIso: String,
@@ -418,9 +441,6 @@ data class UiUserStats(
     val dailyPoints: List<UiDailyStatPoint> = emptyList()
 )
 
-/**
- * Mailx Tanılama Günlüğü (`GET /v1/logs` - `43672.jpg`)
- */
 @Immutable
 data class UiDiagnosticLog(
     val id: String,
@@ -458,9 +478,6 @@ data class UiDiagnosticLog(
     }
 }
 
-/**
- * Mailx Erişim Anahtarı (`GET /v1/accesskeys` - `43698.jpg`, `43700.jpg`)
- */
 @Immutable
 data class UiAccessKey(
     val id: String,
@@ -492,9 +509,83 @@ data class UiAccessKey(
     }
 }
 
-/**
- * Mailx Hesap ve Abonelik Bilgileri (`GET /v1/user`, `GET /v1/sub` - `43692.jpg`, `43694.jpg`, `43696.jpg`)
- */
+@Immutable
+data class UiPasskeyCredential(
+    val id: String,
+    val createdAt: String
+) {
+    companion object {
+        fun listFromJsonArray(arr: JSONArray?): List<UiPasskeyCredential> {
+            if (arr == null) return emptyList()
+            return buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    add(
+                        UiPasskeyCredential(
+                            id = obj.optString("id", ""),
+                            createdAt = obj.optString("created_at", "")
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Immutable
+data class UiRemovedTracker(
+    val domain: String,
+    val element: String,
+    val reason: String
+) {
+    val elementLabel: String
+        get() = when (element) {
+            "img" -> "Image"
+            "srcset" -> "Image srcset"
+            "background" -> "Background image"
+            "link" -> "Prefetch link"
+            else -> element.ifBlank { "Element" }
+        }
+
+    val reasonLabel: String
+        get() = when (reason) {
+            "domain" -> "Known tracker domain"
+            "tiny" -> "Tiny image (1x1 pixel)"
+            "hidden" -> "Hidden image"
+            "pattern" -> "Tracking URL pattern"
+            else -> reason.ifBlank { "Tracker" }
+        }
+}
+
+@Immutable
+data class UiTrackersReport(
+    val total: Int,
+    val trackers: List<UiRemovedTracker>
+) {
+    companion object {
+        fun fromJson(obj: JSONObject?): UiTrackersReport? {
+            if (obj == null) return null
+            val arr = obj.optJSONArray("trackers")
+            val list = buildList {
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        val item = arr.optJSONObject(i) ?: continue
+                        add(
+                            UiRemovedTracker(
+                                domain = item.optString("domain", "Unknown").ifBlank { "Unknown" },
+                                element = item.optString("element", ""),
+                                reason = item.optString("reason", "")
+                            )
+                        )
+                    }
+                }
+            }
+            val total = maxOf(obj.optInt("total", list.size), list.size)
+            return UiTrackersReport(total = total, trackers = list)
+        }
+    }
+}
+
 @Immutable
 data class UiUserAccount(
     val id: String = "",
@@ -509,7 +600,8 @@ data class UiUserAccount(
     val totpSetupSecret: String = "",
     val totpSetupUri: String = "",
     val totpBackupCodes: String = "",
-    val newlyCreatedAccessKeyToken: String = ""
+    val newlyCreatedAccessKeyToken: String = "",
+    val deleteAccountOtp: String = ""
 )
 
 @Immutable
@@ -537,27 +629,22 @@ data class UiAnnouncement(
     }
 }
 
-/**
- * Alt gezinme sekmeleri:
- * Özet (Home/Stats), Takma Adlar (Aliases/Wildcard), Alıcılar (Recipients/Domains),
- * Kurallar (Rules/Blocklist), Ayarlar (Server/Account/Theme Settings)
- */
 enum class MainNavTab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    HOME("Özet", Icons.Outlined.Home, Icons.Default.Home),
-    ALIASES("Takma Adlar", Icons.Outlined.AlternateEmail, Icons.Default.AlternateEmail),
-    RECIPIENTS("Alıcılar", Icons.Outlined.Inbox, Icons.Default.Inbox),
-    RULES("Kurallar", Icons.Outlined.FilterAlt, Icons.Default.FilterAlt),
-    SETTINGS("Ayarlar", Icons.Outlined.Settings, Icons.Default.Settings)
+    HOME("Overview", Icons.Outlined.Home, Icons.Default.Home),
+    ALIASES("Aliases", Icons.Outlined.AlternateEmail, Icons.Default.AlternateEmail),
+    RECIPIENTS("Recipients", Icons.Outlined.Inbox, Icons.Default.Inbox),
+    RULES("Rules", Icons.Outlined.FilterAlt, Icons.Default.FilterAlt),
+    SETTINGS("Settings", Icons.Outlined.Settings, Icons.Default.Settings)
 }
 
 enum class AliasSortField(val key: String, val label: String) {
-    CREATED_AT("created_at", "Oluşturulma Tarihi"),
-    UPDATED_AT("updated_at", "Güncellenme Tarihi"),
-    NAME("name", "E-posta Adresi (A-Z)"),
-    FORWARDS("forwards", "İletilen Sayısı"),
-    BLOCKS("blocks", "Engellenen Sayısı"),
-    REPLIES("replies", "Yanıtlanan Sayısı"),
-    SENDS("sends", "Gönderilen Sayısı")
+    CREATED_AT("created_at", "Date Created"),
+    UPDATED_AT("updated_at", "Date Updated"),
+    NAME("name", "Email Address (A-Z)"),
+    FORWARDS("forwards", "Forwarded Count"),
+    BLOCKS("blocks", "Blocked Count"),
+    REPLIES("replies", "Replied Count"),
+    SENDS("sends", "Sent Count")
 }
 
 @Immutable
@@ -565,7 +652,7 @@ data class AuthUiState(
     val isLoggedIn: Boolean = false,
     val isWebSession: Boolean = false,
     val baseUrl: String = "https://api.mailx.net",
-    val loginMode: String = "credentials", // "credentials" (E-posta & Parola) | "access_key" (85 karakter)
+    val loginMode: String = "credentials",
     val emailInput: String = "",
     val passwordInput: String = "",
     val otpInput: String = "",
@@ -613,7 +700,7 @@ data class DefaultsUiState(
 
 @Immutable
 data class ThemeUiState(
-    val darkModeMode: Int = 1, // 1 = Açık (Karanlık), -1 = Sistem, 0 = Kapalı (Açık)
+    val darkModeMode: Int = 1,
     val dynamicColorEnabled: Boolean = false,
     val amoledDarkEnabled: Boolean = false
 )
@@ -627,6 +714,7 @@ sealed interface ActiveSheet {
     data object DiagnosticsSheet : ActiveSheet
     data object AccountSheet : ActiveSheet
     data object AnnouncementsSheet : ActiveSheet
+    data object TrackersReportSheet : ActiveSheet
     data class ManageAlias(val aliasId: String) : ActiveSheet
     data class WildcardGen(val alias: UiAlias) : ActiveSheet
     data class ReverseSend(val initialAlias: String) : ActiveSheet
@@ -636,57 +724,57 @@ sealed interface ActiveSheet {
 
 object MailxRuleCatalog {
     val conditionTypes = listOf(
-        "sender" to "Gönderici (Sender)",
-        "sender_domain" to "Gönderici Alan Adı (Sender Domain)",
-        "sender_name" to "Gönderici Adı (Sender Name)",
-        "subject" to "Konu (Subject)",
-        "alias" to "Takma Ad (Alias)",
-        "alias_description" to "Takma Ad Açıklaması",
-        "destination" to "Hedef Alıcı (Destination)",
-        "is_mailing_list" to "Posta Listesi mi? (Mailing List)",
-        "has_attachments" to "Ek Dosya İçeriyor mu? (Attachments)",
-        "alias_is_wildcard" to "Wildcard Takma Ad mı?"
+        "sender" to "Sender email",
+        "sender_domain" to "Sender domain",
+        "sender_name" to "Sender name",
+        "subject" to "Subject",
+        "alias" to "Alias",
+        "alias_description" to "Alias description",
+        "destination" to "Destination email",
+        "is_mailing_list" to "Email is from a mailing list / newsletter",
+        "has_attachments" to "Email has attachments",
+        "alias_is_wildcard" to "Alias is a wildcard alias"
     )
 
     val booleanConditionTypes = setOf("is_mailing_list", "has_attachments", "alias_is_wildcard")
 
     val matchTypes = listOf(
-        "is" to "Eşittir (is)",
-        "is_not" to "Eşit Değildir (is not)",
-        "contains" to "İçerir (contains)",
-        "not_contains" to "İçermez (does not contain)",
-        "starts_with" to "İle Başlar (starts with)",
-        "not_starts_with" to "İle Başlamaz (does not start with)",
-        "ends_with" to "İle Biter (ends with)",
-        "not_ends_with" to "İle Bitmez (does not end with)",
-        "regex" to "Regex Eşleşir",
-        "not_regex" to "Regex Eşleşmez"
+        "is" to "is exactly",
+        "is_not" to "is not",
+        "contains" to "contains",
+        "not_contains" to "does not contain",
+        "starts_with" to "starts with",
+        "not_starts_with" to "does not start with",
+        "ends_with" to "ends with",
+        "not_ends_with" to "does not end with",
+        "regex" to "matches regex",
+        "not_regex" to "does not match regex"
     )
 
     val actionTypes = listOf(
-        "block" to "İletiyi Engelle (Block email)",
-        "blocklist_sender" to "Göndericiyi Kara Listeye Ekle",
-        "blocklist_domain" to "Gönderici Alan Adını Kara Listeye Ekle",
-        "replace_subject" to "Konuyu Değiştir (Replace subject with)",
-        "set_display_name" to "Görünen Adı Değiştir (Set display name)",
-        "forward_to" to "Şu Alıcıya Yönlendir (Forward to)",
-        "disable_encryption" to "PGP Şifrelemeyi Devre Dışı Bırak",
-        "hide_banner" to "Mailx Başlık Bilgisini Gizle",
-        "show_banner" to "Mailx Başlık Bilgisini Göster",
-        "deactivate_alias" to "Takma Adı Devre Dışı Bırak",
-        "set_alias_description" to "Takma Ad Açıklamasını Güncelle",
-        "remove_attachments" to "Ek Dosyaları Kaldır (Remove attachments)",
-        "stop" to "Sonraki Kuralları İşlemeyi Durdur"
+        "block" to "Block the email",
+        "blocklist_sender" to "Add sender email to the blocklist",
+        "blocklist_domain" to "Add sender domain to the blocklist",
+        "replace_subject" to "Replace the subject with",
+        "set_display_name" to "Set the sender name to",
+        "forward_to" to "Forward to recipient(s)",
+        "disable_encryption" to "Turn off PGP encryption",
+        "hide_banner" to "Hide the Mailx banner",
+        "show_banner" to "Show the Mailx banner",
+        "deactivate_alias" to "Deactivate the alias",
+        "set_alias_description" to "Set the alias description to",
+        "remove_attachments" to "Remove attachments",
+        "stop" to "Stop processing more rules"
     )
 
-    val textValueActions = setOf("replace_subject", "set_display_name", "forward_to", "set_alias_description")
+    val textValueActions = setOf("replace_subject", "set_display_name", "set_alias_description")
 
     val unsubscribeBehaviours = listOf(
-        0 to "Göndericiden abonelikten çık, başarısız olursa takma adı pasifleştir",
-        1 to "Takma adı devre dışı bırak (Deactivate alias)",
-        2 to "Takma adı sil (Delete alias)",
-        3 to "Gönderici e-posta adresini engelle (Block sender email)",
-        4 to "Gönderici alan adını engelle (Block sender domain)"
+        0 to "Unsubscribe from sender; if that fails, deactivate alias",
+        1 to "Deactivate alias",
+        2 to "Delete alias",
+        3 to "Block sender email address",
+        4 to "Block sender domain"
     )
 
     fun conditionLabel(key: String): String =
@@ -712,7 +800,7 @@ object NatoPhoneticHelper {
         'Z' to "Zulu",
         '0' to "Zero", '1' to "One", '2' to "Two", '3' to "Three", '4' to "Four",
         '5' to "Five", '6' to "Six", '7' to "Seven", '8' to "Eight", '9' to "Nine",
-        '.' to "Nokta", '@' to "At (@)", '-' to "Tire", '_' to "Alt Çizgi", '+' to "Artı", '*' to "Yıldız"
+        '.' to "Period", '@' to "At (@)", '-' to "Hyphen", '_' to "Underscore", '+' to "Plus", '*' to "Asterisk"
     )
 
     fun toPhoneticPairs(email: String): List<Pair<String, String>> =
@@ -721,7 +809,7 @@ object NatoPhoneticHelper {
 
 fun formatIsoDateShort(raw: String): String {
     val clean = raw.trim()
-    if (clean.isEmpty() || clean == "null") return "Bilinmiyor"
+    if (clean.isEmpty() || clean == "null") return "Unknown"
     val datePart = clean.substringBefore("T")
     val timePart = clean.substringAfter("T", "").take(5)
     val parts = datePart.split("-")
@@ -734,16 +822,16 @@ fun formatIsoDateShort(raw: String): String {
 }
 
 fun formatAliasTypeLabel(formatKey: String): String = when (formatKey) {
-    "words" -> "Words (örn: quiet.haze16)"
-    "random" -> "Random (örn: uf1h0xi)"
+    "words" -> "Words (e.g. quiet.haze16)"
+    "random" -> "Random (e.g. uf1h0xi)"
     "uuid" -> "UUID"
     "wildcard" -> "Wildcard (*)"
-    "custom" -> "Özel (Custom)"
+    "custom" -> "Custom"
     else -> formatKey
 }
 
 fun copyToClipboard(context: Context, label: String, text: String, toastMessage: String? = null) {
     val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cb.setPrimaryClip(ClipData.newPlainText(label, text))
-    Toast.makeText(context, toastMessage ?: "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, toastMessage ?: "Copied to clipboard", Toast.LENGTH_SHORT).show()
 }

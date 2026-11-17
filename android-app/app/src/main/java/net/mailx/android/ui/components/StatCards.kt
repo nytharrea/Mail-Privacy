@@ -30,10 +30,6 @@ fun addySwitchColors() = SwitchDefaults.colors(
     uncheckedBorderColor = MaterialTheme.colorScheme.outline
 )
 
-/**
- * `anonaddy/addy-android` içindeki `HomeStatCardView` (`res/layout/home_stat_card.xml`)
- * bileşeninin birebir Compose karşılığı.
- */
 @Composable
 fun AddyHomeStatCard(
     title: String,
@@ -80,7 +76,6 @@ fun AddyHomeStatCard(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // addy-android rounded_square (48dp x 48dp, ?colorPrimary arka plan, 20dp radius)
                     Surface(
                         modifier = Modifier.size(48.dp),
                         shape = RoundedCornerShape(16.dp),
@@ -150,10 +145,6 @@ fun AddyHomeStatCard(
     }
 }
 
-/**
- * `anonaddy/addy-android` içindeki `SectionView` (`res/layout/custom_view_section.xml`)
- * bileşeninin birebir Compose karşılığı.
- */
 @Composable
 fun AddySectionView(
     title: String,
@@ -262,9 +253,6 @@ fun AddySectionView(
     }
 }
 
-/**
- * `anonaddy/addy-android` içindeki `AddyIoTitleAction` / `AddyIoTitleNoAction` bölüm başlığı.
- */
 @Composable
 fun AddySectionHeader(
     title: String,
@@ -304,7 +292,6 @@ fun AddySectionHeader(
             }
 
             if (countBadge != null && countBadge > 0) {
-                // addy-android bg_count_capsule
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHighest

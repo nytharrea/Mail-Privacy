@@ -24,10 +24,6 @@ import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.model.copyToClipboard
 import org.json.JSONObject
 
-/**
- * `anonaddy/addy-android` içindeki `res/layout/bottomsheet_send_mail_alias.xml`
- * (`EditAliasSendMailRecipientBottomDialogFragment.kt`) alt penceresinin birebir karşılığı.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReverseAliasSendBottomSheet(
@@ -71,7 +67,7 @@ fun ReverseAliasSendBottomSheet(
                 .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Takma Addan İleti Gönder",
+                text = "Send from Alias",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -93,7 +89,7 @@ fun ReverseAliasSendBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Bu takma ad üzerinden e-posta göndermek istediğiniz alıcı adresini girin. Üretilen yönlendirme adresine e-posta gönderdiğinizde karşı taraf yalnızca takma adınızı görür.",
+                    text = "Enter the recipient email address you want to contact from this alias. When you send an email to the generated relay address, the recipient only sees your alias.",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
@@ -127,7 +123,7 @@ fun ReverseAliasSendBottomSheet(
                         senderAlias = it
                         recompute(it, targetEmail)
                     },
-                    label = { Text("Gönderici Takma Ad") },
+                    label = { Text("Sender Alias") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -139,8 +135,8 @@ fun ReverseAliasSendBottomSheet(
                         targetEmail = it
                         recompute(senderAlias, it)
                     },
-                    label = { Text("Alıcı E-posta Adresi") },
-                    placeholder = { Text("ornek@alanadi.com") },
+                    label = { Text("Recipient Email Address") },
+                    placeholder = { Text("example@domain.com") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -182,7 +178,7 @@ fun ReverseAliasSendBottomSheet(
                     FilledTonalButton(
                         enabled = generated.isNotEmpty(),
                         onClick = {
-                            copyToClipboard(context, "Mailx Send Address", generated, "Yönlendirme adresi kopyalandı")
+                            copyToClipboard(context, "Mailx Send Address", generated, "Reverse-alias address copied")
                             onDismiss()
                         },
                         modifier = Modifier
@@ -196,16 +192,16 @@ fun ReverseAliasSendBottomSheet(
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Adresi Kopyala")
+                        Text("Copy Address")
                     }
 
                     Button(
                         enabled = generated.isNotEmpty(),
                         onClick = {
-                            copyToClipboard(context, "Mailx Send Address", generated, "Yönlendirme adresi kopyalandı")
+                            copyToClipboard(context, "Mailx Send Address", generated, "Reverse-alias address copied")
                             runCatching {
                                 val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generated"))
-                                context.startActivity(Intent.createChooser(mailIntent, "E-posta Uygulaması Seçin"))
+                                context.startActivity(Intent.createChooser(mailIntent, "Choose Email App"))
                             }
                             onDismiss()
                         },
@@ -220,7 +216,7 @@ fun ReverseAliasSendBottomSheet(
                     ) {
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("İleti Gönder")
+                        Text("Send Email")
                     }
                 }
             }

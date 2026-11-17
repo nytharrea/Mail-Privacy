@@ -8,11 +8,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.security.KeyStore
 
-/**
- * `anonaddy/addy-android` içindeki `SettingsManager.kt` mimarisinden uyarlanan,
- * Access Key, Web Oturum Çerezi (`authn`), sunucu ayarları ve çevrimdışı önbelleği
- * Android Keystore (AES256-GCM) ile şifreli saklayan yönetici.
- */
 class EncryptedPrefsManager(context: Context) {
 
     private val prefs: SharedPreferences = createSafeEncryptedPrefs(context.applicationContext)
@@ -132,10 +127,6 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_AMOLED_DARK_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_AMOLED_DARK_ENABLED, value).apply()
 
-    /**
-     * addy-android `PREFS.DARK_MODE` uyumlu:
-     * `1` = Karanlık Açık, `-1` = Sistem Varsayılanı, `0` = Açık Tema
-     */
     var darkModeMode: Int
         get() = prefs.getInt(KEY_DARK_MODE_MODE, 1)
         set(value) = prefs.edit().putInt(KEY_DARK_MODE_MODE, value).apply()
@@ -152,7 +143,6 @@ class EncryptedPrefsManager(context: Context) {
                 }
             }
         }
-        // Mailx resmi paylaşımlı alan adları yedek listesi (43678.jpg)
         DEFAULT_SHARED_DOMAINS.forEach { result.add(it) }
         return result.toList()
     }

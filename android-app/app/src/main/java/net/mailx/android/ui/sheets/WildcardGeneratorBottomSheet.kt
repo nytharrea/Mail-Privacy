@@ -45,7 +45,7 @@ fun WildcardGeneratorBottomSheet(
                 .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Wildcard Takma Ad Üret",
+                text = "Generate Wildcard Alias",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -67,7 +67,7 @@ fun WildcardGeneratorBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Şablon: ${wildcardAlias.name}",
+                    text = "Pattern: ${wildcardAlias.name}",
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium,
@@ -89,7 +89,7 @@ fun WildcardGeneratorBottomSheet(
                             errorMsg = if (it.isNotEmpty()) r.optString("error") else null
                         }
                     },
-                    label = { Text("Servis Öneki (Örn: github, amazon)") },
+                    label = { Text("Service Prefix (e.g. github, amazon)") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -141,7 +141,7 @@ fun WildcardGeneratorBottomSheet(
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Takma Adı Kopyala", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Copy Alias", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }

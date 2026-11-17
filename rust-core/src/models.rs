@@ -1,8 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
-/// Go backend (`fiber.Map` / `gorm`) nil slice veya boş değerleri JSON `null` olarak
-/// döndürdüğünde (`"custom_domains": null`, `"recipients": null`, `"aliases": null` vb.)
-/// `serde_json`'ın hata vermesini önleyip `Default::default()` değerine dönüştürür.
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     T: Default + Deserialize<'de>,
@@ -12,7 +9,6 @@ where
     Ok(opt.unwrap_or_default())
 }
 
-/// Mailx API'sinin desteklediği alias oluşturma formatları (`api/internal/model/alias_name.go`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AliasFormat {
@@ -35,7 +31,6 @@ impl AliasFormat {
     }
 }
 
-/// Alias yönlendirme ve engelleme istatistikleri (`model.AliasStats` - `api/internal/model/alias.go`)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasStats {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -48,7 +43,6 @@ pub struct AliasStats {
     pub sends: i64,
 }
 
-/// Mailx Alias veri modeli (`api/internal/model/alias.go` & `wxt/lib/types.ts`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Alias {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -65,7 +59,6 @@ pub struct Alias {
     pub enabled: bool,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub description: String,
-    /// Virgülle ayrılmış alıcı e-posta adresleri (örn: "user@example.com,backup@example.com")
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipients: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -89,7 +82,6 @@ pub struct Alias {
 }
 
 impl Alias {
-    /// Virgülle ayrılmış `recipients` alanını dizi olarak döndürür.
     pub fn recipient_list(&self) -> Vec<String> {
         self.recipients
             .split(',')
@@ -98,7 +90,6 @@ impl Alias {
             .collect()
     }
 
-    /// Alias'ın şu anda duraklatılmış (paused) olup olmadığını kontrol eder.
     pub fn is_paused(&self) -> bool {
         self.paused_until
             .as_ref()
@@ -107,7 +98,6 @@ impl Alias {
     }
 }
 
-/// `GET /v1/api/aliases` ve `GET /v1/aliases` yanıt modeli (`model.AliasList`)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasListResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -116,14 +106,12 @@ pub struct AliasListResponse {
     pub total: usize,
 }
 
-/// `POST /v1/api/alias` ve `PUT /v1/api/alias/:id` istek gövdesi (`api.AliasReq`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasRequest {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub description: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub enabled: bool,
-    /// Virgülle ayrılmış doğrulanmış alıcı e-postaları (zorunlu)
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub recipients: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -141,8 +129,6 @@ pub struct AliasRequest {
 }
 
 impl AliasRequest {
-    /// Mevcut bir `Alias` nesnesini koruyarak güvenli güncelleme (`PUT /v1/api/alias/:id`)
-    /// için tam nesne oluşturur (`api/internal/transport/api/alias.go` -> `UpdateAlias`).
     pub fn from_existing(alias: &Alias) -> Self {
         let domain = alias.name.split('@').nth(1).unwrap_or_default().to_string();
         Self {
@@ -163,7 +149,6 @@ impl AliasRequest {
     }
 }
 
-/// `POST /v1/api/alias` başarılı yanıtı (`201 Created`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreateAliasResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -171,20 +156,17 @@ pub struct CreateAliasResponse {
     pub alias: Alias,
 }
 
-/// `PUT /v1/api/alias/:id/pin` istek gövdesi (`api.AliasPinReq`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasPinRequest {
     pub pinned: bool,
 }
 
-/// `PUT /v1/alias/:id/pause` istek gövdesi (`api.AliasPauseReq`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AliasPauseRequest {
     pub value: i32,
     pub unit: String,
 }
 
-/// Özel alan adı modeli (`model.Domain` - `api/internal/model/domain.go`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CustomDomain {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -213,7 +195,6 @@ pub struct CustomDomain {
     pub send_verified_at: Option<String>,
 }
 
-/// `POST /v1/api/authenticate` ve `POST /v1/login` birleşik yanıt modeli
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuthResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -242,7 +223,6 @@ pub struct AuthResponse {
     pub block_trackers: bool,
 }
 
-/// `GET /v1/api/defaults` ve `GET /v1/defaults` yanıtı (`api/internal/transport/api/access_key.go`)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DefaultsResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -271,22 +251,27 @@ pub struct DefaultsResponse {
     pub block_trackers: bool,
 }
 
-/// `GET /v1/api/aliases` filtreleme parametreleri
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RemovedTrackerItem {
+    pub domain: String,
+    pub element: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrackersReport {
+    pub total: usize,
+    pub trackers: Vec<RemovedTrackerItem>,
+}
+
 #[derive(Debug, Clone)]
 pub struct AliasFilter {
-    /// 1-tabanlı sayfa numarası (`page=1`)
     pub page: usize,
-    /// Sayfa başına kayıt limiti (mobilde varsayılan 50, maksimum 1000)
     pub limit: usize,
-    /// `created_at`, `updated_at` veya `name`
     pub sort_by: String,
-    /// `ASC` veya `DESC`
     pub sort_order: String,
-    /// `active_inactive`, `active`, `inactive`, `deleted`, `all`
     pub status: String,
-    /// `"true"`, `"false"` veya `""`
     pub wildcard: String,
-    /// Arama metni (`^[-a-zA-Z0-9 ._+@]+$`)
     pub search: String,
 }
 
@@ -304,7 +289,6 @@ impl Default for AliasFilter {
     }
 }
 
-/// Çevrimdışı önbellek (Offline Cache) veri kapsayıcısı
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct OfflineCache {
     pub updated_at_epoch_ms: u64,

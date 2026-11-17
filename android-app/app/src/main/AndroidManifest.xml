@@ -4,7 +4,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
-    <!-- Android 15/16+ 16 KB page size uyumluluğu -->
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
@@ -13,7 +12,6 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
-        <!-- Ana Ekran (Material 3 Jetpack Compose) -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
@@ -24,11 +22,10 @@
             </intent-filter>
         </activity>
 
-        <!-- addy-android'den uyarlanan Ters-Alias (Send from Alias) Mailto & Metin Seçimi Yakalayıcı -->
         <activity
             android:name=".ui.intent.ReverseAliasSendActivity"
             android:exported="true"
-            android:label="Mailx ile Gönder"
+            android:label="Send with Mailx"
             android:theme="@android:style/Theme.Material.Dialog.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
@@ -42,12 +39,11 @@
             </intent-filter>
         </activity>
 
-        <!-- addy-android'den uyarlanan Bildirim Paneli Hızlı Alias Kutucuğu (Quick Settings Tile) -->
         <service
             android:name=".service.QuickAliasTileService"
             android:exported="true"
             android:icon="@android:drawable/ic_dialog_email"
-            android:label="Yeni Mailx Alias"
+            android:label="New Mailx Alias"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

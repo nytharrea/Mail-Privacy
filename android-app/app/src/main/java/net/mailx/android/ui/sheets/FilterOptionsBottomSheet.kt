@@ -22,10 +22,6 @@ import net.mailx.android.ui.components.AddySectionView
 import net.mailx.android.ui.model.AliasSortField
 import net.mailx.android.ui.model.FilterUiState
 
-/**
- * `anonaddy/addy-android` içindeki `res/layout/bottomsheet_filter_options_alias.xml`
- * (`FilterOptionsAliasBottomDialogFragment.kt`) alt penceresinin birebir Compose karşılığı.
- */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FilterOptionsBottomSheet(
@@ -55,7 +51,7 @@ fun FilterOptionsBottomSheet(
                 .padding(bottom = 28.dp)
         ) {
             Text(
-                text = "Filtreleme ve Sıralama",
+                text = "Filter & Sort",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -77,7 +73,7 @@ fun FilterOptionsBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Takma ad listesini durumuna göre filtreleyin veya istediğiniz ölçüte göre sıralayın.",
+                    text = "Filter your alias list by status or sort by your preferred metric.",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
@@ -85,14 +81,13 @@ fun FilterOptionsBottomSheet(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Filtreler Başlığı + Filtreyi Temizle (bs_filteroptions_aliases_clear_filter)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Filtreler",
+                        text = "Filters",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -112,17 +107,16 @@ fun FilterOptionsBottomSheet(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Filtreyi Temizle")
+                        Text("Reset Filters")
                     }
                 }
 
-                // bs_filteroptions_aliases_mbtg
                 val filterOptions = listOf(
-                    "active_inactive" to "Tümü",
-                    "active" to "Aktif",
-                    "inactive" to "Pasif",
-                    "pinned_only" to "Sabitlenen",
-                    "deleted" to "Silinen",
+                    "active_inactive" to "All",
+                    "active" to "Active",
+                    "inactive" to "Disabled",
+                    "pinned_only" to "Pinned",
+                    "deleted" to "Deleted",
                     "wildcard_only" to "Wildcard (*)"
                 )
 
@@ -141,8 +135,8 @@ fun FilterOptionsBottomSheet(
                 }
 
                 AddySectionView(
-                    title = "Sabitlenenleri Üstte Tut",
-                    description = "Sıralama ölçütünden bağımsız olarak sabitlenenleri başta göster",
+                    title = "Keep Pinned on Top",
+                    description = "Always show pinned aliases first regardless of sort order",
                     startIcon = Icons.Default.PushPin,
                     showSwitch = true,
                     switchChecked = tempPinnedFirst,
@@ -161,14 +155,13 @@ fun FilterOptionsBottomSheet(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Sıralama Ölçütü Başlığı + Sıralama Yönü Butonu (bs_filteroptions_aliases_sort_order)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Sıralama Ölçütü",
+                        text = "Sort By",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -188,11 +181,10 @@ fun FilterOptionsBottomSheet(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (tempDesc) "Azalan" else "Artan")
+                        Text(if (tempDesc) "Descending" else "Ascending")
                     }
                 }
 
-                // bs_filteroptions_aliases_sorting_chipgroup
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -207,7 +199,6 @@ fun FilterOptionsBottomSheet(
                     }
                 }
 
-                // bs_filteroptions_aliases_save_button (CircularProgressButtonSecondary -> 56dp)
                 Button(
                     onClick = { onApply(tempFilter, tempSort, tempDesc, tempPinnedFirst) },
                     modifier = Modifier
@@ -219,7 +210,7 @@ fun FilterOptionsBottomSheet(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Text("Kaydet", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text("Apply", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
