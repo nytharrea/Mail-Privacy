@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
-import net.mailx.android.ui.MailxAddyTheme
+import net.mailx.android.ui.theme.MailxAddyTheme
 import org.json.JSONArray
 import org.json.JSONObject
 
