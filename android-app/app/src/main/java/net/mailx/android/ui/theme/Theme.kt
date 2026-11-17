@@ -1,10 +1,14 @@
+@file:Suppress("OPT_IN_IS_NOT_ENABLED", "EXPERIMENTAL_IS_NOT_ENABLED", "UNNECESSARY_OPT_IN")
+
 package net.mailx.android.ui.theme
 
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -99,11 +103,13 @@ private fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
     outlineVariant = MailxPalette.AmoledOutlineVariant
 )
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MailxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     amoledDark: Boolean = false,
+    expressiveMotion: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -136,8 +142,13 @@ fun MailxTheme(
         }
     }
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
+        motionScheme = if (expressiveMotion) {
+            MotionScheme.expressive()
+        } else {
+            MotionScheme.standard()
+        },
         shapes = MailxShapes,
         typography = MailxTypography,
         content = content

@@ -1,37 +1,30 @@
-# Mailx Privacy (Pure Rust Core + `al1h3n/liquid-rust` iOS 26/27 Liquid Glass UI)
+# Mailx Privacy Android (Rust Native Skeleton + Compose Material 3 Expressive)
 
-[IVPN Mailx](https://github.com/ivpn/mailx) ([mailx.net](https://mailx.net/)) altyapısı için geliştirilmiş, [al1h3n/liquid-rust](https://github.com/al1h3n/liquid-rust) optik ve fizik motorunu temel alan **Saf Rust (`mailx-core`)** çekirdekli e-posta gizlilik ve güvenlik istemcisidir.
+[IVPN Mailx](https://github.com/ivpn/mailx) ([mailx.net](https://mailx.net/)) altyapısı için geliştirilmiş, çekirdeği ve uygulama iskeleti tamamen **Rust (`mailx-core` v0.5.0)** tabanlı olan, arayüz katmanında ise **[Jetpack Compose Material 3 Expressive (`1.5.0-rc01`)](https://developer.android.com/jetpack/androidx/releases/compose-material3)** ([Material 3 Expressive Motion Theming](https://m3.material.io/blog/m3-expressive-motion-theming)) ve **[Lucide Icons](https://lucide.dev/) + Material Symbols Rounded** vektör ikon sistemini kullanan modern Android e-posta gizlilik istemcisidir.
 
-## `al1h3n/liquid-rust` iOS 26/27 Liquid Glass Mimarisi
+## Mimari: Rust Tabanlı Uygulama İskeleti (`rust-core` / `libmailx_core.so`)
 
-Klasik bulanıklaştırma (glassmorphism) yerine Apple'ın **iOS 26/27 Figma kitine** piksel-piksel kalibre edilmiş optik kırılma, süperelips geometrisi ve analitik yay fiziği Rust çekirdeğinde (`rust-core/src/liquid_glass.rs`) hesaplanır ve GPU shader (`WGSL` + Android 13+ `AGSL RuntimeShader`) katmanında gerçek zamanlı çizilir:
-
-- **Squircle Mercek Kırılması (Snell Yasası, $\eta = 1.5$) ve Renk Sapması (Dispersion)**: Yüzey kenarlarındaki %60 Figma köşe yumuşatmalı süperelips (`Shape::Rounded`) eğimi üzerinden Snell kırılması ve RGB kanal bazlı prizmatik renk sapması üretilir.
-- **Sıvı Boyun Birleşmesi (`Smooth-Union SDF` & `Liquid Neck`)**: Aynı `ContainerId` içerisindeki cam bileşenler (`LiquidGlassBottomBar`, `LiquidGlassTopBar`) birbirine yaklaştığında polinomik `smin` mesafe alanı ile aralarında sıvı bir boyun (`liquid neck`) oluşturarak kaynaşır ve ayrılır (`expand_from`, `collapse_into`, `morph_from`, `shrink_into`).
-- **Analitik Apple Yay Fiziği (`Spring::EMERGE` & `Spring::RECEDE`)**: Kare hızından bağımsız (60/120 Hz), hareket ortasında hızını koruyarak yeniden hedeflenebilen sönümlü harmonik osilatör ve hareketsizken sıfır CPU/GPU maliyeti (`Scene::update(dt) -> false`).
-- **Apple Materyal Ön Ayarları ve iOS 27 Saydamlık Kaydırıcısı (`0.0..=1.0`)**: `Material::regular()`, `Material::clear()`, `Material::clear_bar()`, `Material::tinted(Color)` ve `Material::identity()` ön ayarları; orta griye kaymadan koyu temada `#1C1C1E` (%70–85), açık temada parlak beyaz (%70–88) yüzeye geçiş yapan canlı saydamlık kaydırıcısı ve WCAG kontrast doğrulaması.
-
-## Mimari ve Saf Rust Çekirdeği (`rust-core` / `libmailx_core.so`)
-
-Uygulamanın ağ iletişimi, sıfır-bilgi bellek temizliği (`SecretString`), Liquid Glass sahne/optik fiziği ve çevrimdışı gizlilik laboratuvarı C/C++ bağımlılığı olmadan saf **Rust** ile yazılmış `mailx-core` kütüphanesinde çalışır:
+Uygulamanın yalnızca ağ katmanı değil, **tüm uygulama iskeleti, durum filtreleme/sıralama motoru, 7 günlük telemetri hesaplayıcısı, CSV ayrıştırıcısı ve kriptografik bellek yönetimi** C/C++ bağımlılığı olmadan saf **Rust** (`rust-core`) üzerinde çalışır:
 
 | Modül / Dosya | Görev ve Sorumluluklar |
 | :--- | :--- |
-| `rust-core/src/liquid_glass.rs` | [al1h3n/liquid-rust](https://github.com/al1h3n/liquid-rust) optik ve fizik motoru: `Scene`, `Glass`, `Material`, `Shape`, `Spring`, `Appearance`, `smin_polynomial` sıvı boyun birleşmesi, `evaluate_nav_bar_liquid_state`, `WGSL` ve `AGSL` shader üreticileri. |
-| `rust-core/src/utils.rs` | **Çevrimdışı URL İzleyici Temizleyici (`sanitize_tracking_urls`)**, **RFC 5322 E-posta Başlığı ve SPF/DKIM/DMARC Denetçisi (`analyze_email_headers`)**, **Takma Ad Hijyen ve Sızıntı Denetçisi (`audit_alias_hygiene`)**, **Bağlamsal Yüksek Entropili Takma Ad Üretici (`generate_contextual_aliases`)**, Ters Takma Ad (`Reverse-Alias`), Wildcard (`*+` / `*.`), Base64URL `#fragment` İzleyici Raporu Çözücü ve NATO Fonetik Kodlayıcı. |
-| `rust-core/src/client.rs` | `ureq` + `rustls` tabanlı TLS istemcisi; `POST /v1/login` (E-posta, Parola, 2FA TOTP) ve `POST /v1/api/authenticate` (85 karakterlik Access Key) oturum yönetimi ve otomatik Bearer token yenileme. |
-| `rust-core/src/secret.rs` | `SecretString` yapısı ile hassas oturum anahtarlarını ve parolaları `Drop` anında `std::ptr::write_volatile` kullanarak RAM'den sıfırlama. |
-| `rust-core/src/jni_bridge.rs` | `catch_unwind` ile panik-korumalı JNI köprüsü (`JniEnvelope<T>`). |
+| `rust-core/src/skeleton.rs` | **Rust Uygulama İskeleti (`MailxSkeletonRuntime`)**: Takma adların aranması, çip filtrelemesi (`active_inactive`, `pinned_only`, `wildcard_only`, `active`, `inactive`, `deleted`), sabitlenenlerin önceliklendirilmesi ve çoklu kritere göre sıralanması (`filter_and_sort_aliases`); Howard Hinnant takvim algoritmasıyla 7 günlük mesaj telemetrisinin hesaplanması (`compute_seven_day_telemetry`); CSV dışa aktarma (`format_aliases_csv_export`) ve özel alan adı eşlemeli CSV içe aktarma planlayıcısı (`parse_aliases_csv_import`). |
+| `rust-core/src/client.rs` | `ureq` + `rustls` tabanlı TLS istemcisi; `POST /v1/login` (E-posta, Parola, 2FA TOTP) ve `POST /v1/api/authenticate` (85 karakterlik Access Key) oturum yönetimi, otomatik Bearer token yenileme ve tüm REST API uç noktaları. |
+| `rust-core/src/secret.rs` | `SecretString` yapısı ile hassas oturum anahtarlarını ve parolaları `Drop` anında `std::ptr::write_volatile` kullanarak RAM'den sıfırlama (zeroize). |
+| `rust-core/src/utils.rs` | Ters takma ad (`alias+hedef=alanadi.com@mailx.net`) üretimi, Wildcard (`*+` ve `*.`) anlık adres üretimi, çevrimdışı Base64URL `#fragment` **İzleyici Raporu Çözücü**, **NATO Fonetik Alfabe Kodlayıcı (`encode_nato_phonetic`)**, xorshift64 tabanlı **Rastgele Sonek Üretici (`generate_random_suffix`)** ve **Gizlilik Duruşu Hesaplayıcı (`compute_privacy_posture`)**. |
+| `rust-core/src/jni_bridge.rs` | `catch_unwind` ile panik-korumalı JNI köprüsü (`JniEnvelope<T>`), tüm yerel Rust iskelet ve ağ işlevlerini JSON zarfı ile Android Kotlin katmanına (`MailxRustBridge.kt`) güvenli şekilde aktarır. |
 
-## Ekstra Gizlilik ve Güvenlik Özellikleri (v0.5.0)
+## Arayüz: Compose Material 3 Expressive & Lucide Icons
 
-1. **Çevrimdışı Bağlantı İzleyici Temizleyici (`sanitize_tracking_urls`)**:
-   - Metin veya e-posta içindeki bağlantılardan `utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_eid`, `mkt_tok`, `_hsenc`, `igshid`, `yclid` dahil 45+ takip parametresini sunucuya ihtiyaç duymadan Rust'ta kazır.
-2. **RFC 5322 E-posta Başlığı ve Kimlik Doğrulama Denetçisi (`analyze_email_headers`)**:
-   - Ham e-posta başlıklarını ayrıştırarak `SPF`, `DKIM` ve `DMARC` imzalarını, `From` ile `Return-Path` / `Reply-To` alan adı uyuşmazlıklarını (oltalama/spoofing), istemci IP sızıntılarını ve MTA sunucu atlama (`Received` hop) zincirini puanlar (`0..=100`).
-3. **Takma Ad Hijyen ve Korelasyon Denetçisi (`audit_alias_hygiene`)**:
-   - Yüksek engelleme oranına sahip sızdırılmış ("burned") takma adları, etiketsiz aktif adresleri, aynı hizmet için mükerrer açılmış takma adları ve alıcı korelasyon riskini denetler.
-4. **Hizmete Özel Yüksek Entropili Takma Ad Üretici (`generate_contextual_aliases`)**:
-   - Girilen web sitesi veya uygulama adına göre `SplitMix64` tabanlı 5 farklı stratejide (`Compartment Tag`, `Stealth Word Pair`, `Zero-Link High Entropy`, `Hybrid Service + Word`, `Plus-Subaddressed`) takma ad önerir ve Shannon bit entropisini hesaplar.
-5. **iOS 27 Liquid Glass Optik Stüdyosu (`SettingsTab`)**:
-   - Saydamlık (`Ultra Clear` / `Apple Kit Default` / `Deep Tinted`), Snell kırılma gücü ($\eta = 1.5$), RGB prizma renk sapması, sıvı boyun birleşmesi (`Liquid Neck Merging`), `Reduce Transparency`, `Increase Specular Contrast` ve saf siyah (`AMOLED #000000`) kontrollerini canlı olarak sunar.
+- **Material 3 Expressive (`androidx.compose.material3:material3:1.5.0-rc01` & Compose BOM `2026.09.00`)**:
+  - `MaterialExpressiveTheme` ve `MotionScheme.expressive()` ile yay fiziği (spring physics) tabanlı uzamsal (`defaultSpatialSpec`, `fastSpatialSpec`) ve efekt (`defaultEffectsSpec`) animasyonları.
+  - Seçim ve kopyalama durumlarında dinamik köşe yarıçapı dönüşümü (**Shape Morphing**: `18.dp` ↔ `24.dp`) ve vurgulu tipografi (`MailxTypography` — `ExtraBold` / `Bold` başlık hiyerarşisi).
+  - Ayarlar ekranından çalışma zamanında **Material 3 Expressive Motion Physics (`MotionScheme.expressive()`)** ile `MotionScheme.standard()` arasında geçiş imkanı.
+- **Lucide Icons (`com.composables:icons-lucide-android:2.2.1`) & Material Symbols Rounded (`MailxIcons.kt`)**:
+  - Tüm alt navigasyon sekmeleri, üst çubuk eylemleri, durum rozetleri, arama/filtre çubukları ve hızlı araçlarda 24x24 `2dp` yuvarlatılmış konturlu **Lucide Icons v1.70** ve **Material Symbols** vektör ikonları.
+
+## Derleme ve Test
+
+```bash
+cargo test --workspace --all-features
+```

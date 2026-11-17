@@ -99,11 +99,14 @@ impl Alias {
 
     pub fn is_deleted(&self) -> bool {
         match &self.deleted_at {
-            None => false,
-            Some(serde_json::Value::Null) => false,
             Some(serde_json::Value::String(s)) => !s.trim().is_empty() && s.trim() != "null",
-            Some(_) => true,
+            Some(serde_json::Value::Null) | None => false,
+            Some(other) => !other.to_string().trim().is_empty(),
         }
+    }
+
+    pub fn total_activity(&self) -> i64 {
+        self.stats.forwards + self.stats.blocks + self.stats.replies + self.stats.sends
     }
 }
 
@@ -300,85 +303,44 @@ pub struct PrivacyPostureReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SanitizedUrlItem {
-    pub original_url: String,
-    pub clean_url: String,
-    pub removed_params: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UrlSanitizeReport {
-    pub cleaned_text: String,
-    pub urls_inspected: usize,
-    pub trackers_removed: usize,
-    pub items: Vec<SanitizedUrlItem>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HeaderHopItem {
-    pub index: usize,
-    pub from_host: String,
-    pub by_host: String,
-    pub protocol: String,
-    pub timestamp: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EmailHeaderAnalysis {
-    pub security_score: u8,
-    pub verdict: String,
-    pub spf_status: String,
-    pub dkim_status: String,
-    pub dmarc_status: String,
-    pub from_header: String,
-    pub return_path: String,
-    pub reply_to: String,
-    pub subject: String,
-    pub from_return_path_mismatch: bool,
-    pub reply_to_mismatch: bool,
-    pub mailx_relay_detected: bool,
-    pub client_ip_stripped: bool,
-    pub hop_count: usize,
-    pub hops: Vec<HeaderHopItem>,
-    pub findings: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AliasHygieneIssue {
-    pub alias_id: String,
-    pub alias_name: String,
-    pub category: String,
-    pub severity: String,
-    pub detail: String,
-    pub recommended_action: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AliasHygieneReport {
-    pub hygiene_score: u8,
-    pub grade: String,
-    pub total_inspected: usize,
-    pub burned_count: usize,
-    pub unlabeled_count: usize,
-    pub duplicate_service_count: usize,
-    pub dormant_count: usize,
-    pub recipient_concentration_percent: u8,
-    pub issues: Vec<AliasHygieneIssue>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ContextualAliasCandidate {
+pub struct DailyStatPoint {
+    pub date_iso: String,
     pub label: String,
-    pub alias_email: String,
-    pub local_part: String,
-    pub entropy_bits: f32,
+    pub forwards: i64,
+    pub replies: i64,
+    pub sends: i64,
+    pub blocks: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ContextualAliasSuggestions {
-    pub normalized_service: String,
-    pub domain: String,
-    pub candidates: Vec<ContextualAliasCandidate>,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TelemetrySummary {
+    pub forwards: i64,
+    pub blocks: i64,
+    pub replies: i64,
+    pub sends: i64,
+    pub aliases: usize,
+    pub active_aliases: usize,
+    pub inactive_aliases: usize,
+    pub pinned_aliases: usize,
+    pub wildcard_aliases: usize,
+    pub deleted_aliases: usize,
+    pub daily_points: Vec<DailyStatPoint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CsvImportPlan {
+    pub requests: Vec<AliasRequest>,
+    pub skipped: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SkeletonInfo {
+    pub version: String,
+    pub engine: String,
+    pub page_alignment_kb: u32,
+    pub zeroize_memory_drop: bool,
+    pub ui_design_system: String,
+    pub icon_system: String,
 }
 
 #[derive(Debug, Clone)]

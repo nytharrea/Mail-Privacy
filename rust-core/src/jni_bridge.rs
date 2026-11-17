@@ -1,13 +1,12 @@
-use crate::liquid_glass::{
-    evaluate_nav_bar_liquid_state, generate_agsl_shader, generate_wgsl_shader,
-    resolve_surface_material, Appearance, Material, Shape,
-};
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
+use crate::skeleton::{
+    compute_seven_day_telemetry, filter_and_sort_aliases, format_aliases_csv_export,
+    get_skeleton_info, parse_aliases_csv_import,
+};
 use crate::utils::{
-    analyze_email_headers, audit_alias_hygiene, compute_privacy_posture, decode_trackers_report,
-    encode_nato_phonetic, encode_qr_matrix, generate_contextual_aliases, generate_random_suffix,
-    generate_reverse_alias, generate_wildcard_on_the_fly, sanitize_tracking_urls,
+    compute_privacy_posture, decode_trackers_report, encode_nato_phonetic, encode_qr_matrix,
+    generate_random_suffix, generate_reverse_alias, generate_wildcard_on_the_fly,
     validate_access_key,
 };
 use serde::Serialize;
@@ -132,95 +131,58 @@ pub fn handle_compute_privacy_posture(
     ))
 }
 
-pub fn handle_resolve_liquid_material(
-    preset: &str,
-    tint_argb: u32,
-    corner_radius_pt: f32,
-    width_pt: f32,
-    height_pt: f32,
-    transparency: f32,
-    dark_mode: bool,
-    reduce_transparency: bool,
-    increase_contrast: bool,
-    backdrop_luma: f32,
+pub fn handle_filter_and_sort_aliases(
+    aliases_json: &str,
+    search_query: &str,
+    selected_chip: &str,
+    sort_field: &str,
+    sort_descending: bool,
+    pinned_first: bool,
 ) -> String {
-    let mat = Material::from_preset_name(preset, tint_argb);
-    let appearance = Appearance {
-        transparency,
-        dark_mode,
-        reduce_transparency,
-        increase_contrast,
-        reduce_motion: false,
-        adapt_to_content: true,
-        light_angle_rad: -0.7853982,
-    };
-    let surface = resolve_surface_material(
-        &mat,
-        Shape::Rounded(corner_radius_pt.max(0.0)),
-        width_pt.max(1.0),
-        height_pt.max(1.0),
-        &appearance,
-        backdrop_luma,
-    );
-    JniEnvelope::success(surface)
+    match filter_and_sort_aliases(
+        aliases_json,
+        search_query,
+        selected_chip,
+        sort_field,
+        sort_descending,
+        pinned_first,
+    ) {
+        Ok(list) => JniEnvelope::success(list),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
 }
 
-pub fn handle_evaluate_nav_bar_liquid(
-    tab_count: usize,
-    current_index: usize,
-    target_index: usize,
-    progress: f32,
-    pointer_x_norm: f32,
-    is_pressed: bool,
-    spacing_pt: f32,
-    transparency: f32,
-    dark_mode: bool,
+pub fn handle_compute_seven_day_telemetry(
+    raw_stats_json: &str,
+    aliases_json: &str,
+    reference_epoch_secs: i64,
 ) -> String {
-    let state = evaluate_nav_bar_liquid_state(
-        tab_count,
-        current_index,
-        target_index,
-        progress,
-        pointer_x_norm,
-        is_pressed,
-        spacing_pt,
-        transparency,
-        dark_mode,
-    );
-    JniEnvelope::success(state)
-}
-
-pub fn handle_get_liquid_glass_agsl_shader() -> String {
-    JniEnvelope::success(generate_agsl_shader())
-}
-
-pub fn handle_get_liquid_glass_wgsl_shader() -> String {
-    JniEnvelope::success(generate_wgsl_shader())
-}
-
-pub fn handle_sanitize_tracking_urls(raw_text: &str) -> String {
-    JniEnvelope::success(sanitize_tracking_urls(raw_text))
-}
-
-pub fn handle_analyze_email_headers(raw_headers: &str) -> String {
-    match analyze_email_headers(raw_headers) {
-        Ok(res) => JniEnvelope::success(res),
+    match compute_seven_day_telemetry(raw_stats_json, aliases_json, reference_epoch_secs) {
+        Ok(summary) => JniEnvelope::success(summary),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
     }
 }
 
-pub fn handle_audit_alias_hygiene(aliases_json: &str) -> String {
-    match audit_alias_hygiene(aliases_json) {
-        Ok(res) => JniEnvelope::success(res),
+pub fn handle_format_aliases_csv(aliases_json: &str) -> String {
+    match format_aliases_csv_export(aliases_json) {
+        Ok(csv) => JniEnvelope::success(csv),
+        Err(e) => JniEnvelope::<String>::failure(e),
+    }
+}
+
+pub fn handle_parse_aliases_csv_import(
+    csv_text: &str,
+    custom_domains_json: &str,
+    default_recipient: &str,
+) -> String {
+    match parse_aliases_csv_import(csv_text, custom_domains_json, default_recipient) {
+        Ok(plan) => JniEnvelope::success(plan),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
     }
 }
 
-pub fn handle_generate_contextual_aliases(service_name: &str, domain: &str) -> String {
-    match generate_contextual_aliases(service_name, domain) {
-        Ok(res) => JniEnvelope::success(res),
-        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
-    }
+pub fn handle_get_skeleton_info() -> String {
+    JniEnvelope::success(get_skeleton_info())
 }
 
 #[cfg(feature = "network")]
@@ -448,7 +410,7 @@ pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
 mod android_exports {
     use super::*;
     use jni::objects::{JClass, JString};
-    use jni::sys::{jboolean, jfloat, jint, jstring, JNI_TRUE};
+    use jni::sys::{jboolean, jint, jlong, jstring, JNI_TRUE};
     use jni::JNIEnv;
     use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -588,130 +550,81 @@ mod android_exports {
     }
 
     #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeResolveLiquidMaterial(
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeFilterAndSortAliases(
         env: JNIEnv,
         _class: JClass,
-        preset: JString,
-        tint_argb: jint,
-        corner_radius_pt: jfloat,
-        width_pt: jfloat,
-        height_pt: jfloat,
-        transparency: jfloat,
-        dark_mode: jboolean,
-        reduce_transparency: jboolean,
-        increase_contrast: jboolean,
-        backdrop_luma: jfloat,
+        aliases_json: JString,
+        search_query: JString,
+        selected_chip: JString,
+        sort_field: JString,
+        sort_descending: jboolean,
+        pinned_first: jboolean,
     ) -> jstring {
         run_jni_safely(env, |env| {
-            let preset_str = jstring_to_rust(env, preset);
-            handle_resolve_liquid_material(
-                &preset_str,
-                tint_argb as u32,
-                corner_radius_pt,
-                width_pt,
-                height_pt,
-                transparency,
-                dark_mode == JNI_TRUE,
-                reduce_transparency == JNI_TRUE,
-                increase_contrast == JNI_TRUE,
-                backdrop_luma,
+            let aliases = jstring_to_rust(env, aliases_json);
+            let query = jstring_to_rust(env, search_query);
+            let chip = jstring_to_rust(env, selected_chip);
+            let field = jstring_to_rust(env, sort_field);
+            handle_filter_and_sort_aliases(
+                &aliases,
+                &query,
+                &chip,
+                &field,
+                sort_descending == JNI_TRUE,
+                pinned_first == JNI_TRUE,
             )
         })
     }
 
     #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeEvaluateNavBarLiquid(
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeComputeSevenDayTelemetry(
         env: JNIEnv,
         _class: JClass,
-        tab_count: jint,
-        current_index: jint,
-        target_index: jint,
-        progress: jfloat,
-        pointer_x_norm: jfloat,
-        is_pressed: jboolean,
-        spacing_pt: jfloat,
-        transparency: jfloat,
-        dark_mode: jboolean,
-    ) -> jstring {
-        run_jni_safely(env, |_env| {
-            handle_evaluate_nav_bar_liquid(
-                tab_count.max(1) as usize,
-                current_index.max(0) as usize,
-                target_index.max(0) as usize,
-                progress,
-                pointer_x_norm,
-                is_pressed == JNI_TRUE,
-                spacing_pt,
-                transparency,
-                dark_mode == JNI_TRUE,
-            )
-        })
-    }
-
-    #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGetLiquidGlassAgslShader(
-        env: JNIEnv,
-        _class: JClass,
-    ) -> jstring {
-        run_jni_safely(env, |_env| handle_get_liquid_glass_agsl_shader())
-    }
-
-    #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGetLiquidGlassWgslShader(
-        env: JNIEnv,
-        _class: JClass,
-    ) -> jstring {
-        run_jni_safely(env, |_env| handle_get_liquid_glass_wgsl_shader())
-    }
-
-    #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeSanitizeTrackingUrls(
-        env: JNIEnv,
-        _class: JClass,
-        raw_text: JString,
+        raw_stats_json: JString,
+        aliases_json: JString,
+        reference_epoch_secs: jlong,
     ) -> jstring {
         run_jni_safely(env, |env| {
-            let txt = jstring_to_rust(env, raw_text);
-            handle_sanitize_tracking_urls(&txt)
+            let raw_stats = jstring_to_rust(env, raw_stats_json);
+            let aliases = jstring_to_rust(env, aliases_json);
+            handle_compute_seven_day_telemetry(&raw_stats, &aliases, reference_epoch_secs)
         })
     }
 
     #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAnalyzeEmailHeaders(
-        env: JNIEnv,
-        _class: JClass,
-        raw_headers: JString,
-    ) -> jstring {
-        run_jni_safely(env, |env| {
-            let hdrs = jstring_to_rust(env, raw_headers);
-            handle_analyze_email_headers(&hdrs)
-        })
-    }
-
-    #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAuditAliasHygiene(
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeFormatAliasesCsv(
         env: JNIEnv,
         _class: JClass,
         aliases_json: JString,
     ) -> jstring {
         run_jni_safely(env, |env| {
-            let json = jstring_to_rust(env, aliases_json);
-            handle_audit_alias_hygiene(&json)
+            let aliases = jstring_to_rust(env, aliases_json);
+            handle_format_aliases_csv(&aliases)
         })
     }
 
     #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGenerateContextualAliases(
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeParseAliasesCsvImport(
         env: JNIEnv,
         _class: JClass,
-        service_name: JString,
-        domain: JString,
+        csv_text: JString,
+        custom_domains_json: JString,
+        default_recipient: JString,
     ) -> jstring {
         run_jni_safely(env, |env| {
-            let srv = jstring_to_rust(env, service_name);
-            let dom = jstring_to_rust(env, domain);
-            handle_generate_contextual_aliases(&srv, &dom)
+            let csv = jstring_to_rust(env, csv_text);
+            let domains = jstring_to_rust(env, custom_domains_json);
+            let def_rec = jstring_to_rust(env, default_recipient);
+            handle_parse_aliases_csv_import(&csv, &domains, &def_rec)
         })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGetSkeletonInfo(
+        env: JNIEnv,
+        _class: JClass,
+    ) -> jstring {
+        run_jni_safely(env, |_env| handle_get_skeleton_info())
     }
 
     #[cfg(feature = "network")]

@@ -8,17 +8,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Material 3 Expressive Shape Scale:
+ * Uses higher-tension rounded radii (8dp -> 32dp) that pair with spring-based shape morphing.
+ */
 val MailxShapes = Shapes(
-    extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(14.dp),
-    large = RoundedCornerShape(18.dp),
-    extraLarge = RoundedCornerShape(24.dp)
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )
 
+/**
+ * Material 3 Expressive Emphasized Type Scale:
+ * Elevates display/headline/title weights (ExtraBold & Bold) and tightens tracking for focal hierarchy.
+ */
 val MailxTypography = Typography(
+    displayLarge = TextStyle(
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 36.sp,
+        lineHeight = 42.sp,
+        letterSpacing = (-0.5).sp
+    ),
+    displayMedium = TextStyle(
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 30.sp,
+        lineHeight = 36.sp,
+        letterSpacing = (-0.35).sp
+    ),
+    displaySmall = TextStyle(
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 26.sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-0.25).sp
+    ),
     headlineLarge = TextStyle(
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.ExtraBold,
         fontSize = 24.sp,
         lineHeight = 30.sp,
         letterSpacing = (-0.25).sp
@@ -26,20 +52,23 @@ val MailxTypography = Typography(
     headlineMedium = TextStyle(
         fontWeight = FontWeight.Bold,
         fontSize = 20.sp,
-        lineHeight = 26.sp
+        lineHeight = 26.sp,
+        letterSpacing = (-0.15).sp
     ),
     headlineSmall = TextStyle(
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 18.sp,
-        lineHeight = 24.sp
+        lineHeight = 24.sp,
+        letterSpacing = (-0.1).sp
     ),
     titleLarge = TextStyle(
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.ExtraBold,
         fontSize = 17.sp,
-        lineHeight = 22.sp
+        lineHeight = 22.sp,
+        letterSpacing = (-0.05).sp
     ),
     titleMedium = TextStyle(
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         lineHeight = 19.sp,
         letterSpacing = 0.05.sp
@@ -69,19 +98,19 @@ val MailxTypography = Typography(
         letterSpacing = 0.15.sp
     ),
     labelLarge = TextStyle(
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp
     ),
     labelMedium = TextStyle(
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,
         lineHeight = 15.sp,
         letterSpacing = 0.2.sp
     ),
     labelSmall = TextStyle(
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 10.sp,
         lineHeight = 14.sp,
         letterSpacing = 0.25.sp

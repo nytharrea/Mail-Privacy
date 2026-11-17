@@ -11,17 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Pin
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,10 +25,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
-import net.mailx.android.ui.components.LiquidGlassSurface
-import net.mailx.android.ui.components.LiquidMaterialPreset
 import net.mailx.android.ui.model.AuthUiState
+import net.mailx.android.ui.theme.MailxIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +54,7 @@ fun SetupScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent)
+            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         Column(
@@ -78,11 +65,9 @@ fun SetupScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            LiquidGlassSurface(
-                cornerRadius = 22.dp,
-                preset = LiquidMaterialPreset.Regular,
-                estimatedWidthDp = 360f,
-                estimatedHeightDp = 96f,
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -93,13 +78,13 @@ fun SetupScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(50.dp)
+                        modifier = Modifier.size(52.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Shield,
+                                imageVector = MailxIcons.ShieldCheck,
                                 contentDescription = "Mailx Privacy",
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(26.dp)
@@ -109,7 +94,7 @@ fun SetupScreen(
 
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -118,7 +103,7 @@ fun SetupScreen(
                             Text(
                                 text = "Mailx Privacy",
                                 style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Surface(
@@ -126,16 +111,16 @@ fun SetupScreen(
                                 color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Text(
-                                    text = "liquid-rust",
+                                    text = "Rust Skeleton",
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
                         }
                         Text(
-                            text = "Audited alias management, PGP forwarding & local tracker inspection",
+                            text = "Material 3 Expressive • Audited alias management, PGP forwarding & local tracker inspection",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -143,11 +128,9 @@ fun SetupScreen(
                 }
             }
 
-            LiquidGlassSurface(
-                cornerRadius = 22.dp,
-                preset = LiquidMaterialPreset.Regular,
-                estimatedWidthDp = 360f,
-                estimatedHeightDp = 340f,
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -181,7 +164,7 @@ fun SetupScreen(
                             modifier = Modifier.height(30.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ContentPaste,
+                                imageVector = MailxIcons.ClipboardPaste,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -229,9 +212,9 @@ fun SetupScreen(
                             value = authState.baseUrl,
                             onValueChange = onBaseUrlChange,
                             label = { Text("Self-Hosted Server URL") },
-                            leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null) },
+                            leadingIcon = { Icon(MailxIcons.Server, contentDescription = null) },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -241,9 +224,9 @@ fun SetupScreen(
                             value = authState.emailInput,
                             onValueChange = onEmailChange,
                             label = { Text("Account Email") },
-                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                            leadingIcon = { Icon(MailxIcons.Mail, contentDescription = null) },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
 
@@ -251,18 +234,18 @@ fun SetupScreen(
                             value = authState.passwordInput,
                             onValueChange = onPasswordChange,
                             label = { Text("Password") },
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            leadingIcon = { Icon(MailxIcons.Lock, contentDescription = null) },
                             trailingIcon = {
                                 IconButton(onClick = { showSecret = !showSecret }) {
                                     Icon(
-                                        imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        imageVector = if (showSecret) MailxIcons.EyeOff else MailxIcons.Eye,
                                         contentDescription = "Toggle password"
                                     )
                                 }
                             },
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
 
@@ -282,18 +265,18 @@ fun SetupScreen(
                             value = authState.accessKeyInput,
                             onValueChange = onAccessKeyChange,
                             label = { Text("Access Key") },
-                            leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
+                            leadingIcon = { Icon(MailxIcons.KeyRound, contentDescription = null) },
                             trailingIcon = {
                                 IconButton(onClick = { showSecret = !showSecret }) {
                                     Icon(
-                                        imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        imageVector = if (showSecret) MailxIcons.EyeOff else MailxIcons.Eye,
                                         contentDescription = "Toggle key"
                                     )
                                 }
                             },
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -301,7 +284,7 @@ fun SetupScreen(
                     if (!authState.totpRequired) {
                         authState.errorMessage?.let { err ->
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 color = MaterialTheme.colorScheme.errorContainer,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -332,7 +315,7 @@ fun SetupScreen(
                             ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(50.dp),
                         shape = CircleShape
                     ) {
                         if (authState.isLoading && !authState.totpRequired) {
@@ -342,19 +325,17 @@ fun SetupScreen(
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Logging in...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Logging in...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         } else {
-                            Text("Login", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Login", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
 
-            LiquidGlassSurface(
-                cornerRadius = 16.dp,
-                preset = LiquidMaterialPreset.ClearBar,
-                estimatedWidthDp = 360f,
-                estimatedHeightDp = 46f,
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -369,7 +350,7 @@ fun SetupScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Language,
+                            imageVector = MailxIcons.Globe,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
@@ -383,7 +364,7 @@ fun SetupScreen(
                     Text(
                         text = "Zero-knowledge memory drop",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -405,7 +386,7 @@ fun SetupScreen(
             },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Pin,
+                    imageVector = MailxIcons.ShieldCheck,
                     contentDescription = "2FA Verification",
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -430,7 +411,7 @@ fun SetupScreen(
                             onOtpChange(input.filter { it.isDigit() }.take(6))
                         },
                         label = { Text("2FA TOTP Code (6 digits)") },
-                        leadingIcon = { Icon(Icons.Default.Pin, contentDescription = null) },
+                        leadingIcon = { Icon(MailxIcons.KeyRound, contentDescription = null) },
                         trailingIcon = {
                             IconButton(
                                 onClick = {
@@ -447,7 +428,7 @@ fun SetupScreen(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ContentPaste,
+                                    imageVector = MailxIcons.ClipboardPaste,
                                     contentDescription = "Paste 2FA code"
                                 )
                             }
@@ -464,7 +445,7 @@ fun SetupScreen(
                             }
                         ),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(otpFocusRequester)
@@ -472,7 +453,7 @@ fun SetupScreen(
 
                     authState.errorMessage?.let { err ->
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             color = MaterialTheme.colorScheme.errorContainer,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -551,7 +532,7 @@ fun SetupScreen(
                             onValueChange = { resetEmail = it },
                             label = { Text("Email Address") },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
@@ -564,7 +545,7 @@ fun SetupScreen(
                             onValueChange = { resetToken = it.trim() },
                             label = { Text("Reset Token (32 chars)") },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                         OutlinedTextField(
@@ -573,7 +554,7 @@ fun SetupScreen(
                             label = { Text("New Password") },
                             visualTransformation = PasswordVisualTransformation(),
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

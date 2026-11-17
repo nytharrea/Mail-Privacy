@@ -96,7 +96,7 @@ fun RecipientsTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 108.dp),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         item(key = "recipients_domains_segmented") {

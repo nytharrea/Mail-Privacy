@@ -3,46 +3,13 @@ package net.mailx.android.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ForwardToInbox
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AlternateEmail
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.PauseCircleOutline
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -58,12 +25,12 @@ import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
-import net.mailx.android.ui.components.LiquidGlassSurface
-import net.mailx.android.ui.components.LiquidMaterialPreset
 import net.mailx.android.ui.components.MailxActivityRing
 import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxTelemetryBar
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.UiUserStats
+import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 import org.json.JSONObject
 
@@ -87,7 +54,6 @@ fun HomeDashboardTab(
     onOpenDiagnostics: () -> Unit = {},
     onOpenAccountSheet: () -> Unit = {},
     onOpenTrackersReport: () -> Unit = {},
-    onOpenPrivacyLab: () -> Unit = {},
     onSelectAlias: (UiAlias) -> Unit,
     onCopyOrWildcard: (UiAlias) -> Unit,
     onToggleEnabled: (UiAlias, Boolean) -> Unit,
@@ -121,7 +87,7 @@ fun HomeDashboardTab(
         ruleCount
     ) {
         runCatching {
-            val env = JSONObject(
+            val res = JSONObject(
                 MailxRustBridge.nativeComputePrivacyPosture(
                     totalForwards,
                     totalBlocks,
@@ -133,12 +99,11 @@ fun HomeDashboardTab(
                     ruleCount
                 )
             )
-            val d = env.optJSONObject("data")
-            Pair(
-                d?.optInt("score", 85) ?: 85,
-                d?.optString("grade", "A") ?: "A"
-            )
-        }.getOrDefault(Pair(85, "A"))
+            val data = res.optJSONObject("data")
+            val score = data?.optInt("score", 85) ?: 85
+            val grade = data?.optString("grade", "A") ?: "A"
+            score to grade
+        }.getOrDefault(85 to "A")
     }
 
     val spotlightAliases = remember(aliases) {
@@ -155,16 +120,13 @@ fun HomeDashboardTab(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 104.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item(key = "hero_summary_card") {
-                LiquidGlassSurface(
-                    cornerRadius = 24.dp,
-                    preset = LiquidMaterialPreset.Regular,
-                    tintColor = MailxPalette.BrandAccentMint.copy(alpha = 0.14f),
-                    estimatedWidthDp = 360f,
-                    estimatedHeightDp = 152f,
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -189,17 +151,17 @@ fun HomeDashboardTab(
                                     sends = totalSends,
                                     blocks = totalBlocks,
                                     enabled = true,
-                                    size = 46.dp,
-                                    strokeWidth = 5.dp
+                                    size = 50.dp,
+                                    strokeWidth = 5.2.dp
                                 )
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
                                             text = "@$defaultDomain",
-                                            fontSize = 17.sp,
+                                            fontSize = 18.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
@@ -207,15 +169,26 @@ fun HomeDashboardTab(
                                         )
                                         Surface(
                                             shape = CircleShape,
-                                            color = MailxPalette.ForwardEmerald.copy(alpha = 0.18f)
+                                            color = MailxPalette.ForwardEmerald.copy(alpha = 0.16f)
                                         ) {
-                                            Text(
-                                                text = "Shield ${posturePair.second} (${posturePair.first})",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MailxPalette.ForwardEmerald,
-                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = MailxIcons.ShieldCheck,
+                                                    contentDescription = null,
+                                                    tint = MailxPalette.ForwardEmerald,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = "Shield ${posturePair.second} (${posturePair.first})",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = MailxPalette.ForwardEmerald
+                                                )
+                                            }
                                         }
                                     }
                                     Text(
@@ -233,17 +206,20 @@ fun HomeDashboardTab(
                                 modifier = Modifier.height(36.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
+                                    imageVector = MailxIcons.Plus,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("New", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("New", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                        MailxTelemetryBar(
+                            forwards = totalForwards,
+                            replies = totalReplies,
+                            sends = totalSends,
+                            blocks = totalBlocks
                         )
 
                         Row(
@@ -280,73 +256,6 @@ fun HomeDashboardTab(
                 }
             }
 
-            item(key = "privacy_lab_banner") {
-                LiquidGlassSurface(
-                    cornerRadius = 18.dp,
-                    preset = LiquidMaterialPreset.Tinted,
-                    tintColor = MailxPalette.ReplySky.copy(alpha = 0.22f),
-                    estimatedWidthDp = 360f,
-                    estimatedHeightDp = 64f,
-                    interactiveScale = true,
-                    onClick = onOpenPrivacyLab,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MailxPalette.BrandAccentMint.copy(alpha = 0.18f),
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.HealthAndSafety,
-                                        contentDescription = null,
-                                        tint = MailxPalette.BrandAccentMint,
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                }
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Rust Privacy Lab & Hygiene Auditor",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "Strip tracking URLs, inspect SPF/DKIM headers & generate smart aliases",
-                                    fontSize = 11.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        FilledTonalButton(
-                            onClick = onOpenPrivacyLab,
-                            shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Text("Open Lab", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
             item(key = "quick_filter_pills") {
                 Row(
                     modifier = Modifier
@@ -355,28 +264,28 @@ fun HomeDashboardTab(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     QuickFilterChip(
-                        icon = Icons.Default.CheckCircle,
+                        icon = MailxIcons.CheckCircle,
                         label = "Active",
                         count = activeCount,
                         tint = MailxPalette.ForwardEmerald,
                         onClick = { onNavigateToFilter("active") }
                     )
                     QuickFilterChip(
-                        icon = Icons.Default.PushPin,
+                        icon = MailxIcons.Pin,
                         label = "Pinned",
                         count = pinnedCount,
                         tint = MailxPalette.PausedAmber,
                         onClick = { onNavigateToFilter("pinned_only") }
                     )
                     QuickFilterChip(
-                        icon = Icons.Default.AutoAwesome,
+                        icon = MailxIcons.Sparkles,
                         label = "Wildcard",
                         count = wildcardCount,
                         tint = MaterialTheme.colorScheme.primary,
                         onClick = { onNavigateToFilter("wildcard_only") }
                     )
                     QuickFilterChip(
-                        icon = Icons.Default.PauseCircleOutline,
+                        icon = MailxIcons.PauseCircle,
                         label = "Disabled",
                         count = inactiveCount,
                         tint = MailxPalette.Slate400,
@@ -384,7 +293,7 @@ fun HomeDashboardTab(
                     )
                     if (deletedCount > 0) {
                         QuickFilterChip(
-                            icon = Icons.Default.DeleteOutline,
+                            icon = MailxIcons.Trash2,
                             label = "Trash",
                             count = deletedCount,
                             tint = MailxPalette.BlockedRose,
@@ -412,7 +321,7 @@ fun HomeDashboardTab(
             if (spotlightAliases.isEmpty()) {
                 item(key = "empty_aliases_home") {
                     EmptyStateBox(
-                        icon = Icons.Default.AlternateEmail,
+                        icon = MailxIcons.AtSign,
                         title = "No aliases yet",
                         subtitle = "Create your first disposable or wildcard alias on @$defaultDomain.",
                         actionLabel = "Create Alias",
@@ -435,27 +344,14 @@ fun HomeDashboardTab(
             }
 
             item(key = "grouped_quick_tools_card") {
-                LiquidGlassSurface(
-                    cornerRadius = 20.dp,
-                    preset = LiquidMaterialPreset.Regular,
-                    estimatedWidthDp = 360f,
-                    estimatedHeightDp = 280f,
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         CompactToolRow(
-                            icon = Icons.Default.AutoAwesome,
-                            title = "Rust Privacy & Header Lab",
-                            subtitle = "URL tracker cleaner, SPF/DKIM inspector & hygiene audit",
-                            tint = MailxPalette.BrandAccentMint,
-                            onClick = onOpenPrivacyLab
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 14.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                        )
-                        CompactToolRow(
-                            icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                            icon = MailxIcons.Send,
                             title = "Send from Alias",
                             subtitle = "Generate a reverse-alias address to compose an email",
                             tint = MaterialTheme.colorScheme.primary,
@@ -466,9 +362,9 @@ fun HomeDashboardTab(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
                         CompactToolRow(
-                            icon = Icons.Default.Shield,
+                            icon = MailxIcons.ShieldCheck,
                             title = "Tracker Report Inspector",
-                            subtitle = "Decode removed spy pixels & tracking links offline",
+                            subtitle = "Decode removed spy pixels & tracking links offline in Rust",
                             tint = MailxPalette.ForwardEmerald,
                             onClick = onOpenTrackersReport
                         )
@@ -477,7 +373,7 @@ fun HomeDashboardTab(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
                         CompactToolRow(
-                            icon = Icons.Default.BugReport,
+                            icon = MailxIcons.Bug,
                             title = "Delivery & Bounce Logs",
                             subtitle = "Check server health and inspect failed deliveries",
                             tint = MailxPalette.PausedAmber,
@@ -488,7 +384,7 @@ fun HomeDashboardTab(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
                         CompactToolRow(
-                            icon = Icons.Default.Key,
+                            icon = MailxIcons.KeyRound,
                             title = "Account, 2FA & CSV Backup",
                             subtitle = "Manage TOTP, passkeys, access keys & alias export",
                             tint = MailxPalette.ReplySky,
@@ -516,14 +412,14 @@ private fun CleanStatColumn(
         Text(
             text = value,
             fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
             color = color,
             maxLines = 1
         )
         Text(
             text = label,
             fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
@@ -538,14 +434,10 @@ private fun QuickFilterChip(
     tint: Color,
     onClick: () -> Unit
 ) {
-    LiquidGlassSurface(
-        cornerRadius = 20.dp,
-        preset = LiquidMaterialPreset.Clear,
-        tintColor = tint.copy(alpha = 0.14f),
-        estimatedWidthDp = 110f,
-        estimatedHeightDp = 36f,
-        interactiveScale = true,
-        onClick = onClick
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -561,12 +453,12 @@ private fun QuickFilterChip(
             Text(
                 text = label,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Surface(
                 shape = CircleShape,
-                color = tint.copy(alpha = 0.18f)
+                color = tint.copy(alpha = 0.16f)
             ) {
                 Text(
                     text = count.toString(),
@@ -597,8 +489,8 @@ private fun CompactToolRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = tint.copy(alpha = 0.16f),
+            shape = RoundedCornerShape(12.dp),
+            color = tint.copy(alpha = 0.14f),
             modifier = Modifier.size(36.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -618,7 +510,7 @@ private fun CompactToolRow(
             Text(
                 text = title,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -633,7 +525,7 @@ private fun CompactToolRow(
         }
 
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            imageVector = MailxIcons.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp)
@@ -647,11 +539,9 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
         (userStats.dailyPoints.maxOfOrNull { it.total } ?: 1).coerceAtLeast(1)
     }
 
-    LiquidGlassSurface(
-        cornerRadius = 20.dp,
-        preset = LiquidMaterialPreset.Regular,
-        estimatedWidthDp = 360f,
-        estimatedHeightDp = 140f,
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -666,7 +556,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "7-Day Activity",
+                    text = "7-Day Telemetry (Rust Aggregated)",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -703,7 +593,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                             modifier = Modifier
                                 .width(20.dp)
                                 .fillMaxHeight(fraction = frac * 0.68f)
-                                .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
                                 .background(
                                     when {
                                         pt.blocks > pt.forwards -> MailxPalette.BlockedRose

@@ -1,24 +1,13 @@
 package net.mailx.android.ui.model
 
-import net.mailx.android.core.MailxRustBridge
-
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AlternateEmail
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.AlternateEmail
-import androidx.compose.material.icons.outlined.FilterAlt
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Inbox
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
+import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.theme.MailxIcons
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -632,11 +621,11 @@ data class UiAnnouncement(
 }
 
 enum class MainNavTab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    HOME("Overview", Icons.Outlined.Home, Icons.Default.Home),
-    ALIASES("Aliases", Icons.Outlined.AlternateEmail, Icons.Default.AlternateEmail),
-    RECIPIENTS("Recipients", Icons.Outlined.Inbox, Icons.Default.Inbox),
-    RULES("Rules", Icons.Outlined.FilterAlt, Icons.Default.FilterAlt),
-    SETTINGS("Settings", Icons.Outlined.Settings, Icons.Default.Settings)
+    HOME("Overview", MailxIcons.LayoutDashboard, MailxIcons.LayoutDashboardSelected),
+    ALIASES("Aliases", MailxIcons.AtSign, MailxIcons.AtSignSelected),
+    RECIPIENTS("Recipients", MailxIcons.Inbox, MailxIcons.InboxSelected),
+    RULES("Rules", MailxIcons.SlidersHorizontal, MailxIcons.SlidersHorizontalSelected),
+    SETTINGS("Settings", MailxIcons.Settings, MailxIcons.SettingsSelected)
 }
 
 enum class AliasSortField(val key: String, val label: String) {
@@ -705,12 +694,7 @@ data class ThemeUiState(
     val darkModeMode: Int = 1,
     val dynamicColorEnabled: Boolean = false,
     val amoledDarkEnabled: Boolean = false,
-    val liquidTransparency: Float = 0.50f,
-    val liquidRefraction: Float = 1.0f,
-    val liquidDispersion: Float = 1.0f,
-    val liquidMergingEnabled: Boolean = true,
-    val reduceTransparency: Boolean = false,
-    val increaseContrast: Boolean = false
+    val expressiveMotionEnabled: Boolean = true
 )
 
 sealed interface ActiveSheet {
@@ -723,7 +707,6 @@ sealed interface ActiveSheet {
     data object AccountSheet : ActiveSheet
     data object AnnouncementsSheet : ActiveSheet
     data object TrackersReportSheet : ActiveSheet
-    data object PrivacyLabSheet : ActiveSheet
     data class ManageAlias(val aliasId: String) : ActiveSheet
     data class WildcardGen(val alias: UiAlias) : ActiveSheet
     data class ReverseSend(val initialAlias: String) : ActiveSheet

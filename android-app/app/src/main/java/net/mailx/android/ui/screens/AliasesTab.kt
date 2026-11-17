@@ -11,15 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -30,12 +22,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.components.AliasCard
-import net.mailx.android.ui.components.LiquidGlassSurface
-import net.mailx.android.ui.components.LiquidMaterialPreset
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.model.FilterUiState
 import net.mailx.android.ui.model.UiAlias
+import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +75,7 @@ fun AliasesTab(
             onValueChange = onSearchQueryChange,
             leadingIcon = {
                 Icon(
-                    imageVector = Icons.Default.Search,
+                    imageVector = MailxIcons.Search,
                     contentDescription = "Search",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
@@ -98,7 +89,7 @@ fun AliasesTab(
                             modifier = Modifier.size(34.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Clear,
+                                imageVector = MailxIcons.X,
                                 contentDescription = "Clear",
                                 modifier = Modifier.size(17.dp)
                             )
@@ -127,7 +118,7 @@ fun AliasesTab(
                         modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = MailxIcons.SlidersHorizontal,
                             contentDescription = "Filter and Sort",
                             tint = if (filterState.isCustomFilterActive) {
                                 MaterialTheme.colorScheme.primary
@@ -147,11 +138,11 @@ fun AliasesTab(
                 )
             },
             singleLine = true,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.62f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.52f),
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.42f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent
@@ -188,13 +179,20 @@ fun AliasesTab(
             FilterChip(
                 selected = filterState.isCustomFilterActive,
                 onClick = onOpenFilterSheet,
+                leadingIcon = {
+                    Icon(
+                        imageVector = MailxIcons.ArrowUpDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                },
                 label = { Text("Sort", fontSize = 12.sp) }
             )
         }
 
         AnimatedVisibility(visible = selectionMode) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -240,7 +238,7 @@ fun AliasesTab(
                                 },
                                 modifier = Modifier.size(26.dp)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Close Selection", modifier = Modifier.size(15.dp))
+                                Icon(MailxIcons.X, contentDescription = "Close Selection", modifier = Modifier.size(15.dp))
                             }
                         }
                     }
@@ -291,7 +289,7 @@ fun AliasesTab(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.PushPin, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Icon(MailxIcons.Pin, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text("Pin", fontSize = 11.sp)
                             }
@@ -323,7 +321,7 @@ fun AliasesTab(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Icon(MailxIcons.Trash2, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text("Delete", fontSize = 11.sp)
                             }
@@ -339,7 +337,7 @@ fun AliasesTab(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Icon(MailxIcons.RotateCcw, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text("Restore", fontSize = 11.sp)
                             }
@@ -358,7 +356,7 @@ fun AliasesTab(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Icon(MailxIcons.Trash2, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text("Forget", fontSize = 11.sp)
                             }
@@ -370,7 +368,7 @@ fun AliasesTab(
 
         MailxSectionHeader(
             title = if (filterState.isCustomFilterActive || filterState.searchQuery.isNotEmpty()) {
-                "Filtered Aliases"
+                "Filtered Aliases (Rust Sorted)"
             } else {
                 "Aliases"
             },
@@ -387,7 +385,7 @@ fun AliasesTab(
         ) {
             if (aliases.isEmpty() && !isLoading) {
                 EmptyStateBox(
-                    icon = Icons.Outlined.AlternateEmail,
+                    icon = MailxIcons.AtSign,
                     title = if (filterState.searchQuery.isNotEmpty()) {
                         "No aliases match \u0022${filterState.searchQuery}\u0022"
                     } else {
@@ -401,7 +399,7 @@ fun AliasesTab(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(top = 2.dp, bottom = 112.dp)
+                    contentPadding = PaddingValues(top = 2.dp, bottom = 84.dp)
                 ) {
                     items(aliases, key = { it.id }) { alias ->
                         val isSelected = selectedIds.contains(alias.id)

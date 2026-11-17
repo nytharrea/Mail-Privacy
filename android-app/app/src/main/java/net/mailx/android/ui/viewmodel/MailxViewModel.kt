@@ -16,9 +16,6 @@ import net.mailx.android.ui.model.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 
 class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
@@ -65,12 +62,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             darkModeMode = prefs.darkModeMode,
             dynamicColorEnabled = prefs.dynamicColorEnabled,
             amoledDarkEnabled = prefs.amoledDarkEnabled,
-            liquidTransparency = prefs.liquidTransparency,
-            liquidRefraction = prefs.liquidRefraction,
-            liquidDispersion = prefs.liquidDispersion,
-            liquidMergingEnabled = prefs.liquidMergingEnabled,
-            reduceTransparency = prefs.reduceTransparency,
-            increaseContrast = prefs.increaseContrast
+            expressiveMotionEnabled = prefs.expressiveMotionEnabled
         )
     )
     val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
@@ -742,37 +734,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _themeState.update { it.copy(amoledDarkEnabled = enabled) }
     }
 
-    fun updateLiquidTransparency(value: Float) {
-        val clamped = value.coerceIn(0f, 1f)
-        prefs.liquidTransparency = clamped
-        _themeState.update { it.copy(liquidTransparency = clamped) }
-    }
-
-    fun updateLiquidRefraction(value: Float) {
-        val clamped = value.coerceIn(0.2f, 1.5f)
-        prefs.liquidRefraction = clamped
-        _themeState.update { it.copy(liquidRefraction = clamped) }
-    }
-
-    fun updateLiquidDispersion(value: Float) {
-        val clamped = value.coerceIn(0f, 1.5f)
-        prefs.liquidDispersion = clamped
-        _themeState.update { it.copy(liquidDispersion = clamped) }
-    }
-
-    fun toggleLiquidMerging(enabled: Boolean) {
-        prefs.liquidMergingEnabled = enabled
-        _themeState.update { it.copy(liquidMergingEnabled = enabled) }
-    }
-
-    fun toggleReduceTransparency(enabled: Boolean) {
-        prefs.reduceTransparency = enabled
-        _themeState.update { it.copy(reduceTransparency = enabled) }
-    }
-
-    fun toggleIncreaseContrast(enabled: Boolean) {
-        prefs.increaseContrast = enabled
-        _themeState.update { it.copy(increaseContrast = enabled) }
+    fun toggleExpressiveMotion(enabled: Boolean) {
+        prefs.expressiveMotionEnabled = enabled
+        _themeState.update { it.copy(expressiveMotionEnabled = enabled) }
     }
 
     fun fetchWildcardDomainInfo(domainParam: String) {
@@ -1517,55 +1481,50 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 val data = res.optJSONObject("data") ?: return@launch
-                val msgsArr = data.optJSONArray("messages")
-                val today = runCatching { LocalDate.now(ZoneOffset.UTC) }.getOrDefault(LocalDate.of(2026, 11, 17))
-                val dayBuckets = linkedMapOf<LocalDate, IntArray>()
-                for (offset in 6 downTo 0) {
-                    dayBuckets[today.minusDays(offset.toLong())] = intArrayOf(0, 0, 0, 0)
-                }
+                val aliasesArrJson = JSONArray().apply {
+                    _aliases.value.forEach { put(it.rawJson) }
+                }.toString()
+                val nowEpochSecs = System.currentTimeMillis() / 1000L
 
-                if (msgsArr != null) {
-                    for (i in 0 until msgsArr.length()) {
-                        val m = msgsArr.optJSONObject(i) ?: continue
-                        val rawDate = m.optString("created_at", "")
-                        val msgType = m.optInt("type", 1)
-                        val msgDay = runCatching {
-                            Instant.parse(rawDate).atZone(ZoneOffset.UTC).toLocalDate()
-                        }.getOrElse {
-                            runCatching { LocalDate.parse(rawDate.take(10)) }.getOrNull()
-                        }
-                        if (msgDay != null && dayBuckets.containsKey(msgDay)) {
-                            val arr = dayBuckets[msgDay]!!
-                            when (msgType) {
-                                1 -> arr[0]++
-                                2 -> arr[1]++
-                                3 -> arr[2]++
-                                4 -> arr[3]++
+                val nativeTelemetry = runCatching {
+                    JSONObject(
+                        MailxRustBridge.nativeComputeSevenDayTelemetry(
+                            data.toString(),
+                            aliasesArrJson,
+                            nowEpochSecs
+                        )
+                    )
+                }.getOrNull()
+
+                if (nativeTelemetry != null && nativeTelemetry.optBoolean("ok", false)) {
+                    val tData = nativeTelemetry.optJSONObject("data")
+                    val ptsArr = tData?.optJSONArray("daily_points")
+                    val points = buildList {
+                        if (ptsArr != null) {
+                            for (i in 0 until ptsArr.length()) {
+                                val pt = ptsArr.optJSONObject(i) ?: continue
+                                add(
+                                    UiDailyStatPoint(
+                                        dateIso = pt.optString("date_iso", ""),
+                                        label = pt.optString("label", ""),
+                                        forwards = pt.optInt("forwards", 0),
+                                        replies = pt.optInt("replies", 0),
+                                        sends = pt.optInt("sends", 0),
+                                        blocks = pt.optInt("blocks", 0)
+                                    )
+                                )
                             }
                         }
                     }
-                }
-
-                val fmt = DateTimeFormatter.ofPattern("dd.MM")
-                val points = dayBuckets.map { (date, counts) ->
-                    UiDailyStatPoint(
-                        dateIso = date.toString(),
-                        label = date.format(fmt),
-                        forwards = counts[0],
-                        replies = counts[1],
-                        sends = counts[2],
-                        blocks = counts[3]
+                    _userStats.value = UiUserStats(
+                        forwards = tData?.optInt("forwards", 0) ?: 0,
+                        blocks = tData?.optInt("blocks", 0) ?: 0,
+                        replies = tData?.optInt("replies", 0) ?: 0,
+                        sends = tData?.optInt("sends", 0) ?: 0,
+                        aliases = tData?.optInt("aliases", _aliases.value.size) ?: _aliases.value.size,
+                        dailyPoints = points
                     )
                 }
-
-                _userStats.value = UiUserStats(
-                    forwards = data.optInt("forwards", 0),
-                    blocks = data.optInt("blocks", 0),
-                    replies = data.optInt("replies", 0),
-                    sends = data.optInt("sends", 0),
-                    aliases = data.optInt("aliases", _aliases.value.size),
-                    dailyPoints = points
-                )
             }
         }
     }
@@ -1907,70 +1866,60 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                     return@launch
                 }
             }
-            val sb = StringBuilder("alias,description,enabled,recipients\n")
-            _aliases.value.forEach { a ->
-                sb.append("${a.name},${a.description.replace(",", " ")},${a.enabled},${a.recipients.replace(",", " ")}\n")
+            val rawArr = JSONArray().apply { _aliases.value.forEach { put(it.rawJson) } }.toString()
+            val rustCsvRes = runCatching {
+                JSONObject(MailxRustBridge.nativeFormatAliasesCsv(rawArr))
+            }.getOrNull()
+            if (rustCsvRes != null && rustCsvRes.optBoolean("ok", false)) {
+                onCsvReady(rustCsvRes.optString("data", ""))
             }
-            onCsvReady(sb.toString())
         }
     }
 
     fun importAliasesFromCsvText(csvText: String) {
         viewModelScope.launch {
-            val lines = csvText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-            if (lines.isEmpty()) return@launch
-
-            val dataLines = if (lines.first().lowercase().startsWith("alias,")) {
-                lines.drop(1)
-            } else {
-                lines
-            }
-
-            var importedCount = 0
-            var skippedCount = 0
-
-            for (line in dataLines.take(500)) {
-                val cols = line.split(",")
-                if (cols.size < 4) {
-                    skippedCount++
-                    continue
+            val domainsArr = JSONArray().apply {
+                _customDomains.value.forEach { d ->
+                    put(
+                        JSONObject().apply {
+                            put("id", d.id)
+                            put("name", d.name)
+                            put("enabled", d.enabled)
+                        }
+                    )
                 }
-                val fullAlias = cols[0].trim()
-                val description = cols[1].trim()
-                val enabled = cols[2].trim().equals("true", ignoreCase = true)
-                val recipients = cols.drop(3).joinToString(",").trim().replace(" ", ",")
-                    .ifBlank { prefs.defaultRecipient }
+            }.toString()
 
-                val localPart = fullAlias.substringBefore("@", "")
-                val domainName = fullAlias.substringAfter("@", "")
-                if (localPart.isBlank() || domainName.isBlank() || recipients.isBlank()) {
-                    skippedCount++
-                    continue
-                }
-
-                val customDom = _customDomains.value.find { it.name.equals(domainName, ignoreCase = true) }
-                val domainParam = customDom?.id?.ifBlank { domainName } ?: domainName
-
-                val reqJson = JSONObject().apply {
-                    put("description", description)
-                    put("enabled", enabled)
-                    put("recipients", recipients)
-                    put("from_name", "")
-                    put("format", "custom")
-                    put("domain", domainParam)
-                    put("local_part", localPart)
-                }.toString()
-
-                val res = MailxRustBridge.createAlias(
-                    prefs.baseUrl,
-                    prefs.accessKey,
-                    prefs.bearerToken,
-                    reqJson
+            val planObj = runCatching {
+                JSONObject(
+                    MailxRustBridge.nativeParseAliasesCsvImport(
+                        csvText,
+                        domainsArr,
+                        prefs.defaultRecipient
+                    )
                 )
-                if (res.optBoolean("ok", false)) {
-                    importedCount++
-                } else {
-                    skippedCount++
+            }.getOrNull()
+
+            val data = planObj?.optJSONObject("data")
+            val requestsArr = data?.optJSONArray("requests")
+            var skippedCount = data?.optInt("skipped", 0) ?: 0
+            var importedCount = 0
+
+            if (requestsArr != null) {
+                for (i in 0 until requestsArr.length()) {
+                    val reqJson = requestsArr.optJSONObject(i)?.toString().orEmpty()
+                    if (reqJson.isEmpty()) continue
+                    val res = MailxRustBridge.createAlias(
+                        prefs.baseUrl,
+                        prefs.accessKey,
+                        prefs.bearerToken,
+                        reqJson
+                    )
+                    if (res.optBoolean("ok", false)) {
+                        importedCount++
+                    } else {
+                        skippedCount++
+                    }
                 }
             }
 

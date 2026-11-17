@@ -1,3 +1,5 @@
+@file:Suppress("OPT_IN_IS_NOT_ENABLED", "EXPERIMENTAL_IS_NOT_ENABLED", "UNNECESSARY_OPT_IN")
+
 package net.mailx.android.ui
 
 import android.os.Bundle
@@ -8,59 +10,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ForwardToInbox
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.ManageAccounts
-import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -74,41 +34,17 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.mailx.android.core.EncryptedPrefsManager
-import net.mailx.android.ui.components.LiquidGlassBackdrop
-import net.mailx.android.ui.components.LiquidGlassBottomBar
-import net.mailx.android.ui.components.LiquidGlassConfig
-import net.mailx.android.ui.components.LiquidGlassSurface
-import net.mailx.android.ui.components.LiquidGlassTopBar
-import net.mailx.android.ui.components.LiquidMaterialPreset
-import net.mailx.android.ui.components.LocalLiquidGlassConfig
-import net.mailx.android.ui.model.ActiveSheet
-import net.mailx.android.ui.model.AliasSortField
-import net.mailx.android.ui.model.DefaultsUiState
-import net.mailx.android.ui.model.MainNavTab
-import net.mailx.android.ui.model.UiAlias
-import net.mailx.android.ui.model.UiUserAccount
-import net.mailx.android.ui.model.copyToClipboard
-import net.mailx.android.ui.screens.AliasesTab
-import net.mailx.android.ui.screens.HomeDashboardTab
-import net.mailx.android.ui.screens.RecipientsTab
-import net.mailx.android.ui.screens.RulesAndBlocklistTab
-import net.mailx.android.ui.screens.SettingsTab
-import net.mailx.android.ui.screens.SetupScreen
-import net.mailx.android.ui.sheets.AccountBottomSheet
-import net.mailx.android.ui.sheets.AddAliasBottomSheet
-import net.mailx.android.ui.sheets.AnnouncementsBottomSheet
-import net.mailx.android.ui.sheets.DiagnosticsBottomSheet
-import net.mailx.android.ui.sheets.FilterOptionsBottomSheet
-import net.mailx.android.ui.sheets.ManageAliasBottomSheet
-import net.mailx.android.ui.sheets.PrivacyLabBottomSheet
-import net.mailx.android.ui.sheets.ReverseAliasSendBottomSheet
-import net.mailx.android.ui.sheets.TrackersReportBottomSheet
-import net.mailx.android.ui.sheets.WildcardGeneratorBottomSheet
+import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.model.*
+import net.mailx.android.ui.screens.*
+import net.mailx.android.ui.sheets.*
+import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 import net.mailx.android.ui.theme.MailxTheme
 import net.mailx.android.ui.viewmodel.MailxViewModel
 import net.mailx.android.ui.viewmodel.MailxViewModelFactory
 import net.mailx.android.widget.MailxWidgetUpdater
+import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
@@ -127,35 +63,24 @@ class MainActivity : ComponentActivity() {
                 else -> systemDark
             }
 
-            val liquidConfig = remember(themeState, useDarkTheme) {
-                LiquidGlassConfig(
-                    transparency = themeState.liquidTransparency,
-                    refractionStrength = themeState.liquidRefraction,
-                    dispersionStrength = themeState.liquidDispersion,
-                    liquidMergingEnabled = themeState.liquidMergingEnabled,
-                    reduceTransparency = themeState.reduceTransparency,
-                    increaseContrast = themeState.increaseContrast,
-                    darkMode = useDarkTheme,
-                    amoledDark = themeState.amoledDarkEnabled
-                )
-            }
-
-            CompositionLocalProvider(LocalLiquidGlassConfig provides liquidConfig) {
-                MailxTheme(
-                    darkTheme = useDarkTheme,
-                    dynamicColor = themeState.dynamicColorEnabled,
-                    amoledDark = themeState.amoledDarkEnabled
+            MailxTheme(
+                darkTheme = useDarkTheme,
+                dynamicColor = themeState.dynamicColorEnabled,
+                amoledDark = themeState.amoledDarkEnabled,
+                expressiveMotion = themeState.expressiveMotionEnabled
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    LiquidGlassBackdrop(modifier = Modifier.fillMaxSize()) {
-                        MailxAppScreen(vm = vm)
-                    }
+                    MailxAppScreen(vm = vm)
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MailxAppScreen(vm: MailxViewModel) {
     val context = LocalContext.current
@@ -210,41 +135,26 @@ fun MailxAppScreen(vm: MailxViewModel) {
         }
     }
 
+    // Rust Skeleton handles alias filtering, search matching, and multi-column sorting natively via JNI
     val displayedAliases = remember(aliases, filterState) {
-        val query = filterState.searchQuery.trim().lowercase()
-        val filtered = aliases.filter { alias ->
-            val matchesChip = when (filterState.selectedChip) {
-                "pinned_only" -> alias.pinned && alias.deletedAt.isBlank()
-                "wildcard_only" -> alias.wildcard && alias.deletedAt.isBlank()
-                "active" -> alias.enabled && alias.deletedAt.isBlank()
-                "inactive" -> !alias.enabled && alias.deletedAt.isBlank()
-                "deleted" -> alias.deletedAt.isNotBlank()
-                else -> alias.deletedAt.isBlank()
-            }
-            val matchesQuery = query.isEmpty() ||
-                alias.name.lowercase().contains(query) ||
-                alias.description.lowercase().contains(query) ||
-                alias.recipients.lowercase().contains(query) ||
-                alias.fromName.lowercase().contains(query)
-            matchesChip && matchesQuery
-        }
-        val comparator = Comparator<UiAlias> { a, b ->
-            if (filterState.pinnedFirst && a.pinned != b.pinned) {
-                if (a.pinned) -1 else 1
+        runCatching {
+            val rawArray = JSONArray().apply { aliases.forEach { put(it.rawJson) } }.toString()
+            val res = JSONObject(
+                MailxRustBridge.nativeFilterAndSortAliases(
+                    rawArray,
+                    filterState.searchQuery,
+                    filterState.selectedChip,
+                    filterState.sortField.key,
+                    filterState.sortDescending,
+                    filterState.pinnedFirst
+                )
+            )
+            if (res.optBoolean("ok", false)) {
+                UiAlias.listFromJsonArray(res.optJSONArray("data"))
             } else {
-                val rawCmp = when (filterState.sortField) {
-                    AliasSortField.CREATED_AT -> a.createdAt.compareTo(b.createdAt)
-                    AliasSortField.UPDATED_AT -> a.updatedAt.compareTo(b.updatedAt)
-                    AliasSortField.NAME -> a.name.compareTo(b.name, ignoreCase = true)
-                    AliasSortField.FORWARDS -> a.forwards.compareTo(b.forwards)
-                    AliasSortField.BLOCKS -> a.blocks.compareTo(b.blocks)
-                    AliasSortField.REPLIES -> a.replies.compareTo(b.replies)
-                    AliasSortField.SENDS -> a.sends.compareTo(b.sends)
-                }
-                if (filterState.sortDescending) -rawCmp else rawCmp
+                null
             }
-        }
-        filtered.sortedWith(comparator)
+        }.getOrNull() ?: aliases
     }
 
     if (!authState.isLoggedIn) {
@@ -272,14 +182,16 @@ fun MailxAppScreen(vm: MailxViewModel) {
         src.take(2).uppercase()
     }
 
+    val spatialSpring = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val effectsSpring = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            LiquidGlassTopBar(
+            MailxExpressiveTopBar(
                 title = currentTab.label,
-                subtitleBadge = "@${defaultsState.defaultDomain}",
+                defaultDomain = defaultsState.defaultDomain,
                 userInitials = userInitials,
-                onPrivacyLabClick = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
                 onSendMailClick = {
                     val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
                         ?: "example.alias@${defaultsState.defaultDomain}"
@@ -300,43 +212,79 @@ fun MailxAppScreen(vm: MailxViewModel) {
             }
         },
         bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp
             ) {
-                LiquidGlassBottomBar(
-                    currentTab = currentTab,
-                    onSelectTab = vm::selectTab
-                )
+                MainNavTab.entries.forEach { tab ->
+                    val selected = currentTab == tab
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = { vm.selectTab(tab) },
+                        icon = {
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.icon,
+                                contentDescription = tab.label,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = tab.label,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
             }
         },
         floatingActionButton = {
             if (currentTab == MainNavTab.ALIASES) {
-                FloatingActionButton(
+                ExtendedFloatingActionButton(
                     onClick = { vm.openSheet(ActiveSheet.CreateAlias) },
-                    modifier = Modifier.padding(bottom = 78.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "New Alias"
-                    )
-                }
+                    shape = RoundedCornerShape(22.dp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    icon = {
+                        Icon(
+                            imageVector = MailxIcons.Plus,
+                            contentDescription = "New Alias",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "New Alias",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                )
             }
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = innerPadding.calculateTopPadding())
+                .padding(innerPadding)
         ) {
             AnimatedContent(
                 targetState = currentTab,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "main_tab_transition"
+                transitionSpec = {
+                    (fadeIn(animationSpec = effectsSpring) + scaleIn(initialScale = 0.96f, animationSpec = spatialSpring))
+                        .togetherWith(fadeOut(animationSpec = effectsSpring))
+                },
+                label = "expressive_main_tab_transition"
             ) { targetTab ->
                 when (targetTab) {
                     MainNavTab.HOME -> HomeDashboardTab(
@@ -362,7 +310,6 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onOpenDiagnostics = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
                         onOpenTrackersReport = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
-                        onOpenPrivacyLab = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
                         onSelectAlias = { vm.openSheet(ActiveSheet.ManageAlias(it.id)) },
                         onCopyOrWildcard = { alias ->
                             if (alias.wildcard) {
@@ -459,19 +406,13 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onUpdateDarkModeMode = vm::updateDarkModeMode,
                         onToggleDynamicColor = vm::toggleDynamicColor,
                         onToggleAmoledDark = vm::toggleAmoledDark,
-                        onUpdateLiquidTransparency = vm::updateLiquidTransparency,
-                        onUpdateLiquidRefraction = vm::updateLiquidRefraction,
-                        onUpdateLiquidDispersion = vm::updateLiquidDispersion,
-                        onToggleLiquidMerging = vm::toggleLiquidMerging,
-                        onToggleReduceTransparency = vm::toggleReduceTransparency,
-                        onToggleIncreaseContrast = vm::toggleIncreaseContrast,
+                        onToggleExpressiveMotion = vm::toggleExpressiveMotion,
                         onSyncDefaults = { vm.syncServerDefaults(silent = false) },
                         onOpenReverseAliasTool = {
                             val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
                                 ?: "example.alias@${defaultsState.defaultDomain}"
                             vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                         },
-                        onOpenPrivacyLab = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
                         onOpenTrackersReportSheet = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
                         onOpenDiagnosticsSheet = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
@@ -510,7 +451,6 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 vm.closeSheet()
                 vm.selectTab(MainNavTab.SETTINGS)
             },
-            onOpenPrivacyLab = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
             onOpenDiagnostics = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
             onOpenAccount = { vm.openSheet(ActiveSheet.AccountSheet) },
             onOpenAnnouncements = { vm.openSheet(ActiveSheet.AnnouncementsSheet) },
@@ -521,40 +461,6 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 vm.openSheet(ActiveSheet.ReverseSend(firstActive))
             },
             onRequestLogout = { vm.openSheet(ActiveSheet.ConfirmLogout) }
-        )
-
-        ActiveSheet.PrivacyLabSheet -> PrivacyLabBottomSheet(
-            aliases = aliases,
-            defaultDomain = defaultsState.defaultDomain,
-            defaultRecipient = defaultsState.defaultRecipient.ifBlank {
-                defaultsState.availableRecipients.firstOrNull().orEmpty()
-            },
-            onCreateContextualAlias = { localPart, desc ->
-                val rec = defaultsState.defaultRecipient.ifBlank {
-                    defaultsState.availableRecipients.firstOrNull().orEmpty()
-                }
-                val reqJson = JSONObject().apply {
-                    put("description", desc)
-                    put("enabled", true)
-                    put("recipients", rec)
-                    put("from_name", defaultsState.defaultFromName)
-                    put("format", "custom")
-                    put("domain", defaultsState.defaultDomain)
-                    put("local_part", localPart)
-                }.toString()
-                vm.createAlias(reqJson) { createdName ->
-                    copyToClipboard(
-                        context,
-                        "Mailx Alias",
-                        createdName,
-                        "Smart alias created and copied: $createdName"
-                    )
-                }
-            },
-            onSelectAliasId = { id ->
-                vm.openSheet(ActiveSheet.ManageAlias(id))
-            },
-            onDismiss = vm::closeSheet
         )
 
         ActiveSheet.AccountSheet -> AccountBottomSheet(
@@ -664,7 +570,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onDismissRequest = vm::closeSheet,
             icon = {
                 Icon(
-                    imageVector = Icons.Default.DeleteForever,
+                    imageVector = MailxIcons.Trash2,
                     contentDescription = null,
                     tint = MailxPalette.BlockedRose
                 )
@@ -697,7 +603,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onDismissRequest = vm::closeSheet,
             icon = {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    imageVector = MailxIcons.LogOut,
                     contentDescription = null,
                     tint = MailxPalette.BlockedRose
                 )
@@ -726,6 +632,112 @@ fun MailxAppScreen(vm: MailxViewModel) {
     }
 }
 
+@Composable
+private fun MailxExpressiveTopBar(
+    title: String,
+    defaultDomain: String,
+    userInitials: String,
+    onSendMailClick: () -> Unit,
+    onRefreshClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f)
+                ) {
+                    Text(
+                        text = "@$defaultDomain",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalIconButton(
+                    onClick = onSendMailClick,
+                    modifier = Modifier.size(38.dp),
+                    shape = RoundedCornerShape(13.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = MailxIcons.Send,
+                        contentDescription = "Send from Alias",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = onRefreshClick,
+                    modifier = Modifier.size(38.dp),
+                    shape = RoundedCornerShape(13.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = MailxIcons.RefreshCw,
+                        contentDescription = "Refresh",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Surface(
+                    onClick = onProfileClick,
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = userInitials,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MailxCommandBottomSheet(
@@ -739,7 +751,6 @@ private fun MailxCommandBottomSheet(
     onNavigateToRecipients: () -> Unit,
     onNavigateToRules: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onOpenPrivacyLab: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     onOpenAccount: () -> Unit,
     onOpenAnnouncements: () -> Unit,
@@ -753,7 +764,7 @@ private fun MailxCommandBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
@@ -764,12 +775,9 @@ private fun MailxCommandBottomSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            LiquidGlassSurface(
-                cornerRadius = 18.dp,
-                preset = LiquidMaterialPreset.Tinted,
-                tintColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                estimatedWidthDp = 360f,
-                estimatedHeightDp = 74f,
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -780,16 +788,16 @@ private fun MailxCommandBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(46.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = userInitials,
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.ExtraBold
                             )
                         }
                     }
@@ -814,53 +822,44 @@ private fun MailxCommandBottomSheet(
                 }
             }
 
-            LiquidGlassSurface(
-                cornerRadius = 18.dp,
-                preset = LiquidMaterialPreset.Regular,
-                estimatedWidthDp = 360f,
-                estimatedHeightDp = 360f,
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     CompactMenuItemRow(
-                        icon = Icons.Default.AutoAwesome,
-                        title = "Rust Privacy & Security Lab",
-                        subtitle = "URL tracker cleaner, SPF/DKIM audit & smart aliases",
-                        iconTint = MailxPalette.BrandAccentMint,
-                        onClick = onOpenPrivacyLab
-                    )
-                    CompactMenuItemRow(
-                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                        icon = MailxIcons.Send,
                         title = "Send via Reverse Alias",
                         subtitle = "Compose outgoing email from any alias",
                         onClick = onOpenReverseSend
                     )
                     CompactMenuItemRow(
-                        icon = Icons.Default.Policy,
+                        icon = MailxIcons.ShieldCheck,
                         title = "Trackers Report Decoder",
                         subtitle = "Inspect removed email trackers offline in Rust",
                         onClick = onOpenTrackersReport
                     )
                     CompactMenuItemRow(
-                        icon = Icons.Default.BugReport,
+                        icon = MailxIcons.Bug,
                         title = "Delivery & Bounce Logs",
                         subtitle = "Server health check & raw MTA bounce viewer",
                         onClick = onOpenDiagnostics
                     )
                     CompactMenuItemRow(
-                        icon = Icons.Default.ManageAccounts,
+                        icon = MailxIcons.UserCog,
                         title = "Account, 2FA, Keys & CSV",
                         subtitle = "TOTP, passkeys, API access keys & CSV backup",
                         onClick = onOpenAccount
                     )
                     CompactMenuItemRow(
-                        icon = Icons.Default.Campaign,
+                        icon = MailxIcons.Megaphone,
                         title = "Service Announcements",
                         subtitle = "Updates from your Mailx instance",
                         onClick = onOpenAnnouncements
                     )
                     CompactMenuItemRow(
-                        icon = Icons.AutoMirrored.Filled.Logout,
+                        icon = MailxIcons.LogOut,
                         title = "Sign Out & Clear Cache",
                         subtitle = "Wipe local credentials and offline cache",
                         iconTint = MailxPalette.BlockedRose,
@@ -871,7 +870,7 @@ private fun MailxCommandBottomSheet(
             }
 
             Text(
-                text = "$baseUrl • al1h3n/liquid-rust Core v0.5.0",
+                text = "$baseUrl • Rust Skeleton v0.5.0 • Material 3 Expressive",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -898,9 +897,9 @@ private fun CompactMenuItemRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(12.dp),
             color = iconTint.copy(alpha = 0.14f),
-            modifier = Modifier.size(34.dp)
+            modifier = Modifier.size(36.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -916,7 +915,7 @@ private fun CompactMenuItemRow(
             Text(
                 text = title,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = titleColor
             )
             Text(
