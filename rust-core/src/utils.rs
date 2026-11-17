@@ -1,5 +1,5 @@
 use crate::models::{
-    AliasFilter, PhoneticToken, PrivacyPostureReport, RemovedTrackerItem, TrackersReport,
+    AliasFilter, PhoneticToken, PrivacyPostureReport, QrMatrix, RemovedTrackerItem, TrackersReport,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -150,6 +150,33 @@ pub fn encode_nato_phonetic(input: &str) -> Vec<PhoneticToken> {
             }
         })
         .collect()
+}
+
+pub fn encode_qr_matrix(payload: &str) -> Result<QrMatrix, String> {
+    let trimmed = payload.trim();
+    if trimmed.is_empty() {
+        return Err("QR payload is empty".to_string());
+    }
+    let code = qrcode_rs::QrCode::with_error_correction_level(
+        trimmed.as_bytes(),
+        qrcode_rs::EcLevel::M,
+    )
+    .map_err(|e| format!("QR encoding error: {:?}", e))?;
+    let width = code.width();
+    let colors = code.to_colors();
+    let mut rows = Vec::with_capacity(width);
+    for y in 0..width {
+        let mut row = String::with_capacity(width);
+        for x in 0..width {
+            let bit = match colors[y * width + x] {
+                qrcode_rs::Color::Dark => "1",
+                qrcode_rs::Color::Light => "0",
+            };
+            row.push_str(bit);
+        }
+        rows.push(row);
+    }
+    Ok(QrMatrix { width, rows })
 }
 
 pub fn compute_privacy_posture(

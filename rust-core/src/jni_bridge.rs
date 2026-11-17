@@ -1,7 +1,7 @@
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
 use crate::utils::{
-    compute_privacy_posture, decode_trackers_report, encode_nato_phonetic,
+    compute_privacy_posture, decode_trackers_report, encode_nato_phonetic, encode_qr_matrix,
     generate_random_suffix, generate_reverse_alias, generate_wildcard_on_the_fly,
     validate_access_key,
 };
@@ -86,6 +86,13 @@ pub fn handle_generate_wildcard(wildcard_alias: &str, prefix: &str) -> String {
 pub fn handle_decode_trackers_report(raw_input: &str) -> String {
     match decode_trackers_report(raw_input) {
         Ok(report) => JniEnvelope::success(report),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
+}
+
+pub fn handle_encode_qr_matrix(payload: &str) -> String {
+    match encode_qr_matrix(payload) {
+        Ok(matrix) => JniEnvelope::success(matrix),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
     }
 }
@@ -419,6 +426,18 @@ mod android_exports {
         run_jni_safely(env, |env| {
             let raw = jstring_to_rust(env, raw_input);
             handle_decode_trackers_report(&raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeEncodeQrMatrix(
+        env: JNIEnv,
+        _class: JClass,
+        payload: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, payload);
+            handle_encode_qr_matrix(&raw)
         })
     }
 

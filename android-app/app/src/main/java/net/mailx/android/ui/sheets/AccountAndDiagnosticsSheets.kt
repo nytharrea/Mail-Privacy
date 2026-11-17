@@ -2,6 +2,7 @@ package net.mailx.android.ui.sheets
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,9 +11,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
 import java.net.URLEncoder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -367,6 +366,30 @@ fun AccountBottomSheet(
                                     )
                                 }
                             }
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                runCatching {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(qrUri))
+                                    context.startActivity(intent)
+                                }.onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        "No authenticator app found for otpauth:// links",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Open in Authenticator / Password Manager", fontSize = 12.sp)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1360,14 +1383,24 @@ private fun TotpQrCodeView(
     payload: String,
     modifier: Modifier = Modifier
 ) {
-    val matrix = remember(payload) {
+    val qrRows = remember(payload) {
         runCatching {
-            val hints = mapOf(EncodeHintType.MARGIN to 1)
-            QRCodeWriter().encode(payload, BarcodeFormat.QR_CODE, 0, 0, hints)
+            val res = JSONObject(MailxRustBridge.nativeEncodeQrMatrix(payload))
+            val data = res.optJSONObject("data")
+            val arr = data?.optJSONArray("rows")
+            if (res.optBoolean("ok", false) && arr != null && arr.length() > 0) {
+                val list = ArrayList<String>(arr.length())
+                for (i in 0 until arr.length()) {
+                    list.add(arr.optString(i, ""))
+                }
+                list
+            } else {
+                null
+            }
         }.getOrNull()
     }
 
-    if (matrix != null) {
+    if (!qrRows.isNullOrEmpty()) {
         Surface(
             shape = RoundedCornerShape(14.dp),
             color = Color.White,
@@ -1376,19 +1409,19 @@ private fun TotpQrCodeView(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(10.dp)
+                    .padding(12.dp)
             ) {
-                val cols = matrix.width
-                val rows = matrix.height
-                val cellW = size.width / cols.toFloat()
-                val cellH = size.height / rows.toFloat()
-                for (y in 0 until rows) {
+                val count = qrRows.size
+                val cell = size.width / count.toFloat()
+                for (y in 0 until count) {
+                    val row = qrRows[y]
+                    val cols = row.length.coerceAtMost(count)
                     for (x in 0 until cols) {
-                        if (matrix.get(x, y)) {
+                        if (row[x] == '1') {
                             drawRect(
                                 color = Color.Black,
-                                topLeft = Offset(x * cellW, y * cellH),
-                                size = Size(cellW + 0.5f, cellH + 0.5f)
+                                topLeft = Offset(x * cell, y * cell),
+                                size = Size(cell + 0.5f, cell + 0.5f)
                             )
                         }
                     }

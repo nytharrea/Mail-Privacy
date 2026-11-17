@@ -22,6 +22,9 @@ object MailxRustBridge {
     external fun nativeDecodeTrackersReport(rawInput: String): String
 
     @JvmStatic
+    external fun nativeEncodeQrMatrix(payload: String): String
+
+    @JvmStatic
     external fun nativeEncodeNatoPhonetic(email: String): String
 
     @JvmStatic

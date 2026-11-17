@@ -272,6 +272,12 @@ pub struct PhoneticToken {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QrMatrix {
+    pub width: usize,
+    pub rows: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrivacyPostureReport {
     pub score: u8,
     pub grade: String,
