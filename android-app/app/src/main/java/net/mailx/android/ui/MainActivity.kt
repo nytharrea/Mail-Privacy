@@ -9,8 +9,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
@@ -22,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +79,6 @@ fun MailxAppScreen(vm: MailxViewModel) {
     val toastMessage by vm.toastMessage.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     LaunchedEffect(toastMessage) {
         toastMessage?.let { msg ->
@@ -131,117 +130,137 @@ fun MailxAppScreen(vm: MailxViewModel) {
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                scrollBehavior = scrollBehavior,
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(34.dp)
+            Column {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Shield,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(18.dp)
+                            Surface(
+                                shape = RoundedCornerShape(11.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = currentTab.label,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = "@${defaultsState.defaultDomain}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
-                        Column {
-                            Text(
-                                text = currentTab.label,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "@${defaultsState.defaultDomain}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    },
+                    actions = {
+                        if (currentTab != MainNavTab.SETTINGS) {
+                            Surface(
+                                onClick = vm::refreshAliases,
+                                shape = RoundedCornerShape(11.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Yenile",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                actions = {
-                    if (currentTab != MainNavTab.SETTINGS) {
-                        FilledTonalIconButton(
-                            onClick = vm::refreshAliases,
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Yenile")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                )
+            }
         },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
                     shape = MaterialTheme.shapes.medium,
-                    containerColor = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 )
             }
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 0.dp
-            ) {
-                MainNavTab.entries.forEach { tab ->
-                    val selected = currentTab == tab
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { vm.selectTab(tab) },
-                        icon = {
-                            if (tab == MainNavTab.ALIASES && aliases.isNotEmpty()) {
-                                BadgedBox(
-                                    badge = {
-                                        Badge(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                        ) {
-                                            Text(aliases.size.toString())
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = if (selected) tab.selectedIcon else tab.icon,
-                                        contentDescription = tab.label
-                                    )
-                                }
-                            } else {
+            Column {
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)
+                )
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    tonalElevation = 0.dp
+                ) {
+                    MainNavTab.entries.forEach { tab ->
+                        val selected = currentTab == tab
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { vm.selectTab(tab) },
+                            icon = {
                                 Icon(
                                     imageVector = if (selected) tab.selectedIcon else tab.icon,
                                     contentDescription = tab.label
                                 )
-                            }
-                        },
-                        label = { Text(tab.label) }
-                    )
+                            },
+                            label = {
+                                Text(
+                                    text = tab.label,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
                 }
             }
         },
         floatingActionButton = {
-            if (currentTab != MainNavTab.SETTINGS) {
+            if (currentTab == MainNavTab.ALIASES) {
                 ExtendedFloatingActionButton(
                     onClick = { vm.openSheet(ActiveSheet.CreateAlias) },
-                    shape = MaterialTheme.shapes.large,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                    text = { Text("Yeni Alias", fontWeight = FontWeight.SemiBold) }
+                    text = { Text("Yeni Alias", fontWeight = FontWeight.Bold) }
                 )
             }
         }
@@ -252,7 +271,11 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 .padding(innerPadding)
         ) {
             AnimatedVisibility(visible = isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
             }
 
             AnimatedContent(
@@ -382,6 +405,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
 
         is ActiveSheet.ConfirmDelete -> AlertDialog(
             onDismissRequest = vm::closeSheet,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             icon = {
                 Icon(
                     imageVector = Icons.Default.DeleteForever,
@@ -404,7 +428,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     ),
                     onClick = { vm.deleteAliasConfirmed(sheet.alias) }
                 ) {
-                    Text("Sil")
+                    Text("Sil", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -416,7 +440,8 @@ fun MailxAppScreen(vm: MailxViewModel) {
 
         ActiveSheet.ConfirmLogout -> AlertDialog(
             onDismissRequest = vm::closeSheet,
-            icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = AddyPalette.BlockedRed) },
             title = { Text("Oturumu Kapat") },
             text = { Text("Cihazdaki şifreli oturum anahtarı ve önbellek temizlenecek.") },
             confirmButton = {
@@ -427,7 +452,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     ),
                     onClick = vm::logoutConfirmed
                 ) {
-                    Text("Çıkış Yap")
+                    Text("Çıkış Yap", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

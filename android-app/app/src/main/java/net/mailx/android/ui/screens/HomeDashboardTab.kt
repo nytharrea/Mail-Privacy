@@ -1,15 +1,15 @@
 package net.mailx.android.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -17,9 +17,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.mailx.android.ui.components.AddyDonutChart
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MetricPill
@@ -44,6 +46,7 @@ fun HomeDashboardTab(
     val totalBlocks = remember(aliases) { aliases.sumOf { it.blocks } }
     val totalReplies = remember(aliases) { aliases.sumOf { it.replies } }
     val totalSends = remember(aliases) { aliases.sumOf { it.sends } }
+    val totalEvents = totalForwards + totalBlocks + totalReplies + totalSends
 
     val activeCount = remember(aliases) { aliases.count { it.enabled } }
     val inactiveCount = remember(aliases) { aliases.count { !it.enabled } }
@@ -61,15 +64,13 @@ fun HomeDashboardTab(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item(key = "traffic_summary_card") {
-                OutlinedCard(
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.outlinedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(
@@ -83,7 +84,10 @@ fun HomeDashboardTab(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
                                     text = "E-posta Trafik Özeti",
                                     style = MaterialTheme.typography.titleMedium,
@@ -95,89 +99,97 @@ fun HomeDashboardTab(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            AddyDonutChart(
-                                forwards = totalForwards,
-                                replies = totalReplies,
-                                sends = totalSends,
-                                blocks = totalBlocks,
-                                enabled = true,
-                                size = 56.dp,
-                                strokeWidth = 6.dp
-                            )
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                    Text(
+                                        text = "$totalEvents işlem",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
 
+                        // 2x2 Ferah İstatistik Izgarası
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                MetricPill(
+                                    modifier = Modifier.weight(1f),
+                                    label = "İletilen",
+                                    value = totalForwards,
+                                    dotColor = AddyPalette.ForwardedOrange
+                                )
+                                MetricPill(
+                                    modifier = Modifier.weight(1f),
+                                    label = "Engellenen",
+                                    value = totalBlocks,
+                                    dotColor = AddyPalette.BlockedRed
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                MetricPill(
+                                    modifier = Modifier.weight(1f),
+                                    label = "Yanıtlanan",
+                                    value = totalReplies,
+                                    dotColor = AddyPalette.RepliedBlue
+                                )
+                                MetricPill(
+                                    modifier = Modifier.weight(1f),
+                                    label = "Gönderilen",
+                                    value = totalSends,
+                                    dotColor = AddyPalette.SentCyan
+                                )
+                            }
+                        }
+
+                        // Durum Filtre Hapları
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            MetricPill(
+                            StatusCountPill(
                                 modifier = Modifier.weight(1f),
-                                label = "İletilen",
-                                value = totalForwards,
-                                dotColor = AddyPalette.ForwardedOrange
+                                label = "Aktif",
+                                count = activeCount,
+                                dotColor = AddyPalette.ActiveGreen,
+                                onClick = { onNavigateToFilter("active") }
                             )
-                            MetricPill(
+                            StatusCountPill(
                                 modifier = Modifier.weight(1f),
-                                label = "Engel",
-                                value = totalBlocks,
-                                dotColor = AddyPalette.BlockedRed
+                                label = "Pasif",
+                                count = inactiveCount,
+                                dotColor = Color(0xFF7D8B99),
+                                onClick = { onNavigateToFilter("inactive") }
                             )
-                            MetricPill(
+                            StatusCountPill(
                                 modifier = Modifier.weight(1f),
-                                label = "Yanıt",
-                                value = totalReplies,
-                                dotColor = AddyPalette.RepliedBlue
-                            )
-                            MetricPill(
-                                modifier = Modifier.weight(1f),
-                                label = "Gönderim",
-                                value = totalSends,
-                                dotColor = AddyPalette.SentCyan
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ElevatedAssistChip(
-                                onClick = { onNavigateToFilter("active") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = AddyPalette.ActiveGreen,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text("Aktif: $activeCount") },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ElevatedAssistChip(
-                                onClick = { onNavigateToFilter("inactive") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.PauseCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text("Pasif: $inactiveCount") },
-                                modifier = Modifier.weight(1f)
-                            )
-                            ElevatedAssistChip(
-                                onClick = { onNavigateToFilter("pinned_only") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.PushPin,
-                                        contentDescription = null,
-                                        tint = AddyPalette.ForwardedOrange,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text("Sabit: $pinnedCount") },
-                                modifier = Modifier.weight(1f)
+                                label = "Sabit",
+                                count = pinnedCount,
+                                dotColor = AddyPalette.PinnedAmber,
+                                onClick = { onNavigateToFilter("pinned_only") }
                             )
                         }
                     }
@@ -189,23 +201,41 @@ fun HomeDashboardTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    FilledTonalButton(
+                    Button(
                         onClick = onOpenCreateAlias,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Yeni Alias")
+                        Text("Yeni Alias", fontWeight = FontWeight.Bold)
                     }
                     OutlinedButton(
                         onClick = onOpenReverseAliasTool,
-                        modifier = Modifier.weight(1f),
-                        shape = MaterialTheme.shapes.medium
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Ters-Alias Gönder")
+                        Text("Ters-Alias Gönder", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -220,14 +250,19 @@ fun HomeDashboardTab(
                         text = if (pinnedCount > 0) "Sabitlenen Takma Adlar" else "Son Takma Adlar",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (aliases.isNotEmpty()) {
                         TextButton(
                             onClick = { onNavigateToFilter("active_inactive") },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
-                            Text("Tümünü Gör (${aliases.size})", style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = "Tümünü Gör (${aliases.size})",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 }
@@ -254,6 +289,51 @@ fun HomeDashboardTab(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StatusCountPill(
+    modifier: Modifier = Modifier,
+    label: String,
+    count: Int,
+    dotColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "$label: ",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

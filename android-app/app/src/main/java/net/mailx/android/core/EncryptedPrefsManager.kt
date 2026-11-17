@@ -281,7 +281,7 @@ class EncryptedPrefsManager(context: Context) {
         private const val KEY_LOG_ISSUES = "log_issues"
         private const val KEY_CACHED_ALIASES = "cached_aliases"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
-        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
-        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_enabled"
+        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v2_enabled"
+        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v2_enabled"
     }
 }

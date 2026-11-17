@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -28,17 +29,17 @@ fun AddyDonutChart(
     sends: Int,
     blocks: Int,
     enabled: Boolean,
-    size: Dp = 40.dp,
-    strokeWidth: Dp = 4.5.dp,
+    size: Dp = 44.dp,
+    strokeWidth: Dp = 4.dp,
     centerSubtitle: String? = null
 ) {
     val total = forwards + replies + sends + blocks
-    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val trackColor = MaterialTheme.colorScheme.outlineVariant
 
-    val cForward = if (enabled) AddyPalette.ForwardedOrange else Color(0xFF6E717A)
-    val cReply = if (enabled) AddyPalette.RepliedBlue else Color(0xFF5A5D66)
-    val cSend = if (enabled) AddyPalette.SentCyan else Color(0xFF4B4E57)
-    val cBlock = if (enabled) AddyPalette.BlockedRed else Color(0xFF3E414A)
+    val cForward = if (enabled) AddyPalette.ForwardedOrange else Color(0xFF4B5563)
+    val cReply = if (enabled) AddyPalette.RepliedBlue else Color(0xFF374151)
+    val cSend = if (enabled) AddyPalette.SentCyan else Color(0xFF374151)
+    val cBlock = if (enabled) AddyPalette.BlockedRed else Color(0xFF4B5563)
 
     Box(
         modifier = Modifier.size(size),
@@ -58,17 +59,7 @@ fun AddyDonutChart(
                 style = Stroke(width = strokePx, cap = StrokeCap.Round)
             )
 
-            if (total == 0) {
-                drawArc(
-                    color = cForward.copy(alpha = if (enabled) 0.65f else 0.35f),
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = Offset.Zero,
-                    size = arcSize,
-                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
-                )
-            } else {
+            if (total > 0) {
                 val segments = listOf(
                     forwards to cForward,
                     replies to cReply,
@@ -77,7 +68,7 @@ fun AddyDonutChart(
                 ).filter { it.first > 0 }
 
                 var startAngle = -90f
-                val gapDegrees = if (segments.size > 1) 7f else 0f
+                val gapDegrees = if (segments.size > 1) 8f else 0f
                 val availableDegrees = 360f - (gapDegrees * segments.size)
 
                 segments.forEach { (count, segColor) ->
@@ -85,7 +76,7 @@ fun AddyDonutChart(
                     drawArc(
                         color = segColor,
                         startAngle = startAngle,
-                        sweepAngle = sweep.coerceAtLeast(4f),
+                        sweepAngle = sweep.coerceAtLeast(6f),
                         useCenter = false,
                         topLeft = Offset.Zero,
                         size = arcSize,
@@ -99,19 +90,20 @@ fun AddyDonutChart(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = total.toString(),
-                style = if (size >= 76.dp) {
-                    MaterialTheme.typography.titleLarge
+                style = if (size >= 52.dp) {
+                    MaterialTheme.typography.titleMedium
                 } else {
                     MaterialTheme.typography.labelMedium
                 },
+                fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
-                color = if (enabled) {
-                    MaterialTheme.colorScheme.onSurface
+                color = if (total > 0 && enabled) {
+                    MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
-            if (centerSubtitle != null && size >= 76.dp) {
+            if (centerSubtitle != null && size >= 52.dp) {
                 Text(
                     text = centerSubtitle,
                     style = MaterialTheme.typography.labelSmall,
