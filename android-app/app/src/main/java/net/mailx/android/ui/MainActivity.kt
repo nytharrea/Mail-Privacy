@@ -8,11 +8,16 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,7 +28,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -168,6 +175,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onDismissTotp = vm::dismissTotpDialog,
             onAccessKeyChange = vm::updateAccessKeyInput,
             onConnectWithCredentials = vm::connectWithCredentials,
+            onConnectWithPasskey = vm::connectWithPasskey,
             onConnectWithAccessKey = vm::connectWithAccessKey,
             onInitiatePasswordReset = vm::initiatePasswordReset,
             onConfirmPasswordReset = vm::confirmPasswordReset
@@ -212,41 +220,10 @@ fun MailxAppScreen(vm: MailxViewModel) {
             }
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp
-            ) {
-                MainNavTab.entries.forEach { tab ->
-                    val selected = currentTab == tab
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { vm.selectTab(tab) },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) tab.selectedIcon else tab.icon,
-                                contentDescription = tab.label,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = tab.label,
-                                fontSize = 11.sp,
-                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-                }
-            }
+            MailxModernBottomBar(
+                currentTab = currentTab,
+                onSelectTab = vm::selectTab
+            )
         },
         floatingActionButton = {
             if (currentTab == MainNavTab.ALIASES) {
@@ -476,6 +453,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onInitiateTotp = vm::initiateTotpSetup,
             onConfirmTotp = vm::confirmTotpSetup,
             onDisableTotp = vm::disableTotp,
+            onRegisterPasskey = vm::registerPasskeyCredential,
             onDeletePasskey = vm::deletePasskeyCredential,
             onCreateAccessKey = vm::createAccessKey,
             onClearNewAccessKeyToken = vm::clearNewlyCreatedAccessKeyToken,
@@ -629,6 +607,120 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 }
             }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MailxModernBottomBar(
+    currentTab: MainNavTab,
+    onSelectTab: (MainNavTab) -> Unit
+) {
+    val spatialSpring = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val effectsSpring = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+            tonalElevation = 4.dp,
+            shadowElevation = 8.dp,
+            border = BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MainNavTab.entries.forEach { tab ->
+                    val selected = currentTab == tab
+                    val scale by animateFloatAsState(
+                        targetValue = if (selected) 1.05f else 1f,
+                        animationSpec = spatialSpring,
+                        label = "nav_item_scale_${tab.name}"
+                    )
+                    val pillColor by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        } else {
+                            Color.Transparent
+                        },
+                        animationSpec = effectsSpring,
+                        label = "nav_item_pill_${tab.name}"
+                    )
+                    val contentColor by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+                        },
+                        animationSpec = effectsSpring,
+                        label = "nav_item_fg_${tab.name}"
+                    )
+                    val interactionSource = remember { MutableInteractionSource() }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(pillColor)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = { onSelectTab(tab) }
+                            )
+                            .padding(vertical = 7.dp, horizontal = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(16.dp)
+                                    .height(2.5.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                    )
+                            )
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.icon,
+                                contentDescription = tab.label,
+                                tint = contentColor,
+                                modifier = Modifier.size(21.dp)
+                            )
+                            Text(
+                                text = tab.label,
+                                fontSize = 10.5.sp,
+                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = contentColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

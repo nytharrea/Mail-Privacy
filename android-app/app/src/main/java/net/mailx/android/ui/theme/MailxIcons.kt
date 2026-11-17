@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.unit.dp
 
 /**
- * Unified Lucide Icons (v1.70 24x24 2dp rounded stroke geometry) & Material Symbols Rounded
+ * Unified Lucide Icons (v1.70 24x24 rounded stroke & expressive duotone geometry)
  * icon system for Mailx Privacy Material 3 Expressive UI.
  */
 object MailxIcons {
@@ -18,6 +18,8 @@ object MailxIcons {
     private fun lucideStrokeVector(
         name: String,
         strokeWidth: Float = 2f,
+        fillAlpha: Float = 0f,
+        fillType: PathFillType = PathFillType.NonZero,
         block: PathBuilder.() -> Unit
     ): ImageVector {
         return ImageVector.Builder(
@@ -28,40 +30,97 @@ object MailxIcons {
             viewportHeight = 24f
         ).addPath(
             pathData = PathBuilder().apply(block).nodes,
-            fill = SolidColor(Color.Transparent),
+            fill = if (fillAlpha > 0f) SolidColor(Color.White.copy(alpha = fillAlpha)) else SolidColor(Color.Transparent),
             stroke = SolidColor(Color.White),
             strokeLineWidth = strokeWidth,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
-            pathFillType = PathFillType.NonZero
+            pathFillType = fillType
         ).build()
     }
 
-    // Navigation & Core Layout Icons (Lucide & Material Symbols Rounded)
+    private fun PathBuilder.roundedBox(
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+        r: Float = 1.8f
+    ) {
+        moveTo(left + r, top)
+        horizontalLineTo(right - r)
+        arcTo(r, r, 0f, false, true, right, top + r)
+        verticalLineTo(bottom - r)
+        arcTo(r, r, 0f, false, true, right - r, bottom)
+        horizontalLineTo(left + r)
+        arcTo(r, r, 0f, false, true, left, bottom - r)
+        verticalLineTo(top + r)
+        arcTo(r, r, 0f, false, true, left + r, top)
+        close()
+    }
+
+    private fun PathBuilder.gearContourAndHub() {
+        // Outer 8-tooth rounded gear contour
+        moveTo(21.38f, 10.51f)
+        lineTo(21.38f, 13.49f)
+        lineTo(18.95f, 13.86f)
+        lineTo(18.24f, 15.60f)
+        lineTo(19.69f, 17.58f)
+        lineTo(17.58f, 19.69f)
+        lineTo(15.60f, 18.24f)
+        lineTo(13.86f, 18.95f)
+        lineTo(13.49f, 21.38f)
+        lineTo(10.51f, 21.38f)
+        lineTo(10.14f, 18.95f)
+        lineTo(8.40f, 18.24f)
+        lineTo(6.42f, 19.69f)
+        lineTo(4.31f, 17.58f)
+        lineTo(5.76f, 15.60f)
+        lineTo(5.05f, 13.86f)
+        lineTo(2.62f, 13.49f)
+        lineTo(2.62f, 10.51f)
+        lineTo(5.05f, 10.14f)
+        lineTo(5.76f, 8.40f)
+        lineTo(4.31f, 6.42f)
+        lineTo(6.42f, 4.31f)
+        lineTo(8.40f, 5.76f)
+        lineTo(10.14f, 5.05f)
+        lineTo(10.51f, 2.62f)
+        lineTo(13.49f, 2.62f)
+        lineTo(13.86f, 5.05f)
+        lineTo(15.60f, 5.76f)
+        lineTo(17.58f, 4.31f)
+        lineTo(19.69f, 6.42f)
+        lineTo(18.24f, 8.40f)
+        lineTo(18.95f, 10.14f)
+        close()
+        // Center gear hub hole
+        moveTo(15.2f, 12f)
+        arcTo(3.2f, 3.2f, 0f, true, true, 8.8f, 12f)
+        arcTo(3.2f, 3.2f, 0f, true, true, 15.2f, 12f)
+        close()
+    }
+
+    // Navigation & Core Layout Icons (Rounded Bento Dashboard, Alias @, Inbox, Knob Sliders, Gear Cog)
     val LayoutDashboard: ImageVector by lazy {
-        lucideStrokeVector("LucideLayoutDashboard") {
-            // Top-left box
-            moveTo(3f, 3f); lineTo(10f, 3f); lineTo(10f, 12f); lineTo(3f, 12f); close()
-            // Top-right box
-            moveTo(14f, 3f); lineTo(21f, 3f); lineTo(21f, 8f); lineTo(14f, 8f); close()
-            // Bottom-right box
-            moveTo(14f, 12f); lineTo(21f, 12f); lineTo(21f, 21f); lineTo(14f, 21f); close()
-            // Bottom-left box
-            moveTo(3f, 16f); lineTo(10f, 16f); lineTo(10f, 21f); lineTo(3f, 21f); close()
+        lucideStrokeVector("LucideLayoutDashboard", strokeWidth = 1.95f) {
+            roundedBox(3f, 3f, 10.2f, 12.2f, 2f)
+            roundedBox(13.8f, 3f, 21f, 8.2f, 2f)
+            roundedBox(13.8f, 11.8f, 21f, 21f, 2f)
+            roundedBox(3f, 15.8f, 10.2f, 21f, 2f)
         }
     }
 
     val LayoutDashboardSelected: ImageVector by lazy {
-        lucideStrokeVector("LucideLayoutDashboardSelected", strokeWidth = 2.4f) {
-            moveTo(3f, 3f); lineTo(10f, 3f); lineTo(10f, 12f); lineTo(3f, 12f); close()
-            moveTo(14f, 3f); lineTo(21f, 3f); lineTo(21f, 8f); lineTo(14f, 8f); close()
-            moveTo(14f, 12f); lineTo(21f, 12f); lineTo(21f, 21f); lineTo(14f, 21f); close()
-            moveTo(3f, 16f); lineTo(10f, 16f); lineTo(10f, 21f); lineTo(3f, 21f); close()
+        lucideStrokeVector("LucideLayoutDashboardSelected", strokeWidth = 2.25f, fillAlpha = 0.24f) {
+            roundedBox(3f, 3f, 10.2f, 12.2f, 2f)
+            roundedBox(13.8f, 3f, 21f, 8.2f, 2f)
+            roundedBox(13.8f, 11.8f, 21f, 21f, 2f)
+            roundedBox(3f, 15.8f, 10.2f, 21f, 2f)
         }
     }
 
     val AtSign: ImageVector by lazy {
-        lucideStrokeVector("LucideAtSign") {
+        lucideStrokeVector("LucideAtSign", strokeWidth = 1.95f) {
             moveTo(16f, 12f)
             arcTo(4f, 4f, 0f, true, true, 8f, 12f)
             arcTo(4f, 4f, 0f, true, true, 16f, 12f)
@@ -74,10 +133,11 @@ object MailxIcons {
     }
 
     val AtSignSelected: ImageVector by lazy {
-        lucideStrokeVector("LucideAtSignSelected", strokeWidth = 2.4f) {
+        lucideStrokeVector("LucideAtSignSelected", strokeWidth = 2.3f, fillAlpha = 0.18f) {
             moveTo(16f, 12f)
             arcTo(4f, 4f, 0f, true, true, 8f, 12f)
             arcTo(4f, 4f, 0f, true, true, 16f, 12f)
+            close()
             moveTo(16f, 8f)
             verticalLineTo(13f)
             arcTo(3f, 3f, 0f, false, false, 22f, 13f)
@@ -87,108 +147,136 @@ object MailxIcons {
     }
 
     val Inbox: ImageVector by lazy {
-        lucideStrokeVector("LucideInbox") {
-            moveTo(22f, 12f)
-            horizontalLineTo(16f)
-            lineTo(14f, 15f)
-            horizontalLineTo(10f)
-            lineTo(8f, 12f)
+        lucideStrokeVector("LucideInbox", strokeWidth = 1.95f) {
+            moveTo(22f, 12.5f)
+            horizontalLineTo(16.2f)
+            lineTo(14.3f, 15.2f)
+            horizontalLineTo(9.7f)
+            lineTo(7.8f, 12.5f)
             horizontalLineTo(2f)
             moveTo(5.45f, 5.11f)
-            lineTo(2f, 12f)
+            lineTo(2f, 12.5f)
             verticalLineTo(18f)
-            arcTo(2f, 2f, 0f, false, false, 4f, 20f)
-            horizontalLineTo(20f)
-            arcTo(2f, 2f, 0f, false, false, 22f, 18f)
-            verticalLineTo(12f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 4.2f, 20.2f)
+            horizontalLineTo(19.8f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 22f, 18f)
+            verticalLineTo(12.5f)
             lineTo(18.55f, 5.11f)
-            arcTo(2f, 2f, 0f, false, false, 16.76f, 4f)
-            horizontalLineTo(7.24f)
-            arcTo(2f, 2f, 0f, false, false, 5.45f, 5.11f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 16.56f, 4f)
+            horizontalLineTo(7.44f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 5.45f, 5.11f)
             close()
         }
     }
 
     val InboxSelected: ImageVector by lazy {
-        lucideStrokeVector("LucideInboxSelected", strokeWidth = 2.4f) {
-            moveTo(22f, 12f)
-            horizontalLineTo(16f)
-            lineTo(14f, 15f)
-            horizontalLineTo(10f)
-            lineTo(8f, 12f)
+        lucideStrokeVector("LucideInboxSelected", strokeWidth = 2.25f, fillAlpha = 0.22f) {
+            moveTo(22f, 12.5f)
+            horizontalLineTo(16.2f)
+            lineTo(14.3f, 15.2f)
+            horizontalLineTo(9.7f)
+            lineTo(7.8f, 12.5f)
             horizontalLineTo(2f)
             moveTo(5.45f, 5.11f)
-            lineTo(2f, 12f)
+            lineTo(2f, 12.5f)
             verticalLineTo(18f)
-            arcTo(2f, 2f, 0f, false, false, 4f, 20f)
-            horizontalLineTo(20f)
-            arcTo(2f, 2f, 0f, false, false, 22f, 18f)
-            verticalLineTo(12f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 4.2f, 20.2f)
+            horizontalLineTo(19.8f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 22f, 18f)
+            verticalLineTo(12.5f)
             lineTo(18.55f, 5.11f)
-            arcTo(2f, 2f, 0f, false, false, 16.76f, 4f)
-            horizontalLineTo(7.24f)
-            arcTo(2f, 2f, 0f, false, false, 5.45f, 5.11f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 16.56f, 4f)
+            horizontalLineTo(7.44f)
+            arcTo(2.2f, 2.2f, 0f, false, false, 5.45f, 5.11f)
             close()
         }
     }
 
     val SlidersHorizontal: ImageVector by lazy {
-        lucideStrokeVector("LucideSlidersHorizontal") {
-            moveTo(21f, 4f); horizontalLineTo(14f)
-            moveTo(10f, 4f); horizontalLineTo(3f)
-            moveTo(21f, 12f); horizontalLineTo(12f)
-            moveTo(8f, 12f); horizontalLineTo(3f)
-            moveTo(21f, 20f); horizontalLineTo(16f)
-            moveTo(12f, 20f); horizontalLineTo(3f)
-            moveTo(14f, 2f); verticalLineTo(6f)
-            moveTo(8f, 10f); verticalLineTo(14f)
-            moveTo(16f, 18f); verticalLineTo(22f)
+        lucideStrokeVector("LucideSlidersHorizontal", strokeWidth = 1.95f) {
+            // Top slider track & circular knob at x=15, y=5
+            moveTo(3f, 5f); horizontalLineTo(12.6f)
+            moveTo(17.4f, 5f); horizontalLineTo(21f)
+            moveTo(17.2f, 5f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 12.8f, 5f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 17.2f, 5f)
+            // Middle slider track & circular knob at x=9, y=12
+            moveTo(3f, 12f); horizontalLineTo(6.6f)
+            moveTo(11.4f, 12f); horizontalLineTo(21f)
+            moveTo(11.2f, 12f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 6.8f, 12f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 11.2f, 12f)
+            // Bottom slider track & circular knob at x=15, y=19
+            moveTo(3f, 19f); horizontalLineTo(12.6f)
+            moveTo(17.4f, 19f); horizontalLineTo(21f)
+            moveTo(17.2f, 19f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 12.8f, 19f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 17.2f, 19f)
         }
     }
 
     val SlidersHorizontalSelected: ImageVector by lazy {
-        lucideStrokeVector("LucideSlidersHorizontalSelected", strokeWidth = 2.4f) {
-            moveTo(21f, 4f); horizontalLineTo(14f)
-            moveTo(10f, 4f); horizontalLineTo(3f)
-            moveTo(21f, 12f); horizontalLineTo(12f)
-            moveTo(8f, 12f); horizontalLineTo(3f)
-            moveTo(21f, 20f); horizontalLineTo(16f)
-            moveTo(12f, 20f); horizontalLineTo(3f)
-            moveTo(14f, 2f); verticalLineTo(6f)
-            moveTo(8f, 10f); verticalLineTo(14f)
-            moveTo(16f, 18f); verticalLineTo(22f)
+        lucideStrokeVector("LucideSlidersHorizontalSelected", strokeWidth = 2.25f, fillAlpha = 0.28f) {
+            moveTo(3f, 5f); horizontalLineTo(12.6f)
+            moveTo(17.4f, 5f); horizontalLineTo(21f)
+            moveTo(17.2f, 5f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 12.8f, 5f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 17.2f, 5f)
+            close()
+            moveTo(3f, 12f); horizontalLineTo(6.6f)
+            moveTo(11.4f, 12f); horizontalLineTo(21f)
+            moveTo(11.2f, 12f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 6.8f, 12f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 11.2f, 12f)
+            close()
+            moveTo(3f, 19f); horizontalLineTo(12.6f)
+            moveTo(17.4f, 19f); horizontalLineTo(21f)
+            moveTo(17.2f, 19f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 12.8f, 19f)
+            arcTo(2.2f, 2.2f, 0f, true, true, 17.2f, 19f)
+            close()
         }
     }
 
     val Settings: ImageVector by lazy {
-        lucideStrokeVector("LucideSettings") {
-            moveTo(15f, 12f)
-            arcTo(3f, 3f, 0f, true, true, 9f, 12f)
-            arcTo(3f, 3f, 0f, true, true, 15f, 12f)
-            moveTo(12f, 2f); verticalLineTo(4f)
-            moveTo(12f, 20f); verticalLineTo(22f)
-            moveTo(4.93f, 4.93f); lineTo(6.34f, 6.34f)
-            moveTo(17.66f, 17.66f); lineTo(19.07f, 19.07f)
-            moveTo(2f, 12f); horizontalLineTo(4f)
-            moveTo(20f, 12f); horizontalLineTo(22f)
-            moveTo(6.34f, 17.66f); lineTo(4.93f, 19.07f)
-            moveTo(19.07f, 4.93f); lineTo(17.66f, 6.34f)
+        lucideStrokeVector(
+            name = "LucideSettings",
+            strokeWidth = 1.95f,
+            fillType = PathFillType.EvenOdd
+        ) {
+            gearContourAndHub()
         }
     }
 
     val SettingsSelected: ImageVector by lazy {
-        lucideStrokeVector("LucideSettingsSelected", strokeWidth = 2.4f) {
-            moveTo(15f, 12f)
-            arcTo(3f, 3f, 0f, true, true, 9f, 12f)
-            arcTo(3f, 3f, 0f, true, true, 15f, 12f)
-            moveTo(12f, 2f); verticalLineTo(4f)
-            moveTo(12f, 20f); verticalLineTo(22f)
-            moveTo(4.93f, 4.93f); lineTo(6.34f, 6.34f)
-            moveTo(17.66f, 17.66f); lineTo(19.07f, 19.07f)
-            moveTo(2f, 12f); horizontalLineTo(4f)
-            moveTo(20f, 12f); horizontalLineTo(22f)
-            moveTo(6.34f, 17.66f); lineTo(4.93f, 19.07f)
-            moveTo(19.07f, 4.93f); lineTo(17.66f, 6.34f)
+        lucideStrokeVector(
+            name = "LucideSettingsSelected",
+            strokeWidth = 2.2f,
+            fillAlpha = 0.25f,
+            fillType = PathFillType.EvenOdd
+        ) {
+            gearContourAndHub()
+        }
+    }
+
+    val Passkey: ImageVector by lazy {
+        lucideStrokeVector("LucidePasskey", strokeWidth = 2f) {
+            // User head + shoulder + key emblem
+            moveTo(13f, 7f)
+            arcTo(3.5f, 3.5f, 0f, true, true, 6f, 7f)
+            arcTo(3.5f, 3.5f, 0f, true, true, 13f, 7f)
+            moveTo(3f, 20f)
+            verticalLineTo(18.5f)
+            arcTo(4.5f, 4.5f, 0f, false, true, 7.5f, 14f)
+            horizontalLineTo(11f)
+            // Key circle + teeth on right
+            moveTo(19f, 14.5f)
+            arcTo(2.5f, 2.5f, 0f, true, true, 14f, 14.5f)
+            arcTo(2.5f, 2.5f, 0f, true, true, 19f, 14.5f)
+            moveTo(18.3f, 16.3f)
+            lineTo(21.5f, 19.5f)
+            moveTo(20f, 18f)
+            lineTo(21.5f, 16.5f)
         }
     }
 

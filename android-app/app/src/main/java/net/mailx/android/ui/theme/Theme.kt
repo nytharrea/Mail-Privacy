@@ -5,6 +5,7 @@ package net.mailx.android.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.text.LocalAutofillHighlightColor
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
@@ -14,6 +15,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -142,15 +144,20 @@ fun MailxTheme(
         }
     }
 
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
-        motionScheme = if (expressiveMotion) {
-            MotionScheme.expressive()
-        } else {
-            MotionScheme.standard()
-        },
-        shapes = MailxShapes,
-        typography = MailxTypography,
-        content = content
-    )
+    // Override Jetpack Compose's default yellow autofill highlight (0x4dffeb3b) with Transparent
+    CompositionLocalProvider(
+        LocalAutofillHighlightColor provides Color.Transparent
+    ) {
+        MaterialExpressiveTheme(
+            colorScheme = colorScheme,
+            motionScheme = if (expressiveMotion) {
+                MotionScheme.expressive()
+            } else {
+                MotionScheme.standard()
+            },
+            shapes = MailxShapes,
+            typography = MailxTypography,
+            content = content
+        )
+    }
 }

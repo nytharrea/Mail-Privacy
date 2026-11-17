@@ -1,5 +1,6 @@
 package net.mailx.android.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.core.PasskeyManager
 import net.mailx.android.ui.model.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -280,6 +282,124 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                         }
                     )
                 }
+            }
+        }
+    }
+
+    fun connectWithPasskey(activityContext: Context) {
+        val currentAuth = _authState.value
+        viewModelScope.launch {
+            _authState.update { it.copy(isLoading = true, errorMessage = null) }
+            val beginRes = MailxRustBridge.passkeyLoginBegin(
+                baseUrl = currentAuth.baseUrl,
+                email = currentAuth.emailInput.trim()
+            )
+            if (!beginRes.optBoolean("ok", false)) {
+                _authState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = beginRes.optString("error", "Could not start passkey sign-in")
+                    )
+                }
+                return@launch
+            }
+
+            val beginData = beginRes.optJSONObject("data") ?: JSONObject()
+            val optionsObj = beginData.optJSONObject("options") ?: JSONObject()
+            val ceremonyCookie = beginData.optString("ceremony_cookie", "")
+            val isDiscoverable = beginData.optBoolean("discoverable", true)
+
+            val assertionResult = PasskeyManager.requestPasskeyAssertion(activityContext, optionsObj)
+            val credentialJson = assertionResult.getOrElse { err ->
+                _authState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = err.message ?: "Passkey verification cancelled"
+                    )
+                }
+                return@launch
+            }
+
+            val finishRes = MailxRustBridge.passkeyLoginFinish(
+                baseUrl = currentAuth.baseUrl,
+                ceremonyCookie = ceremonyCookie,
+                credentialJson = credentialJson,
+                discoverable = isDiscoverable,
+                fallbackEmail = currentAuth.emailInput.trim()
+            )
+
+            if (finishRes.optBoolean("ok", false)) {
+                val data = finishRes.optJSONObject("data") ?: JSONObject()
+                prefs.baseUrl = currentAuth.baseUrl
+                val resolvedEmail = data.optString("recipient", "").ifBlank { currentAuth.emailInput.trim() }
+                if (resolvedEmail.isNotBlank()) {
+                    prefs.accountEmail = resolvedEmail
+                }
+                prefs.accessKey = ""
+                prefs.bearerToken = data.optString("token")
+                prefs.applyServerDefaults(data)
+                applyDefaultsJsonToState(data)
+
+                _authState.update {
+                    it.copy(
+                        isLoggedIn = true,
+                        isWebSession = true,
+                        baseUrl = prefs.baseUrl,
+                        emailInput = prefs.accountEmail,
+                        passwordInput = "",
+                        otpInput = "",
+                        totpRequired = false,
+                        isLoading = false,
+                        errorMessage = null
+                    )
+                }
+                hasLoadedInitialData = true
+                hasLoadedDeletedAliases = false
+                refreshAllData(showIndicator = true)
+            } else {
+                _authState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = finishRes.optString("error", "Passkey sign-in failed")
+                    )
+                }
+            }
+        }
+    }
+
+    fun registerPasskeyCredential(activityContext: Context) {
+        viewModelScope.launch {
+            val beginRes = MailxRustBridge.passkeyRegisterBegin(
+                baseUrl = prefs.baseUrl,
+                bearerToken = prefs.bearerToken
+            )
+            if (!beginRes.optBoolean("ok", false)) {
+                emitToast(beginRes.optString("error", "Could not start passkey registration"))
+                return@launch
+            }
+
+            val beginData = beginRes.optJSONObject("data") ?: JSONObject()
+            val optionsObj = beginData.optJSONObject("options") ?: JSONObject()
+            val ceremonyCookie = beginData.optString("ceremony_cookie", "")
+
+            val createResult = PasskeyManager.createPasskeyCredential(activityContext, optionsObj)
+            val registrationJson = createResult.getOrElse { err ->
+                emitToast(err.message ?: "Passkey creation cancelled")
+                return@launch
+            }
+
+            val finishRes = MailxRustBridge.passkeyRegisterFinish(
+                baseUrl = prefs.baseUrl,
+                bearerToken = prefs.bearerToken,
+                ceremonyCookie = ceremonyCookie,
+                credentialJson = registrationJson
+            )
+            prefs.syncRefreshedTokenIfPresent(finishRes)
+            if (finishRes.optBoolean("ok", false)) {
+                emitToast("Passkey added to your account")
+                fetchAccountAndSubscription()
+            } else {
+                emitToast(finishRes.optString("error", "Failed to complete passkey registration"))
             }
         }
     }
@@ -1787,7 +1907,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                         totpBackupCodes = backup
                     )
                 }
-                emitToast("Two-factor authentication (2FA) enabled!")
+                emitToast("2FA Authenticator enabled!")
             } else {
                 emitToast(res.optString("error", "Invalid 2FA verification code"))
             }
@@ -1803,7 +1923,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             )
             if (res.optBoolean("ok", false)) {
                 _userAccount.update { it.copy(totpEnabled = false, totpBackupCodes = "") }
-                emitToast("Two-factor authentication disabled")
+                emitToast("2FA Authenticator disabled")
             } else {
                 emitToast(res.optString("error", "Failed to disable 2FA"))
             }

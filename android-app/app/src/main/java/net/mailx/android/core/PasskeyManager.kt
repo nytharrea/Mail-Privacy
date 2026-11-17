@@ -1,0 +1,91 @@
+package net.mailx.android.core
+
+import android.content.Context
+import androidx.credentials.CreatePublicKeyCredentialRequest
+import androidx.credentials.CreatePublicKeyCredentialResponse
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetPublicKeyCredentialOption
+import androidx.credentials.PublicKeyCredential
+import androidx.credentials.exceptions.CreateCredentialCancellationException
+import androidx.credentials.exceptions.CreateCredentialException
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import org.json.JSONObject
+
+object PasskeyManager {
+
+    fun extractPublicKeyJson(optionsWrapper: JSONObject): String {
+        val pk = optionsWrapper.optJSONObject("publicKey") ?: optionsWrapper
+        return pk.toString()
+    }
+
+    suspend fun requestPasskeyAssertion(
+        activityContext: Context,
+        optionsWrapper: JSONObject
+    ): Result<String> {
+        return runCatching {
+            val requestJson = extractPublicKeyJson(optionsWrapper)
+            val credentialManager = CredentialManager.create(activityContext)
+            val option = GetPublicKeyCredentialOption(requestJson = requestJson)
+            val request = GetCredentialRequest(listOf(option))
+            val result = credentialManager.getCredential(
+                context = activityContext,
+                request = request
+            )
+            val cred = result.credential
+            if (cred is PublicKeyCredential) {
+                cred.authenticationResponseJson
+            } else {
+                throw IllegalStateException("Unexpected credential type returned by system")
+            }
+        }.recoverCatching { err ->
+            throw IllegalStateException(formatPasskeyError(err))
+        }
+    }
+
+    suspend fun createPasskeyCredential(
+        activityContext: Context,
+        optionsWrapper: JSONObject
+    ): Result<String> {
+        return runCatching {
+            val requestJson = extractPublicKeyJson(optionsWrapper)
+            val credentialManager = CredentialManager.create(activityContext)
+            val request = CreatePublicKeyCredentialRequest(requestJson = requestJson)
+            val result = credentialManager.createCredential(
+                context = activityContext,
+                request = request
+            )
+            if (result is CreatePublicKeyCredentialResponse) {
+                result.registrationResponseJson
+            } else {
+                throw IllegalStateException("Unexpected registration response from Credential Manager")
+            }
+        }.recoverCatching { err ->
+            throw IllegalStateException(formatPasskeyError(err))
+        }
+    }
+
+    private fun formatPasskeyError(err: Throwable): String {
+        return when (err) {
+            is GetCredentialCancellationException,
+            is CreateCredentialCancellationException -> "Passkey prompt was cancelled."
+            is NoCredentialException -> "No saved passkey found on this device for this domain."
+            is GetCredentialException,
+            is CreateCredentialException -> {
+                val msg = err.message.orEmpty()
+                if (msg.contains("assetlinks", ignoreCase = true) ||
+                    msg.contains("RP ID", ignoreCase = true) ||
+                    msg.contains("relying party", ignoreCase = true) ||
+                    msg.contains("SecurityError", ignoreCase = true)
+                ) {
+                    "Domain passkey verification failed: ensure /.well-known/assetlinks.json on the server includes this app's SHA-256 fingerprint."
+                } else {
+                    msg.ifBlank { "Passkey operation failed (${err.javaClass.simpleName})." }
+                }
+            }
+            else -> err.message?.takeIf { it.isNotBlank() } ?: "Passkey operation failed."
+        }
+    }
+}

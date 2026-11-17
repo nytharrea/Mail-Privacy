@@ -233,6 +233,74 @@ pub fn handle_login(base_url: &str, email: &str, password: &str, otp: &str) -> S
 }
 
 #[cfg(feature = "network")]
+pub fn handle_passkey_login_begin(base_url: &str, email: &str) -> String {
+    use crate::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    match client.passkey_login_begin(email) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
+pub fn handle_passkey_login_finish(
+    base_url: &str,
+    ceremony_cookie: &str,
+    credential_json: &str,
+    discoverable: bool,
+    fallback_email: &str,
+) -> String {
+    use crate::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    match client.passkey_login_finish(ceremony_cookie, credential_json, discoverable, fallback_email) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
+pub fn handle_passkey_register_begin(base_url: &str, bearer_token: &str) -> String {
+    use crate::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    client.set_credentials(None, Some(bearer_token.to_string()));
+    match client.passkey_register_begin() {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
+pub fn handle_passkey_register_finish(
+    base_url: &str,
+    bearer_token: &str,
+    ceremony_cookie: &str,
+    credential_json: &str,
+) -> String {
+    use crate::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    client.set_credentials(None, Some(bearer_token.to_string()));
+    match client.passkey_register_finish(ceremony_cookie, credential_json) {
+        Ok(res) => {
+            let refreshed = detect_refreshed_token(&client, bearer_token);
+            JniEnvelope::success_with_token(res, refreshed)
+        }
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
 pub fn handle_api_request(
     base_url: &str,
     access_key: &str,
@@ -730,6 +798,75 @@ mod android_exports {
             let pw = jstring_to_rust(env, password);
             let code = jstring_to_rust(env, otp);
             handle_login(&url, &em, &pw, &code)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativePasskeyLoginBegin(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        email: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let em = jstring_to_rust(env, email);
+            handle_passkey_login_begin(&url, &em)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativePasskeyLoginFinish(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        ceremony_cookie: JString,
+        credential_json: JString,
+        discoverable: jboolean,
+        fallback_email: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let cookie = jstring_to_rust(env, ceremony_cookie);
+            let cred = jstring_to_rust(env, credential_json);
+            let fb_em = jstring_to_rust(env, fallback_email);
+            handle_passkey_login_finish(&url, &cookie, &cred, discoverable == JNI_TRUE, &fb_em)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativePasskeyRegisterBegin(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        bearer_token: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let tok = jstring_to_rust(env, bearer_token);
+            handle_passkey_register_begin(&url, &tok)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativePasskeyRegisterFinish(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        bearer_token: JString,
+        ceremony_cookie: JString,
+        credential_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let tok = jstring_to_rust(env, bearer_token);
+            let cookie = jstring_to_rust(env, ceremony_cookie);
+            let cred = jstring_to_rust(env, credential_json);
+            handle_passkey_register_finish(&url, &tok, &cookie, &cred)
         })
     }
 

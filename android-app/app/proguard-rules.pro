@@ -2,6 +2,7 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+-keep class androidx.credentials.** { *; }
 
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**

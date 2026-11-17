@@ -100,6 +100,35 @@ object MailxRustBridge {
     ): String
 
     @JvmStatic
+    external fun nativePasskeyLoginBegin(
+        baseUrl: String,
+        email: String
+    ): String
+
+    @JvmStatic
+    external fun nativePasskeyLoginFinish(
+        baseUrl: String,
+        ceremonyCookie: String,
+        credentialJson: String,
+        discoverable: Boolean,
+        fallbackEmail: String
+    ): String
+
+    @JvmStatic
+    external fun nativePasskeyRegisterBegin(
+        baseUrl: String,
+        bearerToken: String
+    ): String
+
+    @JvmStatic
+    external fun nativePasskeyRegisterFinish(
+        baseUrl: String,
+        bearerToken: String,
+        ceremonyCookie: String,
+        credentialJson: String
+    ): String
+
+    @JvmStatic
     external fun nativeApiRequest(
         baseUrl: String,
         accessKey: String,
@@ -179,6 +208,54 @@ object MailxRustBridge {
         otp: String = ""
     ): JSONObject = withContext(Dispatchers.IO) {
         JSONObject(nativeLogin(baseUrl, email, password, otp))
+    }
+
+    suspend fun passkeyLoginBegin(
+        baseUrl: String,
+        email: String = ""
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativePasskeyLoginBegin(baseUrl, email))
+    }
+
+    suspend fun passkeyLoginFinish(
+        baseUrl: String,
+        ceremonyCookie: String,
+        credentialJson: String,
+        discoverable: Boolean,
+        fallbackEmail: String = ""
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(
+            nativePasskeyLoginFinish(
+                baseUrl,
+                ceremonyCookie,
+                credentialJson,
+                discoverable,
+                fallbackEmail
+            )
+        )
+    }
+
+    suspend fun passkeyRegisterBegin(
+        baseUrl: String,
+        bearerToken: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativePasskeyRegisterBegin(baseUrl, bearerToken))
+    }
+
+    suspend fun passkeyRegisterFinish(
+        baseUrl: String,
+        bearerToken: String,
+        ceremonyCookie: String,
+        credentialJson: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(
+            nativePasskeyRegisterFinish(
+                baseUrl,
+                bearerToken,
+                ceremonyCookie,
+                credentialJson
+            )
+        )
     }
 
     suspend fun apiRequest(

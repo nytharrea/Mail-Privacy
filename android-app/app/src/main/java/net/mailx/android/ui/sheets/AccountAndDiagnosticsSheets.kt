@@ -7,6 +7,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.ui.geometry.Offset
@@ -26,12 +27,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
@@ -39,6 +42,7 @@ import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.*
+import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 import org.json.JSONObject
 
@@ -57,6 +61,7 @@ fun AccountBottomSheet(
     onInitiateTotp: () -> Unit,
     onConfirmTotp: (otp: String) -> Unit,
     onDisableTotp: (otp: String) -> Unit,
+    onRegisterPasskey: (Context) -> Unit = {},
     onDeletePasskey: (id: String) -> Unit = {},
     onCreateAccessKey: (name: String, expiresDays: Int?) -> Unit,
     onClearNewAccessKeyToken: () -> Unit,
@@ -244,7 +249,7 @@ fun AccountBottomSheet(
                 }
             }
 
-            MailxSectionHeader(title = "Credentials & Two-Factor Authentication")
+            MailxSectionHeader(title = "Security & Credentials")
 
             MailxSectionRow(
                 title = "Change Primary Email",
@@ -262,15 +267,16 @@ fun AccountBottomSheet(
                 onClick = { showChangePasswordDialog = true }
             )
 
+            // Compact, single-line 2FA Card
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
@@ -278,27 +284,120 @@ fun AccountBottomSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Two-Factor Authentication (2FA TOTP)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Text(
-                                text = if (userAccount.totpEnabled) "Status: Enabled" else "Status: Disabled",
-                                fontSize = 13.sp,
-                                color = if (userAccount.totpEnabled) MailxPalette.ForwardEmerald else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            val totpColor = if (userAccount.totpEnabled) {
+                                MailxPalette.ForwardEmerald
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = totpColor.copy(alpha = 0.14f),
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = MailxIcons.ShieldCheck,
+                                        contentDescription = null,
+                                        tint = totpColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(1.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "2FA Authenticator",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.secondaryContainer
+                                    ) {
+                                        Text(
+                                            text = "TOTP",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (userAccount.totpEnabled) {
+                                                    MailxPalette.ForwardEmerald
+                                                } else {
+                                                    MailxPalette.Slate500
+                                                }
+                                            )
+                                    )
+                                    Text(
+                                        text = if (userAccount.totpEnabled) "Enabled" else "Disabled",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (userAccount.totpEnabled) {
+                                            MailxPalette.ForwardEmerald
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         if (userAccount.totpEnabled) {
                             OutlinedButton(
                                 onClick = { showDisableTotpDialog = true },
-                                shape = CircleShape
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                border = BorderStroke(1.dp, MailxPalette.BlockedRose.copy(alpha = 0.5f)),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("Disable", color = MailxPalette.BlockedRose)
+                                Text(
+                                    text = "Disable",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MailxPalette.BlockedRose
+                                )
                             }
                         } else {
-                            Button(
+                            FilledTonalButton(
                                 onClick = onInitiateTotp,
-                                shape = CircleShape
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("Enable 2FA")
+                                Text(
+                                    text = "Enable",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }
@@ -312,9 +411,9 @@ fun AccountBottomSheet(
                                 "otpauth://totp/Mailx:$label?secret=${userAccount.totpSetupSecret}&issuer=Mailx"
                             }
                         }
-                        HorizontalDivider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         Text(
-                            text = "Scan this QR code with your authenticator app (Aegis, Ente Auth, etc.) or copy the setup key manually:",
+                            text = "Scan QR code or copy setup key into your authenticator app:",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -324,7 +423,7 @@ fun AccountBottomSheet(
                         ) {
                             TotpQrCodeView(
                                 payload = qrUri,
-                                modifier = Modifier.size(184.dp)
+                                modifier = Modifier.size(152.dp)
                             )
                         }
                         Surface(
@@ -335,7 +434,7 @@ fun AccountBottomSheet(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -357,12 +456,12 @@ fun AccountBottomSheet(
                                             "TOTP secret key copied"
                                         )
                                     },
-                                    modifier = Modifier.size(34.dp)
+                                    modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.ContentCopy,
                                         contentDescription = "Copy Secret Key",
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                             }
@@ -380,16 +479,17 @@ fun AccountBottomSheet(
                                     ).show()
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             shape = CircleShape
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Open in Authenticator / Password Manager", fontSize = 12.sp)
+                            Text("Open in Authenticator App", fontSize = 12.sp)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -399,7 +499,7 @@ fun AccountBottomSheet(
                             OutlinedTextField(
                                 value = totpConfirmInput,
                                 onValueChange = { totpConfirmInput = it.take(6) },
-                                label = { Text("6-Digit TOTP Code") },
+                                label = { Text("6-Digit Code") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
@@ -484,12 +584,59 @@ fun AccountBottomSheet(
                 }
             }
 
-            if (passkeys.isNotEmpty()) {
-                MailxSectionHeader(
-                    title = "Passkeys",
-                    countBadge = passkeys.size
-                )
+            // Passkeys Section (Always visible with "+ Add Passkey" button)
+            MailxSectionHeader(
+                title = "Passkeys (WebAuthn)",
+                countBadge = passkeys.size,
+                actionText = "Add Passkey",
+                onActionClick = { onRegisterPasskey(context) }
+            )
 
+            if (passkeys.isEmpty()) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = MailxIcons.Passkey,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Passwordless Sign-In",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Register a device passkey via Android Credential Manager for biometric sign-in.",
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
                 passkeys.forEach { pk ->
                     Card(
                         shape = RoundedCornerShape(12.dp),
@@ -803,12 +950,12 @@ fun AccountBottomSheet(
         var otp by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showDisableTotpDialog = false },
-            title = { Text("Disable Two-Factor Authentication") },
+            title = { Text("Disable 2FA") },
             text = {
                 OutlinedTextField(
                     value = otp,
                     onValueChange = { otp = it.take(6) },
-                    label = { Text("6-Digit TOTP Code") },
+                    label = { Text("6-Digit 2FA Code") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()

@@ -10,7 +10,7 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="Mailx"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/Theme.Mailx">
 
         <activity
             android:name=".ui.MainActivity"
@@ -26,7 +26,7 @@
             android:name=".ui.intent.ReverseAliasSendActivity"
             android:exported="true"
             android:label="Send with Mailx"
-            android:theme="@android:style/Theme.Material.Dialog.NoActionBar">
+            android:theme="@style/Theme.Mailx.Dialog">
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
                 <category android:name="android.intent.category.DEFAULT" />
