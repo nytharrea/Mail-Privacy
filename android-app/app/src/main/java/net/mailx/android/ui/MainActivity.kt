@@ -42,6 +42,7 @@ import net.mailx.android.ui.theme.MailxPalette
 import net.mailx.android.ui.theme.MailxTheme
 import net.mailx.android.ui.viewmodel.MailxViewModel
 import net.mailx.android.ui.viewmodel.MailxViewModelFactory
+import net.mailx.android.widget.MailxWidgetUpdater
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +106,12 @@ fun MailxAppScreen(vm: MailxViewModel) {
     val toastMessage by vm.toastMessage.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(aliases, authState.isLoggedIn) {
+        if (authState.isLoggedIn) {
+            MailxWidgetUpdater.updateAll(context)
+        }
+    }
 
     LaunchedEffect(toastMessage) {
         toastMessage?.let { msg ->

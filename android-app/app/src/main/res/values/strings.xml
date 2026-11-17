@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_alias_name">Quick Alias Generator</string>
+    <string name="widget_quick_alias_desc">Create and copy a new Mailx alias with one tap</string>
+    <string name="widget_stats_name">Privacy Telemetry</string>
+    <string name="widget_stats_desc">Forwarded, blocked, replied and sent mail stats at a glance</string>
+    <string name="widget_pinned_name">Quick Access Aliases</string>
+    <string name="widget_pinned_desc">Copy your pinned and recent Mailx aliases directly from home screen</string>
+</resources>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_quick_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_card"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <ImageView
+        android:id="@+id/widget_quick_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:contentDescription="@string/widget_quick_alias_name"
+        android:src="@drawable/ic_widget_shield" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_quick_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Quick Alias"
+            android:textColor="#DEE4E3"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_quick_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Tap + to create &amp; copy"
+            android:textColor="#4FD8C8"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/widget_quick_copy_btn"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginEnd="6dp"
+        android:background="@drawable/widget_bg_pill"
+        android:contentDescription="Copy"
+        android:padding="7dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_widget_copy" />
+
+    <ImageButton
+        android:id="@+id/widget_quick_create_btn"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/widget_bg_primary_btn"
+        android:contentDescription="Create Alias"
+        android:padding="7dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_widget_add" />
+</LinearLayout>

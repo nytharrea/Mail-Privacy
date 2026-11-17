@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_pinned_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_card"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="8dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:contentDescription="@string/widget_pinned_name"
+            android:src="@drawable/ic_widget_shield" />
+
+        <TextView
+            android:id="@+id/widget_pinned_header"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="Quick Access Aliases"
+            android:textColor="#DEE4E3"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/widget_pinned_refresh_btn"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/widget_bg_pill"
+            android:contentDescription="Refresh"
+            android:padding="5dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_refresh" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/widget_pinned_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="6dp" />
+
+    <TextView
+        android:id="@+id/widget_pinned_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="Sign in and sync aliases to see quick shortcuts here"
+        android:textColor="#BEC9C6"
+        android:textSize="12sp" />
+</LinearLayout>

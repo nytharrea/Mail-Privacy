@@ -50,5 +50,46 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".widget.QuickAliasWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_quick_alias_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_alias_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.PrivacyStatsWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_stats_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_privacy_stats_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.PinnedAliasesWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_pinned_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_pinned_aliases_info" />
+        </receiver>
+
+        <service
+            android:name=".widget.PinnedAliasesWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
     </application>
 </manifest>
