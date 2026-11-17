@@ -1,5 +1,6 @@
 package net.mailx.android.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -57,6 +58,11 @@ fun AliasesTab(
 ) {
     var selectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
+
+    BackHandler(enabled = selectionMode) {
+        selectionMode = false
+        selectedIds = emptySet()
+    }
 
     LaunchedEffect(aliases, filterState.selectedChip) {
         val validIds = aliases.map { it.id }.toSet()

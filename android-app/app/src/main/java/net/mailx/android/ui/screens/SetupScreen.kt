@@ -188,7 +188,7 @@ fun SetupScreen(
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                             selected = !isCredentialsMode,
                             onClick = { onLoginModeChange("access_key") },
-                            label = { Text("85-Char Access Key", fontSize = 12.sp) }
+                            label = { Text("Access Key", fontSize = 12.sp) }
                         )
                     }
 
@@ -280,7 +280,7 @@ fun SetupScreen(
                         OutlinedTextField(
                             value = authState.accessKeyInput,
                             onValueChange = onAccessKeyChange,
-                            label = { Text("Access Key (<UUID>.<48-char-token>)") },
+                            label = { Text("Access Key") },
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                             trailingIcon = {
                                 IconButton(onClick = { showSecret = !showSecret }) {
@@ -290,12 +290,7 @@ fun SetupScreen(
                                     )
                                 }
                             },
-                            supportingText = {
-                                Text(
-                                    text = "${authState.accessKeyInput.trim().length} / 85 characters",
-                                    fontSize = 11.sp
-                                )
-                            },
+
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),

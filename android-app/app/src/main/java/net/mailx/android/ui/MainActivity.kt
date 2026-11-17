@@ -2,6 +2,7 @@ package net.mailx.android.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -106,6 +107,14 @@ fun MailxAppScreen(vm: MailxViewModel) {
     val toastMessage by vm.toastMessage.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    BackHandler(enabled = activeSheet != ActiveSheet.None || currentTab != MainNavTab.HOME) {
+        if (activeSheet != ActiveSheet.None) {
+            vm.closeSheet()
+        } else if (currentTab != MainNavTab.HOME) {
+            vm.selectTab(MainNavTab.HOME)
+        }
+    }
 
     LaunchedEffect(aliases, authState.isLoggedIn) {
         if (authState.isLoggedIn) {
