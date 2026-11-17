@@ -202,7 +202,7 @@ fun AliasesTab(
                 EmptyStateBox(
                     icon = Icons.Outlined.AlternateEmail,
                     title = if (filterState.searchQuery.isNotEmpty()) {
-                        ""${filterState.searchQuery}" için eşleşme yok"
+                        "\"${filterState.searchQuery}\" için eşleşme yok"
                     } else {
                         "Bu görünümde takma ad yok"
                     },
