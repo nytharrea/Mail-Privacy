@@ -1,12 +1,10 @@
 package net.mailx.android.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -17,10 +15,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,11 +27,13 @@ import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.model.FilterUiState
 import net.mailx.android.ui.model.UiAlias
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AliasesTab(
     aliases: List<UiAlias>,
     isLoading: Boolean,
     filterState: FilterUiState,
+    onRefresh: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectFilterChip: (String) -> Unit,
     onOpenFilterSheet: () -> Unit,
@@ -79,33 +79,31 @@ fun AliasesTab(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     focusedBorderColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier.weight(1f)
             )
 
-            Box {
+            BadgedBox(
+                badge = {
+                    if (filterState.isCustomFilterActive) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            ) {
                 FilledTonalIconButton(
                     onClick = onOpenFilterSheet,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(Icons.Default.Tune, contentDescription = "Sırala ve Filtrele")
-                }
-                if (filterState.isCustomFilterActive) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
                 }
             }
         }
@@ -137,12 +135,12 @@ fun AliasesTab(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
                             )
                         }
                     } else null,
                     label = { Text(label) },
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.small
                 )
             }
         }
@@ -163,62 +161,70 @@ fun AliasesTab(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ) {
                     Text(
                         text = aliases.size.toString(),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
             }
 
-            TextButton(
+            AssistChip(
                 onClick = onOpenFilterSheet,
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-            ) {
-                Icon(
-                    imageVector = if (filterState.sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = filterState.sortField.label,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (filterState.sortDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
+                },
+                label = {
+                    Text(
+                        text = filterState.sortField.label,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                },
+                shape = MaterialTheme.shapes.small
+            )
         }
 
-        if (aliases.isEmpty() && !isLoading) {
-            EmptyStateBox(
-                icon = Icons.Outlined.AlternateEmail,
-                title = if (filterState.searchQuery.isNotEmpty()) {
-                    "\"${filterState.searchQuery}\" için eşleşme yok"
-                } else {
-                    "Bu görünümde takma ad yok"
-                },
-                subtitle = "Yeni bir takma ad oluşturabilir veya aktif filtreyi değiştirebilirsiniz.",
-                actionLabel = "Yeni Alias Oluştur",
-                onActionClick = onOpenCreateSheet
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
-            ) {
-                items(aliases, key = { it.id }) { alias ->
-                    AliasCard(
-                        alias = alias,
-                        onClick = { onSelectAlias(alias) },
-                        onCopyOrWildcard = { onCopyOrWildcard(alias) },
-                        onToggleEnabled = { newState -> onToggleEnabled(alias, newState) }
-                    )
+        PullToRefreshBox(
+            isRefreshing = isLoading,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (aliases.isEmpty() && !isLoading) {
+                EmptyStateBox(
+                    icon = Icons.Outlined.AlternateEmail,
+                    title = if (filterState.searchQuery.isNotEmpty()) {
+                        ""${filterState.searchQuery}" için eşleşme yok"
+                    } else {
+                        "Bu görünümde takma ad yok"
+                    },
+                    subtitle = "Yeni bir takma ad oluşturabilir veya aktif filtreyi değiştirebilirsiniz.",
+                    actionLabel = "Yeni Alias Oluştur",
+                    onActionClick = onOpenCreateSheet
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
+                ) {
+                    items(aliases, key = { it.id }) { alias ->
+                        AliasCard(
+                            alias = alias,
+                            modifier = Modifier.animateItem(),
+                            onClick = { onSelectAlias(alias) },
+                            onCopyOrWildcard = { onCopyOrWildcard(alias) },
+                            onToggleEnabled = { newState -> onToggleEnabled(alias, newState) }
+                        )
+                    }
                 }
             }
         }

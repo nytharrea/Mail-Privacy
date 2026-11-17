@@ -53,6 +53,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     )
     val defaultsState: StateFlow<DefaultsUiState> = _defaultsState.asStateFlow()
 
+    private val _themeState = MutableStateFlow(
+        ThemeUiState(
+            dynamicColorEnabled = prefs.dynamicColorEnabled,
+            amoledDarkEnabled = prefs.amoledDarkEnabled
+        )
+    )
+    val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
+
     private val _activeSheet = MutableStateFlow<ActiveSheet>(ActiveSheet.None)
     val activeSheet: StateFlow<ActiveSheet> = _activeSheet.asStateFlow()
 
@@ -304,6 +312,16 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         prefs.defaultFormat = format
         _defaultsState.update { it.copy(defaultFormat = format) }
         emitToast("Varsayılan format güncellendi")
+    }
+
+    fun toggleDynamicColor(enabled: Boolean) {
+        prefs.dynamicColorEnabled = enabled
+        _themeState.update { it.copy(dynamicColorEnabled = enabled) }
+    }
+
+    fun toggleAmoledDark(enabled: Boolean) {
+        prefs.amoledDarkEnabled = enabled
+        _themeState.update { it.copy(amoledDarkEnabled = enabled) }
     }
 
     fun createAlias(requestJson: String, onCreated: (String) -> Unit) {

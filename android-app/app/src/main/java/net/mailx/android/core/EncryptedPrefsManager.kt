@@ -117,6 +117,14 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, value).apply()
 
+    var dynamicColorEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
+
+    var amoledDarkEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AMOLED_DARK_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_AMOLED_DARK_ENABLED, value).apply()
+
     fun getAvailableDomains(): List<String> {
         val result = linkedSetOf<String>()
         if (defaultDomain.isNotEmpty()) result.add(defaultDomain)
@@ -273,5 +281,7 @@ class EncryptedPrefsManager(context: Context) {
         private const val KEY_LOG_ISSUES = "log_issues"
         private const val KEY_CACHED_ALIASES = "cached_aliases"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
+        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_enabled"
     }
 }

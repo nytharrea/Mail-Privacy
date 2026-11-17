@@ -11,10 +11,12 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.json.JSONArray
 import org.json.JSONObject
 
+@Immutable
 data class UiAlias(
     val id: String,
     val name: String,
@@ -97,6 +99,7 @@ enum class AliasSortField(val key: String, val label: String) {
     SENDS("sends", "En Çok Gönderilen")
 }
 
+@Immutable
 data class AuthUiState(
     val isLoggedIn: Boolean = false,
     val baseUrl: String = "https://api.mailx.net",
@@ -105,6 +108,7 @@ data class AuthUiState(
     val errorMessage: String? = null
 )
 
+@Immutable
 data class FilterUiState(
     val searchQuery: String = "",
     val selectedChip: String = "active_inactive",
@@ -119,6 +123,7 @@ data class FilterUiState(
             !pinnedFirst
 }
 
+@Immutable
 data class DefaultsUiState(
     val defaultDomain: String = "mailx.net",
     val defaultRecipient: String = "",
@@ -128,6 +133,12 @@ data class DefaultsUiState(
     val availableRecipients: List<String> = emptyList(),
     val blockTrackers: Boolean = false,
     val removeHeader: Boolean = false
+)
+
+@Immutable
+data class ThemeUiState(
+    val dynamicColorEnabled: Boolean = false,
+    val amoledDarkEnabled: Boolean = true
 )
 
 sealed interface ActiveSheet {

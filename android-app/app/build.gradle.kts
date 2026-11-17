@@ -14,18 +14,18 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "net.mailx.android"
-    compileSdk = 35
+    compileSdk = 37
     ndkVersion = "30.0.16248370"
 
     defaultConfig {
         applicationId = "net.mailx.android"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        targetSdk = 36
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
-    // Android 15/16+ 16 KB sayfa boyutu zorunluluğu:
+    // Android 15/16/17+ 16 KB sayfa boyutu zorunluluğu:
     // Native .so kütüphanelerinin APK içinde sıkıştırılmadan 16 KB sınırında hizalanmasını sağlar.
     packaging {
         jniLibs {
@@ -93,22 +93,34 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+    // En güncel kararlı Jetpack Compose BOM (2026.09.00 -> Compose 1.12.1 & Material 3 1.4.0)
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.activity:activity-compose:1.9.3")
+
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
+
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.animation:animation")
+
+    // Material Design 3 (1.4.0 Expressive Motion, PullToRefreshBox, SegmentedButton, Adaptive)
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3-window-size-class")
+    implementation("androidx.compose.material3.adaptive:adaptive")
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
 
     // Güvenlik: Android Keystore & Biyometrik Kilit (addy-android'den uyarlanan mimari)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.1.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
 
     // R8 / Google Tink derleme zamanı anotasyon tanımları
     compileOnly("com.google.errorprone:error_prone_annotations:2.36.0")

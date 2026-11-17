@@ -1,11 +1,9 @@
 package net.mailx.android.ui.sheets
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandLess
@@ -14,18 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.mailx.android.ui.model.DefaultsUiState
 import org.json.JSONObject
 
-/**
- * Kompakt Yeni Alias Oluşturma Paneli:
- * Varsayılan olarak yalnızca Açıklama ve Format seçimi gösterilir;
- * Alan adı, Alıcı ve Gönderici Adı "Gelişmiş Seçenekler" altında açılır.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAliasBottomSheet(
@@ -57,6 +49,7 @@ fun AddAliasBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -77,6 +70,7 @@ fun AddAliasBottomSheet(
                 onValueChange = { description = it },
                 label = { Text("Açıklama (Örn: GitHub, Amazon, Kargo)") },
                 singleLine = true,
+                shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -90,7 +84,8 @@ fun AddAliasBottomSheet(
                     FilterChip(
                         selected = selectedFormat == fmtKey,
                         onClick = { selectedFormat = fmtKey },
-                        label = { Text(fmtLabel) }
+                        label = { Text(fmtLabel) },
+                        shape = MaterialTheme.shapes.small
                     )
                 }
             }
@@ -102,6 +97,7 @@ fun AddAliasBottomSheet(
                     label = { Text("Özel Yerel Ad") },
                     suffix = { Text("@$selectedDomain", fontFamily = FontFamily.Monospace) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -109,41 +105,46 @@ fun AddAliasBottomSheet(
             AnimatedVisibility(visible = selectedFormat == "wildcard") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilterChip(
-                        selected = wildcardDelimiter == "+",
-                        onClick = { wildcardDelimiter = "+" },
-                        label = { Text("*+") }
-                    )
-                    FilterChip(
-                        selected = wildcardDelimiter == ".",
-                        onClick = { wildcardDelimiter = "." },
-                        label = { Text("*.") }
-                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.width(128.dp)) {
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            selected = wildcardDelimiter == "+",
+                            onClick = { wildcardDelimiter = "+" },
+                            label = { Text("*+") }
+                        )
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            selected = wildcardDelimiter == ".",
+                            onClick = { wildcardDelimiter = "." },
+                            label = { Text("*.") }
+                        )
+                    }
                     OutlinedTextField(
                         value = wildcardLocalPart,
                         onValueChange = { wildcardLocalPart = it.trim() },
                         label = { Text("Sonek (Boşsa rastgele)") },
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
 
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { showAdvanced = !showAdvanced },
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer
+            OutlinedCard(
+                onClick = { showAdvanced = !showAdvanced },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -179,7 +180,8 @@ fun AddAliasBottomSheet(
                                 FilterChip(
                                     selected = selectedDomain == dom,
                                     onClick = { selectedDomain = dom },
-                                    label = { Text("@$dom") }
+                                    label = { Text("@$dom") },
+                                    shape = MaterialTheme.shapes.small
                                 )
                             }
                         }
@@ -190,6 +192,7 @@ fun AddAliasBottomSheet(
                         onValueChange = { recipientsText = it },
                         label = { Text("Yönlendirilecek Alıcı E-posta") },
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -198,6 +201,7 @@ fun AddAliasBottomSheet(
                         onValueChange = { fromName = it },
                         label = { Text("Gönderici Adı (İsteğe Bağlı)") },
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -229,7 +233,7 @@ fun AddAliasBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(14.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))

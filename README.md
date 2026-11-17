@@ -19,7 +19,11 @@
    - `x86_64` (`x86_64-linux-android`)
    - `x86` (`i686-linux-android`)
    - Hem her mimari için ayrı küçük boyutlu Split APK hem de tek parça Universal APK üretilir.
-4. **`addy-android`'den Uyarlanan Android Sistem Entegrasyonları**:
+4. **Jetpack Compose (BOM `2026.09.00` / `1.12.1`) & Material Design 3 (`1.4.0` Expressive)**:
+   - [Jetpack Compose BOM `2026.09.00`](https://developer.android.com/develop/ui/compose/bom/bom-mapping) ve [Compose Material 3 `1.4.0`](https://developer.android.com/jetpack/androidx/releases/compose-material3) ile `MotionScheme.expressive()` yay tabanlı fiziksel animasyon şeması.
+   - Saf **AMOLED Siyah (`#000000`)** karanlık mod yüzey hiyerarşisi ve Android 12+ **Material You Dinamik Renk (`dynamicDarkColorScheme` / `dynamicLightColorScheme`)** desteği.
+   - `PullToRefreshBox`, `SingleChoiceSegmentedButtonRow`, `OutlinedCard`, `ListItem`, `BadgedBox`, `ModalBottomSheet` (`DragHandle`) ve `collectAsStateWithLifecycle()` (`androidx.lifecycle:lifecycle-runtime-compose:2.11.0`) bileşenleri.
+5. **`addy-android`'den Uyarlanan Android Sistem Entegrasyonları**:
    - **Quick Settings Tile (`QuickAliasTileService.kt`)**: Bildirim panelinden uygulamayı açmadan tek dokunuşla yeni alias oluşturup panoya kopyalar.
    - **Ters-Alias Gönderim Yakalayıcı (`ReverseAliasSendActivity.kt`)**: Herhangi bir uygulamada e-posta adresini seçip sağ tık menüsünden veya `mailto:` bağlantısından doğrudan Mailx ters-alias adresi oluşturur.
    - **AndroidX Security Crypto (`EncryptedPrefsManager.kt`)**: Access Key ve önbelleği AES256-GCM ile Android Keystore üzerinde şifreli saklar.

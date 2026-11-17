@@ -2,12 +2,11 @@ package net.mailx.android.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.*
@@ -15,8 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -29,13 +26,14 @@ import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.theme.AddyPalette
 
 /**
- * Hızlı taranabilir, düşük yoğunluklu kompakt Alias kartı.
- * Detaylar `ManageAliasBottomSheet` içinde yer alır; kart üzerinde yalnızca
- * Donut istatistiği, adres, tek satır açıklama ve birincil kopyala/durum aksiyonu bulunur.
+ * Material 3 (1.4.0) OutlinedCard tabanlı kompakt Alias kartı.
+ * M3 Switch thumbContent ikonları, FilledTonalIconButton kopyalama aksiyonu ve
+ * semantik surfaceContainer hiyerarşisi kullanır.
  */
 @Composable
 fun AliasCard(
     alias: UiAlias,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onCopyOrWildcard: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit
@@ -50,25 +48,31 @@ fun AliasCard(
     }
 
     val borderColor = if (alias.pinned) {
-        AddyPalette.ForwardedOrange.copy(alpha = 0.5f)
+        AddyPalette.ForwardedOrange.copy(alpha = 0.55f)
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+    val cardContainerColor = if (alias.pinned) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer
+    }
+
+    OutlinedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = cardContainerColor
+        ),
         border = BorderStroke(1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp)
-                .alpha(if (alias.enabled) 1f else 0.62f),
+                .alpha(if (alias.enabled) 1f else 0.64f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AddyDonutChart(
@@ -77,7 +81,7 @@ fun AliasCard(
                 sends = alias.sends,
                 blocks = alias.blocks,
                 enabled = alias.enabled,
-                size = 40.dp,
+                size = 42.dp,
                 strokeWidth = 4.5.dp
             )
 
@@ -85,7 +89,7 @@ fun AliasCard(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -140,18 +144,36 @@ fun AliasCard(
                 )
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
+            val copyContainerColor by animateColorAsState(
+                targetValue = if (justCopied) {
+                    AddyPalette.ActiveGreen.copy(alpha = 0.2f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                label = "copyContainerColor"
+            )
             val copyTint by animateColorAsState(
-                targetValue = if (justCopied) AddyPalette.ActiveGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                targetValue = if (justCopied) {
+                    AddyPalette.ActiveGreen
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 label = "copyTint"
             )
-            IconButton(
+
+            FilledTonalIconButton(
                 onClick = {
                     if (!alias.wildcard) justCopied = true
                     onCopyOrWildcard()
                 },
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
+                shape = MaterialTheme.shapes.small,
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = copyContainerColor,
+                    contentColor = copyTint
+                )
             ) {
                 Icon(
                     imageVector = when {
@@ -160,15 +182,22 @@ fun AliasCard(
                         else -> Icons.Default.ContentCopy
                     },
                     contentDescription = "Kopyala",
-                    tint = copyTint,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.width(6.dp))
 
             Switch(
                 checked = alias.enabled,
                 onCheckedChange = onToggleEnabled,
-                modifier = Modifier.scale(0.78f)
+                thumbContent = {
+                    Icon(
+                        imageVector = if (alias.enabled) Icons.Default.Check else Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                    )
+                }
             )
         }
     }

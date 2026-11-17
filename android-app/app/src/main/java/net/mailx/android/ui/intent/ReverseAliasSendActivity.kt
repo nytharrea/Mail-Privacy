@@ -52,7 +52,10 @@ class ReverseAliasSendActivity : ComponentActivity() {
         val defaultAlias = cachedAliases.firstOrNull() ?: "ornek.alias@${prefs.defaultDomain}"
 
         setContent {
-            MailxAddyTheme {
+            MailxAddyTheme(
+                dynamicColor = prefs.dynamicColorEnabled,
+                amoledDark = prefs.amoledDarkEnabled
+            ) {
                 var aliasEmail by remember { mutableStateOf(defaultAlias) }
                 var targetEmail by remember { mutableStateOf(initialTarget) }
                 var generatedSendAddress by remember { mutableStateOf("") }

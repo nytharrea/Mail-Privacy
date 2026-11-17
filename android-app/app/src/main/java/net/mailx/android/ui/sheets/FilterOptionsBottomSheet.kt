@@ -3,7 +3,6 @@ package net.mailx.android.ui.sheets
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -36,6 +35,7 @@ fun FilterOptionsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -82,34 +82,51 @@ fun FilterOptionsBottomSheet(
                     FilterChip(
                         selected = tempFilter == key,
                         onClick = { tempFilter = key },
-                        label = { Text(lbl) }
+                        label = { Text(lbl) },
+                        shape = MaterialTheme.shapes.small
                     )
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Sıralama Ölçütü",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                AssistChip(
-                    onClick = { tempDesc = !tempDesc },
-                    leadingIcon = {
+            Text(
+                text = "Sıralama Yönü",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    selected = tempDesc,
+                    onClick = { tempDesc = true },
+                    icon = {
                         Icon(
-                            imageVector = if (tempDesc) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                            imageVector = Icons.Default.ArrowDownward,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
                         )
                     },
-                    label = { Text(if (tempDesc) "Azalan" else "Artan") }
+                    label = { Text("Azalan (Yeni → Eski)") }
+                )
+                SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    selected = !tempDesc,
+                    onClick = { tempDesc = false },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowUpward,
+                            contentDescription = null,
+                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                        )
+                    },
+                    label = { Text("Artan (Eski → Yeni)") }
                 )
             }
 
+            Text(
+                text = "Sıralama Ölçütü",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -120,7 +137,8 @@ fun FilterOptionsBottomSheet(
                     FilterChip(
                         selected = tempSort == field,
                         onClick = { tempSort = field },
-                        label = { Text(field.label) }
+                        label = { Text(field.label) },
+                        shape = MaterialTheme.shapes.small
                     )
                 }
             }
@@ -138,7 +156,7 @@ fun FilterOptionsBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(14.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Uygula", fontWeight = FontWeight.Bold)
             }

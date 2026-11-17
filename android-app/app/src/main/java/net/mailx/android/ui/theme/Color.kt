@@ -31,6 +31,16 @@ object AddyPalette {
     val DarkOutline = Color(0xFF3B435C)
     val DarkOutlineVariant = Color(0xFF262C3F)
 
+    // Saf AMOLED Siyah (#000000) Material 3 surfaceContainer hiyerarşisi
+    val AmoledBackground = Color(0xFF000000)
+    val AmoledSurface = Color(0xFF05070B)
+    val AmoledSurfaceLow = Color(0xFF0A0D14)
+    val AmoledSurfaceContainer = Color(0xFF10141F)
+    val AmoledSurfaceHigh = Color(0xFF171C2B)
+    val AmoledSurfaceHighest = Color(0xFF202638)
+    val AmoledOutline = Color(0xFF333B52)
+    val AmoledOutlineVariant = Color(0xFF1D2333)
+
     // Açık tema Material 3 surfaceContainer hiyerarşisi
     val LightBackground = Color(0xFFF9F9FE)
     val LightSurface = Color(0xFFFFFFFF)

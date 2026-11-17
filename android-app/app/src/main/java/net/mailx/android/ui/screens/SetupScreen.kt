@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
@@ -27,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import net.mailx.android.ui.model.AuthUiState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SetupScreen(
     authState: AuthUiState,
@@ -36,17 +36,20 @@ fun SetupScreen(
 ) {
     val context = LocalContext.current
     var showAccessKey by remember { mutableStateOf(false) }
+    val isOfficial = authState.baseUrl.contains("api.mailx.net")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
+            shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.primaryContainer,
             modifier = Modifier.size(76.dp)
         ) {
@@ -68,7 +71,7 @@ fun SetupScreen(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Rust Çekirdek • 16 KB Uyumlu • Gizlilik Odaklı Alias Yönetimi",
+            text = "Rust Çekirdek • Material 3 Expressive • 16 KB Uyumlu",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -76,9 +79,11 @@ fun SetupScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+        OutlinedCard(
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.outlinedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -86,19 +91,18 @@ fun SetupScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = authState.baseUrl.contains("api.mailx.net"),
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        selected = isOfficial,
                         onClick = { onBaseUrlChange("https://api.mailx.net") },
                         label = { Text("Resmi Sunucu") }
                     )
-                    FilterChip(
-                        selected = !authState.baseUrl.contains("api.mailx.net"),
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        selected = !isOfficial,
                         onClick = {
-                            if (authState.baseUrl.contains("api.mailx.net")) {
+                            if (isOfficial) {
                                 onBaseUrlChange("https://")
                             }
                         },
@@ -112,6 +116,7 @@ fun SetupScreen(
                     label = { Text("API Sunucu Adresi") },
                     leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -142,13 +147,16 @@ fun SetupScreen(
                     },
                     visualTransformation = if (showAccessKey) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 authState.errorMessage?.let { err ->
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer,
+                    Card(
+                        shape = MaterialTheme.shapes.small,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
@@ -166,7 +174,7 @@ fun SetupScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     if (authState.isLoading) {
                         CircularProgressIndicator(
