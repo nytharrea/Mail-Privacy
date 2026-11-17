@@ -1,5 +1,9 @@
+use crate::alias_engine::{filter_and_sort_alias_ids_json, AliasQuerySpec};
+use crate::catalog::format_iso_date_short;
+use crate::csv_engine::export_aliases_json_to_csv;
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
+use crate::telemetry::aggregate_user_stats_json;
 use crate::utils::{
     compute_privacy_posture, decode_trackers_report, encode_nato_phonetic, encode_qr_matrix,
     generate_random_suffix, generate_reverse_alias, generate_wildcard_on_the_fly,
@@ -127,6 +131,45 @@ pub fn handle_compute_privacy_posture(
     ))
 }
 
+pub fn handle_filter_and_sort_aliases(
+    aliases_json: &str,
+    chip_key: &str,
+    search_query: &str,
+    sort_field: &str,
+    sort_descending: bool,
+    pinned_first: bool,
+) -> String {
+    let spec = AliasQuerySpec {
+        chip_key: chip_key.to_string(),
+        search_query: search_query.to_string(),
+        sort_field: sort_field.to_string(),
+        sort_descending,
+        pinned_first,
+    };
+    match filter_and_sort_alias_ids_json(aliases_json, &spec) {
+        Ok(ids) => JniEnvelope::success(ids),
+        Err(e) => JniEnvelope::<Vec<String>>::failure(e),
+    }
+}
+
+pub fn handle_compute_user_stats(raw_stats_json: &str, fallback_alias_count: usize) -> String {
+    match aggregate_user_stats_json(raw_stats_json, fallback_alias_count, None) {
+        Ok(stats) => JniEnvelope::success(stats),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
+}
+
+pub fn handle_export_aliases_csv(aliases_json: &str) -> String {
+    match export_aliases_json_to_csv(aliases_json) {
+        Ok(csv) => JniEnvelope::success(csv),
+        Err(e) => JniEnvelope::<String>::failure(e),
+    }
+}
+
+pub fn handle_format_iso_date_short(raw_iso: &str) -> String {
+    format_iso_date_short(raw_iso)
+}
+
 #[cfg(feature = "network")]
 pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {
     use crate::client::MailxClient;
@@ -174,6 +217,30 @@ pub fn handle_api_request(
         Some(body_json)
     };
     match client.execute_raw_json(method, path, body_opt) {
+        Ok(val) => {
+            let refreshed = detect_refreshed_token(&client, bearer_token);
+            JniEnvelope::success_with_token(val, refreshed)
+        }
+        Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
+pub fn handle_dispatch_action(
+    base_url: &str,
+    access_key: &str,
+    bearer_token: &str,
+    action: &str,
+    params_json: &str,
+) -> String {
+    use crate::client::MailxClient;
+    use crate::controller::execute_controller_action;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(c) => c,
+        Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
+    };
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
+    match execute_controller_action(&client, action, params_json) {
         Ok(val) => {
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(val, refreshed)
@@ -491,6 +558,70 @@ mod android_exports {
         })
     }
 
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeFilterAndSortAliases(
+        env: JNIEnv,
+        _class: JClass,
+        aliases_json: JString,
+        chip_key: JString,
+        search_query: JString,
+        sort_field: JString,
+        sort_descending: jboolean,
+        pinned_first: jboolean,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, aliases_json);
+            let chip = jstring_to_rust(env, chip_key);
+            let search = jstring_to_rust(env, search_query);
+            let field = jstring_to_rust(env, sort_field);
+            handle_filter_and_sort_aliases(
+                &raw,
+                &chip,
+                &search,
+                &field,
+                sort_descending == JNI_TRUE,
+                pinned_first == JNI_TRUE,
+            )
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeComputeUserStats(
+        env: JNIEnv,
+        _class: JClass,
+        raw_stats_json: JString,
+        fallback_alias_count: jint,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, raw_stats_json);
+            handle_compute_user_stats(&raw, fallback_alias_count.max(0) as usize)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeExportAliasesCsv(
+        env: JNIEnv,
+        _class: JClass,
+        aliases_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, aliases_json);
+            handle_export_aliases_csv(&raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeFormatIsoDateShort(
+        env: JNIEnv,
+        _class: JClass,
+        raw_iso: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let raw = jstring_to_rust(env, raw_iso);
+            handle_format_iso_date_short(&raw)
+        })
+    }
+
     #[cfg(feature = "network")]
     #[no_mangle]
     pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAuthenticate(
@@ -545,6 +676,27 @@ mod android_exports {
             let p = jstring_to_rust(env, path);
             let b = jstring_to_rust(env, body_json);
             handle_api_request(&url, &key, &tok, &m, &p, &b)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeDispatchAction(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        access_key: JString,
+        bearer_token: JString,
+        action: JString,
+        params_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let key = jstring_to_rust(env, access_key);
+            let tok = jstring_to_rust(env, bearer_token);
+            let act = jstring_to_rust(env, action);
+            let prm = jstring_to_rust(env, params_json);
+            handle_dispatch_action(&url, &key, &tok, &act, &prm)
         })
     }
 
