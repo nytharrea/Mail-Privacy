@@ -3,20 +3,19 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
 }
 
 android {
     namespace = "net.mailx.android"
     compileSdk = 35
-    ndkVersion = "28.0.12674087"
+    ndkVersion = "30.0.16248370"
 
     defaultConfig {
         applicationId = "net.mailx.android"
@@ -24,11 +23,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-
-        // 16 KB page size desteği için NDK ABI filtreleri
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-        }
     }
 
     // Android 15/16+ 16 KB sayfa boyutu zorunluluğu:
@@ -54,11 +48,14 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            if (keystorePropertiesFile.exists() && !storeFilePath.isNullOrBlank()) {
+                val storePass = keystoreProperties.getProperty("storePassword").orEmpty()
+                val keyPass = keystoreProperties.getProperty("keyPassword")?.takeIf { it.isNotBlank() } ?: storePass
+                storeFile = file(storeFilePath)
+                storePassword = storePass
+                keyAlias = keystoreProperties.getProperty("keyAlias").orEmpty()
+                keyPassword = keyPass
                 enableV1Signing = false
                 enableV2Signing = true
                 enableV3Signing = true
@@ -85,12 +82,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     buildFeatures {
@@ -116,4 +109,8 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // R8 / Google Tink derleme zamanı anotasyon tanımları
+    compileOnly("com.google.errorprone:error_prone_annotations:2.36.0")
+    compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 }

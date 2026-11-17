@@ -11,7 +11,7 @@
    - Ters-alias (`Send from alias`: `alias+alici=domain.com@mailx.net`) ve Wildcard on-the-fly (`prefix+wildcard@domain`) adreslerini yerel olarak Rust'ta üretir.
 2. **Android 16 KB Sayfa Boyutu (Page Size) Desteği**:
    - `.cargo/config.toml` içinde tüm Android hedefleri için `-Wl,-z,max-page-size=16384` ve `-Wl,-z,common-page-size=16384` tanımlıdır.
-   - `android-app/app/build.gradle.kts` içinde **NDK r28 (`28.0.12674087`)** ve `useLegacyPackaging = false` kullanılır.
+   - `android-app/app/build.gradle.kts` içinde **NDK r30 LTS (`30.0.16248370`)** ve `useLegacyPackaging = false` kullanılır.
    - GitHub Actions iş akışında hem `llvm-objdump -p` ile ELF `2**14` segment hizalaması hem de `zipalign -c -v -P 16 4` doğrulaması otomatik yapılır.
 3. **Çoklu ABI Desteği**:
    - `arm64-v8a` (`aarch64-linux-android`)

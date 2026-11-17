@@ -122,11 +122,9 @@ mod tests {
 
     #[test]
     fn test_validate_access_key_valid_and_invalid() {
-        let valid_key = format!(
-            "{}.{}",
-            "550e8400-e29b-41d4-a716-446655440000",
-            "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"
-        );
+        let uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let token = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6";
+        let valid_key = format!("{uuid}.{token}");
         assert_eq!(valid_key.len(), 85);
         assert!(validate_access_key(&valid_key).is_ok());
         assert!(validate_access_key("short_key").is_err());
