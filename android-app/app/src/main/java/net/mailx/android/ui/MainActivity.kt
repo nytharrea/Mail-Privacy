@@ -575,8 +575,7 @@ fun MailxAppScreen(prefs: EncryptedPrefsManager) {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     if (generated.isNotEmpty()) {
-                        Text("Üretilen Adres:
-$generated", fontFamily = FontFamily.Monospace)
+                        Text("Üretilen Adres:\n$generated", fontFamily = FontFamily.Monospace)
                     }
                 }
             },
@@ -621,8 +620,7 @@ $generated", fontFamily = FontFamily.Monospace)
                         singleLine = true
                     )
                     if (generated.isNotEmpty()) {
-                        Text("Bu adrese e-posta gönderin:
-$generated", fontFamily = FontFamily.Monospace)
+                        Text("Bu adrese e-posta gönderin:\n$generated", fontFamily = FontFamily.Monospace)
                     }
                 }
             },

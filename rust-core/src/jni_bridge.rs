@@ -91,11 +91,7 @@ pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {
 }
 
 #[cfg(feature = "network")]
-pub fn handle_fetch_defaults(
-    base_url: &str,
-    access_key: &str,
-    bearer_token: &str,
-) -> String {
+pub fn handle_fetch_defaults(base_url: &str, access_key: &str, bearer_token: &str) -> String {
     use crate::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
