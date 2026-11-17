@@ -36,6 +36,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
+import net.mailx.android.ui.components.LiquidGlassSurface
+import net.mailx.android.ui.components.LiquidMaterialPreset
 import net.mailx.android.ui.model.AuthUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +67,7 @@ fun SetupScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Transparent)
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         Column(
@@ -75,9 +78,11 @@ fun SetupScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            LiquidGlassSurface(
+                cornerRadius = 22.dp,
+                preset = LiquidMaterialPreset.Regular,
+                estimatedWidthDp = 360f,
+                estimatedHeightDp = 96f,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -121,7 +126,7 @@ fun SetupScreen(
                                 color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Text(
-                                    text = "Rust Core",
+                                    text = "liquid-rust",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -138,9 +143,11 @@ fun SetupScreen(
                 }
             }
 
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            LiquidGlassSurface(
+                cornerRadius = 22.dp,
+                preset = LiquidMaterialPreset.Regular,
+                estimatedWidthDp = 360f,
+                estimatedHeightDp = 340f,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -343,9 +350,11 @@ fun SetupScreen(
                 }
             }
 
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            LiquidGlassSurface(
+                cornerRadius = 16.dp,
+                preset = LiquidMaterialPreset.ClearBar,
+                estimatedWidthDp = 360f,
+                estimatedHeightDp = 46f,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(

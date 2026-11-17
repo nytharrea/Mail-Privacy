@@ -704,7 +704,13 @@ data class DefaultsUiState(
 data class ThemeUiState(
     val darkModeMode: Int = 1,
     val dynamicColorEnabled: Boolean = false,
-    val amoledDarkEnabled: Boolean = false
+    val amoledDarkEnabled: Boolean = false,
+    val liquidTransparency: Float = 0.50f,
+    val liquidRefraction: Float = 1.0f,
+    val liquidDispersion: Float = 1.0f,
+    val liquidMergingEnabled: Boolean = true,
+    val reduceTransparency: Boolean = false,
+    val increaseContrast: Boolean = false
 )
 
 sealed interface ActiveSheet {
@@ -717,6 +723,7 @@ sealed interface ActiveSheet {
     data object AccountSheet : ActiveSheet
     data object AnnouncementsSheet : ActiveSheet
     data object TrackersReportSheet : ActiveSheet
+    data object PrivacyLabSheet : ActiveSheet
     data class ManageAlias(val aliasId: String) : ActiveSheet
     data class WildcardGen(val alias: UiAlias) : ActiveSheet
     data class ReverseSend(val initialAlias: String) : ActiveSheet

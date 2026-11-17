@@ -64,7 +64,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         ThemeUiState(
             darkModeMode = prefs.darkModeMode,
             dynamicColorEnabled = prefs.dynamicColorEnabled,
-            amoledDarkEnabled = prefs.amoledDarkEnabled
+            amoledDarkEnabled = prefs.amoledDarkEnabled,
+            liquidTransparency = prefs.liquidTransparency,
+            liquidRefraction = prefs.liquidRefraction,
+            liquidDispersion = prefs.liquidDispersion,
+            liquidMergingEnabled = prefs.liquidMergingEnabled,
+            reduceTransparency = prefs.reduceTransparency,
+            increaseContrast = prefs.increaseContrast
         )
     )
     val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
@@ -734,6 +740,39 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun toggleAmoledDark(enabled: Boolean) {
         prefs.amoledDarkEnabled = enabled
         _themeState.update { it.copy(amoledDarkEnabled = enabled) }
+    }
+
+    fun updateLiquidTransparency(value: Float) {
+        val clamped = value.coerceIn(0f, 1f)
+        prefs.liquidTransparency = clamped
+        _themeState.update { it.copy(liquidTransparency = clamped) }
+    }
+
+    fun updateLiquidRefraction(value: Float) {
+        val clamped = value.coerceIn(0.2f, 1.5f)
+        prefs.liquidRefraction = clamped
+        _themeState.update { it.copy(liquidRefraction = clamped) }
+    }
+
+    fun updateLiquidDispersion(value: Float) {
+        val clamped = value.coerceIn(0f, 1.5f)
+        prefs.liquidDispersion = clamped
+        _themeState.update { it.copy(liquidDispersion = clamped) }
+    }
+
+    fun toggleLiquidMerging(enabled: Boolean) {
+        prefs.liquidMergingEnabled = enabled
+        _themeState.update { it.copy(liquidMergingEnabled = enabled) }
+    }
+
+    fun toggleReduceTransparency(enabled: Boolean) {
+        prefs.reduceTransparency = enabled
+        _themeState.update { it.copy(reduceTransparency = enabled) }
+    }
+
+    fun toggleIncreaseContrast(enabled: Boolean) {
+        prefs.increaseContrast = enabled
+        _themeState.update { it.copy(increaseContrast = enabled) }
     }
 
     fun fetchWildcardDomainInfo(domainParam: String) {

@@ -131,6 +131,30 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getInt(KEY_DARK_MODE_MODE, 1)
         set(value) = prefs.edit().putInt(KEY_DARK_MODE_MODE, value).apply()
 
+    var liquidTransparency: Float
+        get() = prefs.getFloat(KEY_LIQUID_TRANSPARENCY, 0.50f).coerceIn(0f, 1f)
+        set(value) = prefs.edit().putFloat(KEY_LIQUID_TRANSPARENCY, value.coerceIn(0f, 1f)).apply()
+
+    var liquidRefraction: Float
+        get() = prefs.getFloat(KEY_LIQUID_REFRACTION, 1.0f).coerceIn(0.2f, 1.5f)
+        set(value) = prefs.edit().putFloat(KEY_LIQUID_REFRACTION, value.coerceIn(0.2f, 1.5f)).apply()
+
+    var liquidDispersion: Float
+        get() = prefs.getFloat(KEY_LIQUID_DISPERSION, 1.0f).coerceIn(0f, 1.5f)
+        set(value) = prefs.edit().putFloat(KEY_LIQUID_DISPERSION, value.coerceIn(0f, 1.5f)).apply()
+
+    var liquidMergingEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LIQUID_MERGING_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_LIQUID_MERGING_ENABLED, value).apply()
+
+    var reduceTransparency: Boolean
+        get() = prefs.getBoolean(KEY_REDUCE_TRANSPARENCY, false)
+        set(value) = prefs.edit().putBoolean(KEY_REDUCE_TRANSPARENCY, value).apply()
+
+    var increaseContrast: Boolean
+        get() = prefs.getBoolean(KEY_INCREASE_CONTRAST, false)
+        set(value) = prefs.edit().putBoolean(KEY_INCREASE_CONTRAST, value).apply()
+
     fun getAvailableDomains(): List<String> {
         val result = linkedSetOf<String>()
         if (defaultDomain.isNotEmpty()) result.add(defaultDomain)
@@ -138,8 +162,8 @@ class EncryptedPrefsManager(context: Context) {
             runCatching {
                 val arr = JSONArray(availableDomainsJson)
                 for (i in 0 until arr.length()) {
-                    val item = arr.optString(i).trim()
-                    if (item.isNotEmpty()) result.add(item)
+                    val d = arr.optString(i).trim()
+                    if (d.isNotEmpty()) result.add(d)
                 }
             }
         }
@@ -150,30 +174,35 @@ class EncryptedPrefsManager(context: Context) {
     fun getAvailableRecipients(): List<String> {
         val result = linkedSetOf<String>()
         if (defaultRecipient.isNotEmpty()) {
-            defaultRecipient.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach {
-                result.add(it)
-            }
+            defaultRecipient.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .forEach { result.add(it) }
         }
         if (availableRecipientsJson.isNotEmpty()) {
             runCatching {
                 val arr = JSONArray(availableRecipientsJson)
                 for (i in 0 until arr.length()) {
-                    val item = arr.optString(i).trim()
-                    if (item.isNotEmpty()) result.add(item)
+                    val r = arr.optString(i).trim()
+                    if (r.isNotEmpty()) result.add(r)
                 }
             }
         }
         return result.toList()
     }
 
-    fun isConfigured(): Boolean = bearerToken.isNotEmpty()
+    fun isConfigured(): Boolean {
+        return baseUrl.isNotEmpty() && (accessKey.isNotEmpty() || bearerToken.isNotEmpty())
+    }
 
-    fun isWebSession(): Boolean = bearerToken.startsWith("cookie:")
+    fun isWebSession(): Boolean {
+        return bearerToken.isNotEmpty() && accessKey.isEmpty()
+    }
 
-    fun syncRefreshedTokenIfPresent(response: JSONObject) {
-        val newToken = response.optString("refreshed_token", "").trim()
-        if (newToken.isNotEmpty() && newToken != bearerToken) {
-            bearerToken = newToken
+    fun syncRefreshedTokenIfPresent(envelope: JSONObject) {
+        val refreshed = envelope.optString("refreshed_token", "").trim()
+        if (refreshed.isNotEmpty() && refreshed != "null") {
+            bearerToken = refreshed
         }
     }
 
@@ -302,5 +331,11 @@ class EncryptedPrefsManager(context: Context) {
         private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v3_enabled"
         private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v3_enabled"
         private const val KEY_DARK_MODE_MODE = "dark_mode_v3_mode"
+        private const val KEY_LIQUID_TRANSPARENCY = "liquid_glass_transparency_v5"
+        private const val KEY_LIQUID_REFRACTION = "liquid_glass_refraction_v5"
+        private const val KEY_LIQUID_DISPERSION = "liquid_glass_dispersion_v5"
+        private const val KEY_LIQUID_MERGING_ENABLED = "liquid_glass_merging_v5"
+        private const val KEY_REDUCE_TRANSPARENCY = "liquid_reduce_transparency_v5"
+        private const val KEY_INCREASE_CONTRAST = "liquid_increase_contrast_v5"
     }
 }

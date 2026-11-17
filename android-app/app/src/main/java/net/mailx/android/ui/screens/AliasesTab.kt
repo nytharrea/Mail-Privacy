@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.components.AliasCard
+import net.mailx.android.ui.components.LiquidGlassSurface
+import net.mailx.android.ui.components.LiquidMaterialPreset
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.model.FilterUiState
@@ -147,9 +149,9 @@ fun AliasesTab(
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.62f),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.52f),
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.42f),
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent
@@ -399,7 +401,7 @@ fun AliasesTab(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(top = 2.dp, bottom = 84.dp)
+                    contentPadding = PaddingValues(top = 2.dp, bottom = 112.dp)
                 ) {
                     items(aliases, key = { it.id }) { alias ->
                         val isSelected = selectedIds.contains(alias.id)

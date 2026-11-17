@@ -2,16 +2,62 @@ package net.mailx.android.ui.screens
 
 import android.os.Build
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.BlurOn
+import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Contrast
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Unsubscribe
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.ui.components.LiquidGlassSurface
+import net.mailx.android.ui.components.LiquidMaterialPreset
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.model.DefaultsUiState
@@ -44,8 +92,15 @@ fun SettingsTab(
     onUpdateDarkModeMode: (Int) -> Unit = {},
     onToggleDynamicColor: (Boolean) -> Unit,
     onToggleAmoledDark: (Boolean) -> Unit,
+    onUpdateLiquidTransparency: (Float) -> Unit = {},
+    onUpdateLiquidRefraction: (Float) -> Unit = {},
+    onUpdateLiquidDispersion: (Float) -> Unit = {},
+    onToggleLiquidMerging: (Boolean) -> Unit = {},
+    onToggleReduceTransparency: (Boolean) -> Unit = {},
+    onToggleIncreaseContrast: (Boolean) -> Unit = {},
     onSyncDefaults: () -> Unit,
     onOpenReverseAliasTool: () -> Unit,
+    onOpenPrivacyLab: () -> Unit = {},
     onOpenTrackersReportSheet: () -> Unit = {},
     onOpenDiagnosticsSheet: () -> Unit = {},
     onOpenAccountSheet: () -> Unit = {},
@@ -60,50 +115,59 @@ fun SettingsTab(
     var showUnsubscribeDialog by remember { mutableStateOf(false) }
 
     val darkModeLabel = when (themeState.darkModeMode) {
-        1 -> "Dark Mode: On"
-        0 -> "Dark Mode: Off"
-        else -> "Dark Mode: System"
+        1 -> "Dark Mode"
+        0 -> "Light Mode"
+        else -> "System Mode"
     }
+    val transparencyPercent = (themeState.liquidTransparency * 100).toInt()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 108.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "header_general") {
-            MailxSectionHeader(title = "Appearance & Privacy Tools")
+            MailxSectionHeader(title = "iOS 27 Liquid Glass & Privacy Tools")
         }
 
         item(key = "section_uiux_interface") {
             MailxSectionRow(
-                title = "Theme & Display Mode",
-                description = "$darkModeLabel • Material 3 palette & contrast",
-                startIcon = Icons.Default.Brightness6,
+                title = "iOS 27 Liquid Glass Studio",
+                description = "$darkModeLabel • Transparency $transparencyPercent% • Snell Lensing ${(themeState.liquidRefraction * 100).toInt()}%",
+                startIcon = Icons.Default.BlurOn,
+                endIcon = Icons.Default.Edit,
                 onClick = { showInterfaceSheet = true }
             )
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            item(key = "section_dynamic_colors") {
-                MailxSectionRow(
-                    title = "Material You Dynamic Color",
-                    description = "Derive surface and accent tones from system wallpaper",
-                    startIcon = Icons.Default.Palette,
-                    showSwitch = true,
-                    switchChecked = themeState.dynamicColorEnabled,
-                    onSwitchChange = onToggleDynamicColor
-                )
-            }
+        item(key = "section_liquid_merging") {
+            MailxSectionRow(
+                title = "Liquid Neck Merging (Smooth-Union SDF)",
+                description = "Fuse approaching glass pills and nav bar lenses with a liquid neck",
+                startIcon = Icons.Default.AutoAwesome,
+                showSwitch = true,
+                switchChecked = themeState.liquidMergingEnabled,
+                onSwitchChange = onToggleLiquidMerging
+            )
         }
 
         item(key = "section_amoled_dark") {
             MailxSectionRow(
                 title = "Pure Black Surface (AMOLED)",
-                description = "True #000000 background in dark theme",
+                description = "True #000000 backdrop under Liquid Glass in dark mode",
                 startIcon = Icons.Default.Contrast,
                 showSwitch = true,
                 switchChecked = themeState.amoledDarkEnabled,
                 onSwitchChange = onToggleAmoledDark
+            )
+        }
+
+        item(key = "section_privacy_lab_tool") {
+            MailxSectionRow(
+                title = "Rust Privacy & Security Lab",
+                description = "URL tracker stripper, RFC 5322 SPF/DKIM header analyzer & hygiene audit",
+                startIcon = Icons.Default.AutoAwesome,
+                onClick = onOpenPrivacyLab
             )
         }
 
@@ -273,14 +337,14 @@ fun SettingsTab(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "Mailx Privacy • Rust Native Core (16 KB Aligned)",
+                    text = "Mailx Privacy • al1h3n/liquid-rust Engine (16 KB Aligned)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "v0.4.0 • $baseUrl",
+                    text = "v0.5.0 • $baseUrl",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center
@@ -294,19 +358,20 @@ fun SettingsTab(
         ModalBottomSheet(
             onDismissRequest = { showInterfaceSheet = false },
             sheetState = sheetState,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 28.dp)
             ) {
                 Text(
-                    text = "Theme & Display Mode",
+                    text = "iOS 27 Liquid Glass Optical Studio",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -323,8 +388,123 @@ fun SettingsTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    LiquidGlassSurface(
+                        cornerRadius = 18.dp,
+                        preset = LiquidMaterialPreset.Regular,
+                        estimatedWidthDp = 350f,
+                        estimatedHeightDp = 240f,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "iOS 27 Transparency Slider",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = when {
+                                        themeState.liquidTransparency <= 0.15f -> "Ultra Clear (${(themeState.liquidTransparency * 100).toInt()}%)"
+                                        themeState.liquidTransparency in 0.42f..0.58f -> "Apple Kit Default (50%)"
+                                        else -> "Tinted (${(themeState.liquidTransparency * 100).toInt()}%)"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Slider(
+                                value = themeState.liquidTransparency,
+                                onValueChange = onUpdateLiquidTransparency,
+                                valueRange = 0f..1f
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = themeState.liquidTransparency < 0.2f,
+                                    onClick = { onUpdateLiquidTransparency(0.08f) },
+                                    label = { Text("Ultra Clear") }
+                                )
+                                FilterChip(
+                                    selected = themeState.liquidTransparency in 0.42f..0.58f,
+                                    onClick = { onUpdateLiquidTransparency(0.50f) },
+                                    label = { Text("Kit Default") }
+                                )
+                                FilterChip(
+                                    selected = themeState.liquidTransparency > 0.80f,
+                                    onClick = { onUpdateLiquidTransparency(0.92f) },
+                                    label = { Text("Deep Tinted") }
+                                )
+                            }
+
+                            Text(
+                                text = "Snell Squircle Lensing (η = 1.5): ${(themeState.liquidRefraction * 100).toInt()}%",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Slider(
+                                value = themeState.liquidRefraction,
+                                onValueChange = onUpdateLiquidRefraction,
+                                valueRange = 0.2f..1.5f
+                            )
+
+                            Text(
+                                text = "RGB Chromatic Dispersion: ${(themeState.liquidDispersion * 100).toInt()}%",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Slider(
+                                value = themeState.liquidDispersion,
+                                onValueChange = onUpdateLiquidDispersion,
+                                valueRange = 0f..1.5f
+                            )
+                        }
+                    }
+
+                    MailxSectionRow(
+                        title = "Liquid Neck Merging",
+                        description = "Smooth-union SDF neck when glass pills approach",
+                        startIcon = Icons.Default.AutoAwesome,
+                        showSwitch = true,
+                        switchChecked = themeState.liquidMergingEnabled,
+                        onSwitchChange = onToggleLiquidMerging
+                    )
+
+                    MailxSectionRow(
+                        title = "Reduce Transparency",
+                        description = "iOS accessibility frosted high-opacity glass faces",
+                        startIcon = Icons.Default.BlurOn,
+                        showSwitch = true,
+                        switchChecked = themeState.reduceTransparency,
+                        onSwitchChange = onToggleReduceTransparency
+                    )
+
+                    MailxSectionRow(
+                        title = "Increase Specular Contrast",
+                        description = "Sharpen lit rim highlights and WCAG text contrast",
+                        startIcon = Icons.Default.Brightness6,
+                        showSwitch = true,
+                        switchChecked = themeState.increaseContrast,
+                        onSwitchChange = onToggleIncreaseContrast
+                    )
+
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         MailxSectionRow(
                             title = "Material You Dynamic Color",
@@ -346,7 +526,7 @@ fun SettingsTab(
                     )
 
                     Text(
-                        text = "Color Mode",
+                        text = "Color Scheme",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,

@@ -1,8 +1,13 @@
+use crate::liquid_glass::{
+    evaluate_nav_bar_liquid_state, generate_agsl_shader, generate_wgsl_shader,
+    resolve_surface_material, Appearance, Material, Shape,
+};
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
 use crate::utils::{
-    compute_privacy_posture, decode_trackers_report, encode_nato_phonetic, encode_qr_matrix,
-    generate_random_suffix, generate_reverse_alias, generate_wildcard_on_the_fly,
+    analyze_email_headers, audit_alias_hygiene, compute_privacy_posture, decode_trackers_report,
+    encode_nato_phonetic, encode_qr_matrix, generate_contextual_aliases, generate_random_suffix,
+    generate_reverse_alias, generate_wildcard_on_the_fly, sanitize_tracking_urls,
     validate_access_key,
 };
 use serde::Serialize;
@@ -125,6 +130,97 @@ pub fn handle_compute_privacy_posture(
         header_stripped,
         rules_active,
     ))
+}
+
+pub fn handle_resolve_liquid_material(
+    preset: &str,
+    tint_argb: u32,
+    corner_radius_pt: f32,
+    width_pt: f32,
+    height_pt: f32,
+    transparency: f32,
+    dark_mode: bool,
+    reduce_transparency: bool,
+    increase_contrast: bool,
+    backdrop_luma: f32,
+) -> String {
+    let mat = Material::from_preset_name(preset, tint_argb);
+    let appearance = Appearance {
+        transparency,
+        dark_mode,
+        reduce_transparency,
+        increase_contrast,
+        reduce_motion: false,
+        adapt_to_content: true,
+        light_angle_rad: -0.7853982,
+    };
+    let surface = resolve_surface_material(
+        &mat,
+        Shape::Rounded(corner_radius_pt.max(0.0)),
+        width_pt.max(1.0),
+        height_pt.max(1.0),
+        &appearance,
+        backdrop_luma,
+    );
+    JniEnvelope::success(surface)
+}
+
+pub fn handle_evaluate_nav_bar_liquid(
+    tab_count: usize,
+    current_index: usize,
+    target_index: usize,
+    progress: f32,
+    pointer_x_norm: f32,
+    is_pressed: bool,
+    spacing_pt: f32,
+    transparency: f32,
+    dark_mode: bool,
+) -> String {
+    let state = evaluate_nav_bar_liquid_state(
+        tab_count,
+        current_index,
+        target_index,
+        progress,
+        pointer_x_norm,
+        is_pressed,
+        spacing_pt,
+        transparency,
+        dark_mode,
+    );
+    JniEnvelope::success(state)
+}
+
+pub fn handle_get_liquid_glass_agsl_shader() -> String {
+    JniEnvelope::success(generate_agsl_shader())
+}
+
+pub fn handle_get_liquid_glass_wgsl_shader() -> String {
+    JniEnvelope::success(generate_wgsl_shader())
+}
+
+pub fn handle_sanitize_tracking_urls(raw_text: &str) -> String {
+    JniEnvelope::success(sanitize_tracking_urls(raw_text))
+}
+
+pub fn handle_analyze_email_headers(raw_headers: &str) -> String {
+    match analyze_email_headers(raw_headers) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
+}
+
+pub fn handle_audit_alias_hygiene(aliases_json: &str) -> String {
+    match audit_alias_hygiene(aliases_json) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
+}
+
+pub fn handle_generate_contextual_aliases(service_name: &str, domain: &str) -> String {
+    match generate_contextual_aliases(service_name, domain) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
 }
 
 #[cfg(feature = "network")]
@@ -352,7 +448,7 @@ pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
 mod android_exports {
     use super::*;
     use jni::objects::{JClass, JString};
-    use jni::sys::{jboolean, jint, jstring, JNI_TRUE};
+    use jni::sys::{jboolean, jfloat, jint, jstring, JNI_TRUE};
     use jni::JNIEnv;
     use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -488,6 +584,133 @@ mod android_exports {
                 header_stripped == JNI_TRUE,
                 rules_active.max(0) as usize,
             )
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeResolveLiquidMaterial(
+        env: JNIEnv,
+        _class: JClass,
+        preset: JString,
+        tint_argb: jint,
+        corner_radius_pt: jfloat,
+        width_pt: jfloat,
+        height_pt: jfloat,
+        transparency: jfloat,
+        dark_mode: jboolean,
+        reduce_transparency: jboolean,
+        increase_contrast: jboolean,
+        backdrop_luma: jfloat,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let preset_str = jstring_to_rust(env, preset);
+            handle_resolve_liquid_material(
+                &preset_str,
+                tint_argb as u32,
+                corner_radius_pt,
+                width_pt,
+                height_pt,
+                transparency,
+                dark_mode == JNI_TRUE,
+                reduce_transparency == JNI_TRUE,
+                increase_contrast == JNI_TRUE,
+                backdrop_luma,
+            )
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeEvaluateNavBarLiquid(
+        env: JNIEnv,
+        _class: JClass,
+        tab_count: jint,
+        current_index: jint,
+        target_index: jint,
+        progress: jfloat,
+        pointer_x_norm: jfloat,
+        is_pressed: jboolean,
+        spacing_pt: jfloat,
+        transparency: jfloat,
+        dark_mode: jboolean,
+    ) -> jstring {
+        run_jni_safely(env, |_env| {
+            handle_evaluate_nav_bar_liquid(
+                tab_count.max(1) as usize,
+                current_index.max(0) as usize,
+                target_index.max(0) as usize,
+                progress,
+                pointer_x_norm,
+                is_pressed == JNI_TRUE,
+                spacing_pt,
+                transparency,
+                dark_mode == JNI_TRUE,
+            )
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGetLiquidGlassAgslShader(
+        env: JNIEnv,
+        _class: JClass,
+    ) -> jstring {
+        run_jni_safely(env, |_env| handle_get_liquid_glass_agsl_shader())
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGetLiquidGlassWgslShader(
+        env: JNIEnv,
+        _class: JClass,
+    ) -> jstring {
+        run_jni_safely(env, |_env| handle_get_liquid_glass_wgsl_shader())
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeSanitizeTrackingUrls(
+        env: JNIEnv,
+        _class: JClass,
+        raw_text: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let txt = jstring_to_rust(env, raw_text);
+            handle_sanitize_tracking_urls(&txt)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAnalyzeEmailHeaders(
+        env: JNIEnv,
+        _class: JClass,
+        raw_headers: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let hdrs = jstring_to_rust(env, raw_headers);
+            handle_analyze_email_headers(&hdrs)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAuditAliasHygiene(
+        env: JNIEnv,
+        _class: JClass,
+        aliases_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let json = jstring_to_rust(env, aliases_json);
+            handle_audit_alias_hygiene(&json)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGenerateContextualAliases(
+        env: JNIEnv,
+        _class: JClass,
+        service_name: JString,
+        domain: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let srv = jstring_to_rust(env, service_name);
+            let dom = jstring_to_rust(env, domain);
+            handle_generate_contextual_aliases(&srv, &dom)
         })
     }
 

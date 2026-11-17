@@ -43,6 +43,51 @@ object MailxRustBridge {
     ): String
 
     @JvmStatic
+    external fun nativeResolveLiquidMaterial(
+        preset: String,
+        tintArgb: Int,
+        cornerRadiusPt: Float,
+        widthPt: Float,
+        heightPt: Float,
+        transparency: Float,
+        darkMode: Boolean,
+        reduceTransparency: Boolean,
+        increaseContrast: Boolean,
+        backdropLuma: Float
+    ): String
+
+    @JvmStatic
+    external fun nativeEvaluateNavBarLiquid(
+        tabCount: Int,
+        currentIndex: Int,
+        targetIndex: Int,
+        progress: Float,
+        pointerXNorm: Float,
+        isPressed: Boolean,
+        spacingPt: Float,
+        transparency: Float,
+        darkMode: Boolean
+    ): String
+
+    @JvmStatic
+    external fun nativeGetLiquidGlassAgslShader(): String
+
+    @JvmStatic
+    external fun nativeGetLiquidGlassWgslShader(): String
+
+    @JvmStatic
+    external fun nativeSanitizeTrackingUrls(rawText: String): String
+
+    @JvmStatic
+    external fun nativeAnalyzeEmailHeaders(rawHeaders: String): String
+
+    @JvmStatic
+    external fun nativeAuditAliasHygiene(aliasesJson: String): String
+
+    @JvmStatic
+    external fun nativeGenerateContextualAliases(serviceName: String, domain: String): String
+
+    @JvmStatic
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
 
     @JvmStatic

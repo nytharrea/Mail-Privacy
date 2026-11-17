@@ -68,7 +68,7 @@ fun RulesAndBlocklistTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 108.dp),
         verticalArrangement = Arrangement.spacedBy(9.dp)
     ) {
         item(key = "rules_blocklist_segmented") {
