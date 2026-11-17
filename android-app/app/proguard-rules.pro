@@ -4,12 +4,11 @@
     native <methods>;
 }
 
-# Google Tink (androidx.security:security-crypto) derleme zamanı anotasyon uyarılarını yoksay
+# Google Tink (androidx.security:security-crypto) opsiyonel/derleme zamanı uyarılarını yoksay
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
+-dontwarn com.google.api.client.**
+-dontwarn org.joda.time.**
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
-
-# Google Tink protobuf / keyset sınıflarının R8 tarafından bozulmasını önle
--keep class com.google.crypto.tink.** { *; }

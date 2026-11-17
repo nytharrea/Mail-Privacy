@@ -18,9 +18,9 @@ permissions:
   contents: write
 
 env:
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '27'
   NDK_VERSION: '30.0.16248370'
-  BUILD_TOOLS_VERSION: '35.0.0'
+  BUILD_TOOLS_VERSION: '36.0.0'
 
 jobs:
   build-and-sign:
@@ -30,16 +30,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up JDK 17
+      - name: Set up JDK 27
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Setup Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
+      - name: Setup Gradle 9.9.1
+        uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '8.9'
+          gradle-version: '9.9.1'
 
       - name: Install Rust & Android ABI targets
         uses: dtolnay/rust-toolchain@stable
@@ -49,7 +49,7 @@ jobs:
       - name: Cache Rust & Gradle
         uses: Swatinem/rust-cache@v2
 
-      - name: "Install Android NDK r30 LTS & Build-Tools 35.0.0"
+      - name: "Install Android NDK r30 LTS & Build-Tools 36.0.0"
         run: |
           if [ ! -d "${ANDROID_HOME}/ndk/${NDK_VERSION}" ] || [ ! -d "${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}" ] || [ ! -d "${ANDROID_HOME}/platforms/android-35" ]; then
             yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
@@ -122,7 +122,7 @@ jobs:
         working-directory: android-app
         run: |
           if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version 8.9
+            gradle wrapper --gradle-version 9.9.1
           fi
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
