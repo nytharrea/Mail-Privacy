@@ -55,11 +55,11 @@ fun SetupScreen(
     val isCredentialsMode = authState.loginMode == "credentials"
 
     val cleanFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
         focusedLabelColor = MaterialTheme.colorScheme.primary,
         unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
         cursorColor = MaterialTheme.colorScheme.primary
@@ -77,15 +77,16 @@ fun SetupScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Focal Brand Header Card with subtle Teal border accent
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -98,14 +99,18 @@ fun SetupScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                            ),
                             modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = MailxIcons.ShieldCheck,
                                     contentDescription = "Mailx Privacy",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -127,13 +132,13 @@ fun SetupScreen(
                                 )
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                 ) {
                                     Text(
                                         text = "Rust Core",
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                     )
                                 }
@@ -147,19 +152,20 @@ fun SetupScreen(
                     }
                 }
 
+                // Authentication Form Card
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
@@ -183,12 +189,17 @@ fun SetupScreen(
                                     onLoginModeChange("access_key")
                                 },
                                 shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                ),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
                                 Icon(
                                     imageVector = MailxIcons.ClipboardPaste,
                                     contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -286,7 +297,7 @@ fun SetupScreen(
                                 ),
                                 keyboardActions = KeyboardActions(
                                     onDone = {
-                                        if (!authState.isLoading && authState.emailInput.isNotBlank() && authState.passwordInput.isNotEmpty()) {
+                                        if (!authState.isLoading) {
                                             onConnectWithCredentials()
                                         }
                                     }
@@ -302,7 +313,11 @@ fun SetupScreen(
                                     onClick = { showResetPasswordDialog = true },
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Text("Forgot Password?", fontSize = 12.sp)
+                                    Text(
+                                        text = "Forgot Password?",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
                         } else {
@@ -344,6 +359,7 @@ fun SetupScreen(
                             }
                         }
 
+                        // Always active Brand Teal button (validates on tap instead of staying flat disabled grey)
                         Button(
                             onClick = {
                                 if (isCredentialsMode) {
@@ -352,13 +368,11 @@ fun SetupScreen(
                                     onConnectWithAccessKey()
                                 }
                             },
-                            enabled = !authState.isLoading && (
-                                if (isCredentialsMode) {
-                                    authState.emailInput.isNotBlank() && authState.passwordInput.isNotEmpty()
-                                } else {
-                                    authState.accessKeyInput.isNotBlank()
-                                }
-                                ),
+                            enabled = !authState.isLoading,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -378,18 +392,22 @@ fun SetupScreen(
                         }
 
                         if (isCredentialsMode) {
-                            OutlinedButton(
+                            FilledTonalButton(
                                 onClick = { onConnectWithPasskey(context) },
                                 enabled = !authState.isLoading,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(
                                     imageVector = MailxIcons.Passkey,
                                     contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -408,7 +426,7 @@ fun SetupScreen(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {

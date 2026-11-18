@@ -692,7 +692,7 @@ data class DefaultsUiState(
 @Immutable
 data class ThemeUiState(
     val darkModeMode: Int = 1,
-    val dynamicColorEnabled: Boolean = true,
+    val dynamicColorEnabled: Boolean = false,
     val amoledDarkEnabled: Boolean = false,
     val expressiveMotionEnabled: Boolean = false,
     val reducedMotionEnabled: Boolean = false

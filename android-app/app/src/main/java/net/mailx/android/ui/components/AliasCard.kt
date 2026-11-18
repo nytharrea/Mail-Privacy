@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +74,7 @@ fun AliasCard(
 
     val cardShape = RoundedCornerShape(cardCorner)
 
+    // Secondary hierarchy: surfaceContainerLow + soft border so Hero card stays primary focal point
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -91,7 +91,7 @@ fun AliasCard(
             color = if (isSelected) {
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f)
             }
         ),
         tonalElevation = 0.dp
@@ -100,56 +100,32 @@ fun AliasCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(IntrinsicSize.Min)
-                .padding(end = 12.dp),
+                .padding(end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Left status accent bar
             Box(
                 modifier = Modifier
-                    .width(3.dp)
+                    .width(3.5.dp)
                     .fillMaxHeight()
                     .background(statusColor)
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             if (selectionMode) {
                 Checkbox(
                     checked = isSelected,
                     onCheckedChange = { onToggleSelect() },
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(end = 10.dp)
                 )
-            } else {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = when {
-                                alias.wildcard -> MailxIcons.Sparkles
-                                alias.isPaused -> MailxIcons.PauseCircle
-                                else -> MailxIcons.AtSign
-                            },
-                            contentDescription = null,
-                            tint = when {
-                                alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose
-                                alias.isPaused -> MailxPalette.PausedAmber
-                                alias.enabled -> MaterialTheme.colorScheme.primary
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
             }
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -175,7 +151,7 @@ fun AliasCard(
                                 append("@${alias.domainPart}")
                             }
                         },
-                        fontSize = 14.sp,
+                        fontSize = 14.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -186,6 +162,22 @@ fun AliasCard(
                             imageVector = MailxIcons.Pin,
                             contentDescription = "Pinned",
                             tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                    if (alias.wildcard) {
+                        Icon(
+                            imageVector = MailxIcons.Sparkles,
+                            contentDescription = "Wildcard",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                    if (alias.isPaused) {
+                        Icon(
+                            imageVector = MailxIcons.PauseCircle,
+                            contentDescription = "Paused",
+                            tint = MailxPalette.PausedAmber,
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -200,73 +192,60 @@ fun AliasCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                // Subtle, non-boxy inline telemetry metadata
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    MiniMetricBadge(
-                        label = "↑ ${alias.forwards}",
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    Text(
+                        text = "↑ ${alias.forwards} forwarded",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
                     )
                     if (alias.blocks > 0) {
-                        MiniMetricBadge(
-                            label = "⊘ ${alias.blocks}",
-                            containerColor = MailxPalette.BlockedRose.copy(alpha = 0.14f),
-                            contentColor = MailxPalette.BlockedRose
+                        Text(
+                            text = "· ⊘ ${alias.blocks} blocked",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MailxPalette.BlockedRose
                         )
                     }
                     if (alias.replies > 0 || alias.sends > 0) {
-                        MiniMetricBadge(
-                            label = "⇄ ${alias.replies + alias.sends}",
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            text = "· ⇄ ${alias.replies + alias.sends} sent",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
                         )
                     }
                     if (!alias.enabled) {
-                        MiniMetricBadge(
-                            label = "Disabled",
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            text = "· Disabled",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
                         )
                     } else if (alias.isPaused) {
-                        MiniMetricBadge(
-                            label = "Paused",
-                            containerColor = MailxPalette.PausedAmber.copy(alpha = 0.16f),
-                            contentColor = MailxPalette.PausedAmber
-                        )
-                    }
-                    if (alias.wildcard) {
-                        MiniMetricBadge(
-                            label = "Wildcard",
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        Text(
+                            text = "· Paused",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MailxPalette.PausedAmber
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
 
-            FilledTonalIconButton(
+            // Subtle, low-prominence copy button without a heavy box container
+            IconButton(
                 onClick = {
                     if (!alias.wildcard) justCopied = true
                     onCopyOrWildcard()
                 },
-                modifier = Modifier.size(34.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = if (justCopied) {
-                        MailxPalette.ForwardEmerald.copy(alpha = 0.18f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
-                    contentColor = if (justCopied) {
-                        MailxPalette.ForwardEmerald
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
+                modifier = Modifier.size(34.dp)
             ) {
                 Icon(
                     imageVector = when {
@@ -275,29 +254,14 @@ fun AliasCard(
                         else -> MailxIcons.Copy
                     },
                     contentDescription = "Copy alias",
+                    tint = if (justCopied) {
+                        MailxPalette.ForwardEmerald
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                    },
                     modifier = Modifier.size(16.dp)
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun MiniMetricBadge(
-    label: String,
-    containerColor: Color,
-    contentColor: Color
-) {
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = containerColor
-    ) {
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            color = contentColor,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
     }
 }

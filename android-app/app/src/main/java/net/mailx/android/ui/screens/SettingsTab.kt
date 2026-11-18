@@ -101,7 +101,7 @@ fun SettingsTab(
             item(key = "section_dynamic_colors") {
                 MailxSectionRow(
                     title = "Material You Dynamic Color",
-                    description = "Adapt palette tones to your system wallpaper (enabled by default)",
+                    description = "Optional system wallpaper colors (off by default to preserve Mailx Teal)",
                     startIcon = MailxIcons.Palette,
                     showSwitch = true,
                     switchChecked = themeState.dynamicColorEnabled,
@@ -169,7 +169,7 @@ fun SettingsTab(
                 title = "Server Forwarding Defaults",
                 actionText = "Sync",
                 onActionClick = onSyncDefaults,
-                modifier = Modifier.padding(top = 6.dp)
+                modifier = Modifier.padding(top = 14.dp)
             )
         }
 
@@ -272,7 +272,7 @@ fun SettingsTab(
         item(key = "header_manage_data") {
             MailxSectionHeader(
                 title = "Account, Security & Backup",
-                modifier = Modifier.padding(top = 6.dp)
+                modifier = Modifier.padding(top = 14.dp)
             )
         }
 

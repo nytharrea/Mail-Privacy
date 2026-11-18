@@ -2,6 +2,7 @@ package net.mailx.android.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +24,7 @@ import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxAliasSkeletonList
 import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxTelemetryBar
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.UiUserStats
 import net.mailx.android.ui.theme.MailxIcons
@@ -125,14 +127,14 @@ fun HomeDashboardTab(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // 1. Calm, Spacious Overview Card (No rings or duplicate filter chips)
+            // 1. Focal Overview Card: Elevated surfaceContainer with subtle brand-teal border accent
             item(key = "hero_summary_card") {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
                     ),
                     tonalElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -143,9 +145,10 @@ fun HomeDashboardTab(
                             .padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Top Row: Domain Title + Subtle Borderless Shield Pill
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment = Alignment.Top,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(
@@ -154,7 +157,7 @@ fun HomeDashboardTab(
                             ) {
                                 Text(
                                     text = "@$defaultDomain",
-                                    fontSize = 18.sp,
+                                    fontSize = 19.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
@@ -173,75 +176,156 @@ fun HomeDashboardTab(
 
                             Surface(
                                 onClick = { showPrivacyScoreDialog = true },
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-                                )
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                                 ) {
                                     Icon(
                                         imageVector = MailxIcons.ShieldCheck,
                                         contentDescription = "Privacy Score",
                                         tint = scoreColor,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(13.dp)
                                     )
                                     Text(
-                                        text = "Shield $privacyGrade ($privacyScore)",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        text = "Shield $privacyGrade · $privacyScore",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         }
 
-                        // Clean 4-column metric summary
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OverviewMetricCard(
-                                value = totalForwards.toString(),
-                                label = "Forwarded",
-                                dotColor = MailxPalette.ForwardEmerald,
-                                isCritical = false,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onNavigateToFilter("active") }
-                            )
-                            OverviewMetricCard(
-                                value = totalBlocks.toString(),
-                                label = "Blocked",
-                                dotColor = MailxPalette.BlockedRose,
-                                isCritical = totalBlocks > 0,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onNavigateToFilter("active_inactive") }
-                            )
-                            OverviewMetricCard(
-                                value = totalReplies.toString(),
-                                label = "Replied",
-                                dotColor = MailxPalette.ReplySky,
-                                isCritical = false,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onNavigateToFilter("active_inactive") }
-                            )
-                            OverviewMetricCard(
-                                value = totalSends.toString(),
-                                label = "Sent",
-                                dotColor = MailxPalette.SentIndigo,
-                                isCritical = false,
-                                modifier = Modifier.weight(1f),
-                                onClick = onOpenReverseAliasTool
+                        // Clean Horizontal Metric Strip (replaces the 4 small square widget boxes)
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Min),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onNavigateToFilter("active") }
+                                        .padding(vertical = 2.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = totalForwards.toString(),
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(MailxPalette.ForwardEmerald)
+                                        )
+                                        Text(
+                                            text = "Forwarded",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .fillMaxHeight()
+                                        .padding(vertical = 4.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                                )
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onNavigateToFilter("active_inactive") }
+                                        .padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = totalBlocks.toString(),
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (totalBlocks > 0) MailxPalette.BlockedRose else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (totalBlocks > 0) MailxPalette.BlockedRose else MailxPalette.Slate500
+                                                )
+                                        )
+                                        Text(
+                                            text = "Blocked",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .fillMaxHeight()
+                                        .padding(vertical = 4.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                                )
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable(onClick = onOpenReverseAliasTool)
+                                        .padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = (totalReplies + totalSends).toString(),
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${totalReplies} rep · ${totalSends} sent",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            MailxTelemetryBar(
+                                forwards = totalForwards,
+                                replies = totalReplies,
+                                sends = totalSends,
+                                blocks = totalBlocks
                             )
                         }
 
-                        // Clean 2-button action row with breathing room
+                        // Action Row: Brand Teal Primary CTA + Calm Tonal Secondary Button
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -250,10 +334,14 @@ fun HomeDashboardTab(
                             Button(
                                 onClick = onOpenCreateAlias,
                                 shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(40.dp)
+                                    .height(42.dp)
                             ) {
                                 Icon(
                                     imageVector = MailxIcons.Plus,
@@ -264,30 +352,29 @@ fun HomeDashboardTab(
                                 Text("New Alias", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             }
 
-                            OutlinedButton(
+                            FilledTonalButton(
                                 onClick = onOpenReverseAliasTool,
                                 shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(40.dp)
+                                    .height(42.dp)
                             ) {
                                 Icon(
                                     imageVector = MailxIcons.Send,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Send Mail",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -428,7 +515,7 @@ private fun PrivacyScoreCheckRow(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -495,58 +582,6 @@ private fun PrivacyScoreCheckRow(
 }
 
 @Composable
-private fun OverviewMetricCard(
-    value: String,
-    label: String,
-    dotColor: Color,
-    isCritical: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(
-                text = value,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isCritical) dotColor else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-                Text(
-                    text = label,
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun MailxSevenDayChartCard(userStats: UiUserStats) {
     val maxDayTotal = remember(userStats.dailyPoints) {
         (userStats.dailyPoints.maxOfOrNull { it.total } ?: 1).coerceAtLeast(1)
@@ -557,7 +592,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)
         ),
         tonalElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()

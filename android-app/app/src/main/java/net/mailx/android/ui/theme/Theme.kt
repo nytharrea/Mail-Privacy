@@ -134,7 +134,7 @@ private fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
 @Composable
 fun MailxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     amoledDark: Boolean = false,
     expressiveMotion: Boolean = false,
     reducedMotion: Boolean = false,

@@ -58,7 +58,7 @@ fun MailxStatTile(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)
         ),
         tonalElevation = 0.dp
     ) {
@@ -135,10 +135,16 @@ fun MailxSectionRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
+    // Calm, neutral icon tint by default so Settings doesn't repeat colored boxes on every row
     val resolvedIconTint = when {
         isAlert -> MailxPalette.BlockedRose
         accentColor != null -> accentColor
-        else -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val resolvedIconBg = when {
+        isAlert -> MailxPalette.BlockedRose.copy(alpha = 0.12f)
+        accentColor != null -> accentColor.copy(alpha = 0.12f)
+        else -> MaterialTheme.colorScheme.surfaceContainer
     }
     val resolvedTitleColor = when {
         isAlert -> MailxPalette.BlockedRose
@@ -169,7 +175,7 @@ fun MailxSectionRow(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         ),
         tonalElevation = 0.dp
     ) {
@@ -182,7 +188,7 @@ fun MailxSectionRow(
             if (startIcon != null) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = resolvedIconTint.copy(alpha = 0.12f),
+                    color = resolvedIconBg,
                     modifier = Modifier.size(34.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -226,7 +232,7 @@ fun MailxSectionRow(
                 Icon(
                     imageVector = endIcon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -267,9 +273,10 @@ fun MailxSectionHeader(
         ) {
             Text(
                 text = title,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                letterSpacing = 0.2.sp,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -323,7 +330,7 @@ fun EmptyStateBox(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)
         ),
         tonalElevation = 0.dp
     ) {
@@ -364,15 +371,11 @@ fun EmptyStateBox(
             )
             if (actionLabel != null && onActionClick != null) {
                 Spacer(modifier = Modifier.height(4.dp))
-                FilledTonalButton(
+                Button(
                     onClick = onActionClick,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(actionLabel, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    Text(actionLabel, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }
@@ -416,13 +419,6 @@ fun MailxAliasCardSkeleton(modifier: Modifier = Modifier) {
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -441,28 +437,12 @@ fun MailxAliasCardSkeleton(modifier: Modifier = Modifier) {
                         .clip(RoundedCornerShape(4.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .width(42.dp)
-                            .height(16.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(52.dp)
-                            .height(16.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    )
-                }
             }
             Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             )
         }
