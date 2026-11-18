@@ -1116,14 +1116,14 @@ private fun PrivacyScoreCheckRow(
 
 @Composable
 private fun MailxSevenDayChartCard(userStats: UiUserStats) {
-    val labels = userStats.sevenDayLabels.ifEmpty {
+    val labels: List<String> = userStats.sevenDayLabels.ifEmpty {
         listOf("M", "T", "W", "T", "F", "S", "S")
     }
-    val fwd = userStats.sevenDayForwards
-    val blk = userStats.sevenDayBlocks
-    val maxDay = remember(fwd, blk) {
+    val fwd: List<Int> = userStats.sevenDayForwards
+    val blk: List<Int> = userStats.sevenDayBlocks
+    val maxDay: Int = remember(fwd, blk) {
         (0 until 7).maxOfOrNull { idx ->
-            (fwd.getOrElse(idx) { 0 } + blk.getOrElse(idx) { 0 })
+            fwd.getOrElse(idx) { 0 } + blk.getOrElse(idx) { 0 }
         }?.coerceAtLeast(1) ?: 1
     }
 

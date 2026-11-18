@@ -430,7 +430,14 @@ data class UiUserStats(
     val sends: Int = 0,
     val aliases: Int = 0,
     val dailyPoints: List<UiDailyStatPoint> = emptyList()
-)
+) {
+    val sevenDayLabels: List<String>
+        get() = dailyPoints.map { it.label }
+    val sevenDayForwards: List<Int>
+        get() = dailyPoints.map { it.forwards }
+    val sevenDayBlocks: List<Int>
+        get() = dailyPoints.map { it.blocks }
+}
 
 @Immutable
 data class UiDiagnosticLog(
