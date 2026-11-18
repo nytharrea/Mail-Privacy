@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -106,7 +106,7 @@ fun RulesAndBlocklistTab(
             if (rules.isEmpty()) {
                 item(key = "rules_empty") {
                     EmptyStateBox(
-                        icon = Icons.Default.FilterAlt,
+                        icon = Icons.Outlined.FilterAlt,
                         title = "No rules configured yet",
                         subtitle = "Create rules to automatically block, forward, replace subjects, or strip attachments based on sender, subject, or alias conditions.",
                         actionLabel = "Create Rule",
@@ -125,7 +125,7 @@ fun RulesAndBlocklistTab(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -250,13 +250,13 @@ fun RulesAndBlocklistTab(
                                         onClick = { onMoveRuleOrder(rule.id, true) },
                                         enabled = index > 0
                                     ) {
-                                        Icon(Icons.Default.ArrowUpward, contentDescription = "Move Up")
+                                        Icon(Icons.Outlined.ArrowUpward, contentDescription = "Move Up")
                                     }
                                     IconButton(
                                         onClick = { onMoveRuleOrder(rule.id, false) },
                                         enabled = index < rules.lastIndex
                                     ) {
-                                        Icon(Icons.Default.ArrowDownward, contentDescription = "Move Down")
+                                        Icon(Icons.Outlined.ArrowDownward, contentDescription = "Move Down")
                                     }
                                     IconButton(
                                         onClick = {
@@ -264,7 +264,7 @@ fun RulesAndBlocklistTab(
                                             isDuplicatingRule = true
                                         }
                                     ) {
-                                        Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate Rule")
+                                        Icon(Icons.Outlined.ContentCopy, contentDescription = "Duplicate Rule")
                                     }
                                 }
 
@@ -276,7 +276,7 @@ fun RulesAndBlocklistTab(
                                         },
                                         shape = CircleShape
                                     ) {
-                                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text("Edit")
                                     }
@@ -288,7 +288,7 @@ fun RulesAndBlocklistTab(
                                             contentColor = MailxPalette.BlockedRose
                                         )
                                     ) {
-                                        Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -309,7 +309,7 @@ fun RulesAndBlocklistTab(
             if (blocklist.isEmpty()) {
                 item(key = "blocklist_empty") {
                     EmptyStateBox(
-                        icon = Icons.Default.Block,
+                        icon = Icons.Outlined.Block,
                         title = "Your blocklist is empty",
                         subtitle = "Block unwanted sender email addresses (e.g. spam@example.com) or entire domains (e.g. spammer.com).",
                         actionLabel = "Block Email or Domain",
@@ -324,7 +324,7 @@ fun RulesAndBlocklistTab(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -339,7 +339,7 @@ fun RulesAndBlocklistTab(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = if (item.type == "domain") Icons.Default.Language else Icons.Default.AlternateEmail,
+                                    imageVector = if (item.type == "domain") Icons.Outlined.Language else Icons.Outlined.AlternateEmail,
                                     contentDescription = null,
                                     tint = MailxPalette.BlockedRose
                                 )
@@ -367,7 +367,7 @@ fun RulesAndBlocklistTab(
 
                             IconButton(onClick = { onDeleteBlocklistItem(item.id) }) {
                                 Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
+                                    imageVector = Icons.Outlined.DeleteOutline,
                                     contentDescription = "Remove",
                                     tint = MailxPalette.BlockedRose
                                 )
@@ -633,7 +633,7 @@ private fun RuleEditorBottomSheet(
                             conditions = conditions + UiRuleCondition(type = "subject", match = "contains", values = emptyList())
                         }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Add Condition")
                     }
@@ -669,7 +669,7 @@ private fun RuleEditorBottomSheet(
                                     onClick = { conditions = conditions.filterIndexed { i, _ -> i != idx } },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Remove Condition", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Outlined.Close, contentDescription = "Remove Condition", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -722,7 +722,7 @@ private fun RuleEditorBottomSheet(
                             actions = actions + UiRuleAction(type = "replace_subject", value = "")
                         }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Add Action")
                     }
@@ -760,7 +760,7 @@ private fun RuleEditorBottomSheet(
                                     onClick = { actions = actions.filterIndexed { i, _ -> i != idx } },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Remove Action", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Outlined.Close, contentDescription = "Remove Action", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }

@@ -2,11 +2,9 @@ package net.mailx.android.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -16,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,10 +21,8 @@ import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
-import net.mailx.android.ui.components.MailxActivityRing
 import net.mailx.android.ui.components.MailxAliasSkeletonList
 import net.mailx.android.ui.components.MailxSectionHeader
-import net.mailx.android.ui.components.MailxTelemetryBar
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.UiUserStats
 import net.mailx.android.ui.theme.MailxIcons
@@ -73,10 +68,7 @@ fun HomeDashboardTab(
     val totalSends = maxOf(aliasSends, userStats.sends)
 
     val activeCount = remember(aliases) { aliases.count { it.enabled && it.deletedAt.isBlank() } }
-    val inactiveCount = remember(aliases) { aliases.count { !it.enabled && it.deletedAt.isBlank() } }
     val pinnedCount = remember(aliases) { aliases.count { it.pinned && it.deletedAt.isBlank() } }
-    val wildcardCount = remember(aliases) { aliases.count { it.wildcard && it.deletedAt.isBlank() } }
-    val deletedCount = remember(aliases) { aliases.count { it.deletedAt.isNotBlank() } }
 
     val posturePair = remember(
         totalForwards,
@@ -120,7 +112,7 @@ fun HomeDashboardTab(
         aliases
             .filter { it.deletedAt.isBlank() }
             .sortedWith(compareByDescending<UiAlias> { it.pinned }.thenByDescending { it.totalActivity })
-            .take(4)
+            .take(5)
     }
 
     PullToRefreshBox(
@@ -130,17 +122,17 @@ fun HomeDashboardTab(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // 1. Unified, Low-Noise Overview Card (surfaceContainerLow + subtle border)
+            // 1. Calm, Spacious Overview Card (No rings or duplicate filter chips)
             item(key = "hero_summary_card") {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                     ),
                     tonalElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -148,57 +140,44 @@ fun HomeDashboardTab(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                MailxActivityRing(
-                                    forwards = totalForwards,
-                                    replies = totalReplies,
-                                    sends = totalSends,
-                                    blocks = totalBlocks,
-                                    enabled = true,
-                                    size = 44.dp,
-                                    strokeWidth = 4.dp
+                                Text(
+                                    text = "@$defaultDomain",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(
-                                        text = "@$defaultDomain",
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "$activeCount active of ${aliases.size} • $recipientCount recipient${if (recipientCount == 1) "" else "s"}",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
+                                Text(
+                                    text = "$activeCount active of ${aliases.size} aliases • $recipientCount recipient${if (recipientCount == 1) "" else "s"}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
 
-                            // Compact Privacy Score Badge (opens breakdown dialog on tap)
                             Surface(
                                 onClick = { showPrivacyScoreDialog = true },
                                 shape = RoundedCornerShape(10.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainer,
                                 border = BorderStroke(
                                     width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
                                 )
                             ) {
                                 Row(
@@ -222,14 +201,7 @@ fun HomeDashboardTab(
                             }
                         }
 
-                        MailxTelemetryBar(
-                            forwards = totalForwards,
-                            replies = totalReplies,
-                            sends = totalSends,
-                            blocks = totalBlocks
-                        )
-
-                        // Calm 4-column metric summary (surfaceContainer, only Blocked uses critical accent)
+                        // Clean 4-column metric summary
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -269,19 +241,19 @@ fun HomeDashboardTab(
                             )
                         }
 
-                        // Compact Primary & Utility Action Row inside Overview
+                        // Clean 2-button action row with breathing room
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
                                 onClick = onOpenCreateAlias,
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                 modifier = Modifier
-                                    .weight(1.15f)
-                                    .height(38.dp)
+                                    .weight(1f)
+                                    .height(40.dp)
                             ) {
                                 Icon(
                                     imageVector = MailxIcons.Plus,
@@ -289,114 +261,72 @@ fun HomeDashboardTab(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("New Alias", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("New Alias", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             }
 
-                            CompactUtilityButton(
-                                icon = MailxIcons.Send,
-                                label = "Send",
+                            OutlinedButton(
                                 onClick = onOpenReverseAliasTool,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            CompactUtilityButton(
-                                icon = MailxIcons.ShieldCheck,
-                                label = "Trackers",
-                                onClick = onOpenTrackersReport,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            CompactUtilityButton(
-                                icon = MailxIcons.Bug,
-                                label = "Logs",
-                                onClick = onOpenDiagnostics,
-                                modifier = Modifier.weight(0.9f)
-                            )
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                                ),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = MailxIcons.Send,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Send Mail",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // 2. Calm Status Filter Strip
-            item(key = "quick_filter_pills") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    QuickFilterChip(
-                        icon = MailxIcons.CheckCircle,
-                        label = "Active",
-                        count = activeCount,
-                        tint = MaterialTheme.colorScheme.primary,
-                        onClick = { onNavigateToFilter("active") }
-                    )
-                    QuickFilterChip(
-                        icon = MailxIcons.Pin,
-                        label = "Pinned",
-                        count = pinnedCount,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        onClick = { onNavigateToFilter("pinned_only") }
-                    )
-                    QuickFilterChip(
-                        icon = MailxIcons.Sparkles,
-                        label = "Wildcard",
-                        count = wildcardCount,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        onClick = { onNavigateToFilter("wildcard_only") }
-                    )
-                    QuickFilterChip(
-                        icon = MailxIcons.PauseCircle,
-                        label = "Disabled",
-                        count = inactiveCount,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        onClick = { onNavigateToFilter("inactive") }
-                    )
-                    if (deletedCount > 0) {
-                        QuickFilterChip(
-                            icon = MailxIcons.Trash2,
-                            label = "Trash",
-                            count = deletedCount,
-                            tint = MailxPalette.BlockedRose,
-                            onClick = { onNavigateToFilter("deleted") }
-                        )
-                    }
-                }
-            }
-
-            // 3. 7-Day Telemetry Chart (only when activity exists)
+            // 2. 7-Day Telemetry Chart (only when activity exists)
             if (userStats.dailyPoints.any { it.total > 0 }) {
                 item(key = "mailx_7day_chart") {
                     MailxSevenDayChartCard(userStats = userStats)
                 }
             }
 
-            // 4. Pinned & Recent Aliases Section
+            // 3. Pinned & Recent Aliases Section
             item(key = "header_spotlight_aliases") {
-                MailxSectionHeader(
-                    title = if (pinnedCount > 0) "Pinned & Recent Aliases" else "Recent Aliases",
-                    countBadge = aliases.size,
-                    actionText = "See All",
-                    onActionClick = { onNavigateToFilter("active_inactive") }
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MailxSectionHeader(
+                        title = if (pinnedCount > 0) "Pinned & Recent Aliases" else "Recent Aliases",
+                        countBadge = aliases.size,
+                        actionText = "See All",
+                        onActionClick = { onNavigateToFilter("active_inactive") }
+                    )
+
+                    if (isLoading && spotlightAliases.isEmpty()) {
+                        MailxAliasSkeletonList(count = 4)
+                    } else if (spotlightAliases.isEmpty()) {
+                        EmptyStateBox(
+                            icon = MailxIcons.AtSign,
+                            title = "No aliases yet",
+                            subtitle = "Create your first disposable or wildcard alias on @$defaultDomain.",
+                            actionLabel = "Create Alias",
+                            onActionClick = onOpenCreateAlias
+                        )
+                    }
+                }
             }
 
-            if (isLoading && spotlightAliases.isEmpty()) {
-                item(key = "loading_skeleton_home") {
-                    MailxAliasSkeletonList(count = 4)
-                }
-            } else if (spotlightAliases.isEmpty()) {
-                item(key = "empty_aliases_home") {
-                    EmptyStateBox(
-                        icon = MailxIcons.AtSign,
-                        title = "No aliases yet",
-                        subtitle = "Create your first disposable or wildcard alias on @$defaultDomain.",
-                        actionLabel = "Create Alias",
-                        onActionClick = onOpenCreateAlias
-                    )
-                }
-            } else {
+            if (spotlightAliases.isNotEmpty()) {
                 items(spotlightAliases, key = { "home_${it.id}" }) { alias ->
                     AliasCard(
                         alias = alias,
@@ -486,49 +416,6 @@ fun HomeDashboardTab(
 }
 
 @Composable
-private fun CompactUtilityButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-        ),
-        modifier = modifier.height(38.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(15.dp)
-            )
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(
-                text = label,
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
 private fun PrivacyScoreCheckRow(
     label: String,
     points: String,
@@ -541,7 +428,7 @@ private fun PrivacyScoreCheckRow(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -625,9 +512,9 @@ private fun OverviewMetricCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 9.dp, horizontal = 6.dp),
+                .padding(vertical = 10.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Text(
                 text = value,
@@ -660,56 +547,6 @@ private fun OverviewMetricCard(
 }
 
 @Composable
-private fun QuickFilterChip(
-    icon: ImageVector,
-    label: String,
-    count: Int,
-    tint: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(14.dp)
-            )
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Text(
-                    text = count.toString(),
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun MailxSevenDayChartCard(userStats: UiUserStats) {
     val maxDayTotal = remember(userStats.dailyPoints) {
         (userStats.dailyPoints.maxOfOrNull { it.total } ?: 1).coerceAtLeast(1)
@@ -720,7 +557,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
         ),
         tonalElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
@@ -728,8 +565,8 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

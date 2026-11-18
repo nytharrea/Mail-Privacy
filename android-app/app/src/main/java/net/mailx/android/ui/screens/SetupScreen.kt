@@ -85,7 +85,7 @@ fun SetupScreen(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -152,7 +152,7 @@ fun SetupScreen(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -408,7 +408,7 @@ fun SetupScreen(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {

@@ -4,7 +4,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Campaign
@@ -39,14 +46,6 @@ import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.AlternateEmail
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Dashboard
-import androidx.compose.material.icons.rounded.Inbox
-import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
@@ -58,8 +57,8 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Clean, optically balanced, fully tintable icon system for Mailx Privacy.
- * Uses official `material-icons-extended` vectors paired with parameterized
- * 24.dp / 1.75f-stroke Lucide vectors without hardcoded `Color.White`.
+ * Uses strictly Outlined icons for unselected/action states and Filled icons for
+ * selected bottom navigation states so visual hierarchy stays crisp and consistent.
  */
 object MailxIcons {
 
@@ -88,33 +87,33 @@ object MailxIcons {
         ).build()
     }
 
-    // Navigation & Core Layout Icons (Optically balanced Material Symbols Outlined / Rounded)
+    // Navigation Bar Icons: Strictly Outlined (unselected) vs Filled (selected) pairs
     val LayoutDashboard: ImageVector get() = Icons.Outlined.Dashboard
-    val LayoutDashboardSelected: ImageVector get() = Icons.Rounded.Dashboard
+    val LayoutDashboardSelected: ImageVector get() = Icons.Filled.Dashboard
 
     val AtSign: ImageVector get() = Icons.Outlined.AlternateEmail
-    val AtSignSelected: ImageVector get() = Icons.Rounded.AlternateEmail
+    val AtSignSelected: ImageVector get() = Icons.Filled.AlternateEmail
 
     val Inbox: ImageVector get() = Icons.Outlined.Inbox
-    val InboxSelected: ImageVector get() = Icons.Rounded.Inbox
+    val InboxSelected: ImageVector get() = Icons.Filled.Inbox
 
     val SlidersHorizontal: ImageVector get() = Icons.Outlined.Tune
-    val SlidersHorizontalSelected: ImageVector get() = Icons.Rounded.Tune
+    val SlidersHorizontalSelected: ImageVector get() = Icons.Filled.Tune
 
     val Settings: ImageVector get() = Icons.Outlined.Settings
-    val SettingsSelected: ImageVector get() = Icons.Rounded.Settings
+    val SettingsSelected: ImageVector get() = Icons.Filled.Settings
 
-    // Action & Status Icons (Consistent 24dp optical balance, fully tintable in Light & Dark themes)
-    val Passkey: ImageVector get() = Icons.Rounded.Key
+    // Action & Status Icons: Strictly Outlined for 100% stroke consistency across the app
+    val Passkey: ImageVector get() = Icons.Outlined.Key
     val ShieldCheck: ImageVector get() = Icons.Outlined.Shield
     val Send: ImageVector get() = Icons.AutoMirrored.Outlined.Send
     val RefreshCw: ImageVector get() = Icons.Outlined.Refresh
-    val Plus: ImageVector get() = Icons.Rounded.Add
+    val Plus: ImageVector get() = Icons.Outlined.Add
     val Copy: ImageVector get() = Icons.Outlined.ContentCopy
     val Check: ImageVector get() = Icons.Outlined.Check
     val CheckCircle: ImageVector get() = Icons.Outlined.CheckCircle
     val Pin: ImageVector get() = Icons.Outlined.PushPin
-    val Sparkles: ImageVector get() = Icons.Rounded.AutoAwesome
+    val Sparkles: ImageVector get() = Icons.Outlined.AutoAwesome
     val PauseCircle: ImageVector get() = Icons.Outlined.PauseCircle
     val PlayCircle: ImageVector get() = Icons.Outlined.PlayCircle
     val Trash2: ImageVector get() = Icons.Outlined.DeleteOutline

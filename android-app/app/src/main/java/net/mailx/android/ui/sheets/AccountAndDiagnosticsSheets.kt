@@ -21,8 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,6 +77,8 @@ fun AccountBottomSheet(
     var showChangePasswordDialog by remember { mutableStateOf(false) }
     var showChangeEmailDialog by remember { mutableStateOf(false) }
     var showCreateKeyDialog by remember { mutableStateOf(false) }
+    var deletingAccessKey by remember { mutableStateOf<UiAccessKey?>(null) }
+    var deletingPasskey by remember { mutableStateOf<UiPasskeyCredential?>(null) }
     var totpConfirmInput by remember { mutableStateOf("") }
     var accountOtpInput by remember { mutableStateOf("") }
     var showDisableTotpDialog by remember { mutableStateOf(false) }
@@ -254,16 +256,16 @@ fun AccountBottomSheet(
             MailxSectionRow(
                 title = "Change Primary Email",
                 description = userAccount.email.ifBlank { "Update account email address" },
-                startIcon = Icons.Default.Email,
-                endIcon = Icons.Default.Edit,
+                startIcon = Icons.Outlined.Email,
+                endIcon = Icons.Outlined.Edit,
                 onClick = { showChangeEmailDialog = true }
             )
 
             MailxSectionRow(
                 title = "Change Password",
                 description = "Update your account login password",
-                startIcon = Icons.Default.LockReset,
-                endIcon = Icons.Default.Edit,
+                startIcon = Icons.Outlined.LockReset,
+                endIcon = Icons.Outlined.Edit,
                 onClick = { showChangePasswordDialog = true }
             )
 
@@ -459,7 +461,7 @@ fun AccountBottomSheet(
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.ContentCopy,
+                                        imageVector = Icons.Outlined.ContentCopy,
                                         contentDescription = "Copy Secret Key",
                                         modifier = Modifier.size(15.dp)
                                     )
@@ -484,7 +486,7 @@ fun AccountBottomSheet(
                             shape = CircleShape
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                                 contentDescription = null,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -555,7 +557,7 @@ fun AccountBottomSheet(
                                         shape = CircleShape
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.ContentCopy,
+                                            imageVector = Icons.Outlined.ContentCopy,
                                             contentDescription = null,
                                             modifier = Modifier.size(15.dp)
                                         )
@@ -570,7 +572,7 @@ fun AccountBottomSheet(
                                         shape = CircleShape
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Download,
+                                            imageVector = Icons.Outlined.Download,
                                             contentDescription = null,
                                             modifier = Modifier.size(15.dp)
                                         )
@@ -639,10 +641,12 @@ fun AccountBottomSheet(
             } else {
                 passkeys.forEach { pk ->
                     Card(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -666,9 +670,9 @@ fun AccountBottomSheet(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(onClick = { onDeletePasskey(pk.id) }) {
+                            IconButton(onClick = { deletingPasskey = pk }) {
                                 Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
+                                    imageVector = Icons.Outlined.DeleteOutline,
                                     contentDescription = "Delete Passkey",
                                     tint = MailxPalette.BlockedRose
                                 )
@@ -735,10 +739,12 @@ fun AccountBottomSheet(
 
             accessKeys.forEach { keyItem ->
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -766,9 +772,9 @@ fun AccountBottomSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = { onDeleteAccessKey(keyItem.id) }) {
+                        IconButton(onClick = { deletingAccessKey = keyItem }) {
                             Icon(
-                                imageVector = Icons.Default.DeleteOutline,
+                                imageVector = Icons.Outlined.DeleteOutline,
                                 contentDescription = "Delete Key",
                                 tint = MailxPalette.BlockedRose
                             )
@@ -782,7 +788,7 @@ fun AccountBottomSheet(
             MailxSectionRow(
                 title = "Export All Aliases as CSV",
                 description = "Export $aliasCount aliases with status, recipients, and descriptions in CSV format",
-                startIcon = Icons.Default.Download,
+                startIcon = Icons.Outlined.Download,
                 onClick = {
                     onExportAliasesCsv { csvText ->
                         exportedCsvPreview = csvText
@@ -793,7 +799,7 @@ fun AccountBottomSheet(
             MailxSectionRow(
                 title = "Import Aliases from CSV",
                 description = "Import custom-domain aliases using CSV rows (alias,description,enabled,recipients)",
-                startIcon = Icons.Default.UploadFile,
+                startIcon = Icons.Outlined.UploadFile,
                 onClick = { showImportCsvDialog = true }
             )
 
@@ -802,7 +808,7 @@ fun AccountBottomSheet(
             MailxSectionRow(
                 title = "Delete Account Permanently",
                 description = "Permanently delete your Mailx account and all associated aliases",
-                startIcon = Icons.Default.DeleteForever,
+                startIcon = Icons.Outlined.DeleteForever,
                 accentColor = MailxPalette.BlockedRose,
                 onClick = { showDeleteAccountDialog = true }
             )
@@ -903,43 +909,260 @@ fun AccountBottomSheet(
     }
 
     if (showCreateKeyDialog) {
+        val expiryOptions = remember {
+            listOf(
+                7 to "1 week",
+                30 to "1 month",
+                90 to "3 months",
+                180 to "6 months",
+                365 to "1 year"
+            )
+        }
         var keyName by remember { mutableStateOf("") }
-        var expiryDays by remember { mutableStateOf("30") }
+        var nameError by remember { mutableStateOf(false) }
+        var selectedExpiryDays by remember { mutableIntStateOf(365) }
+        var showExpiryPickerDialog by remember { mutableStateOf(false) }
+        val selectedExpiryLabel = expiryOptions.firstOrNull { it.first == selectedExpiryDays }?.second ?: "1 year"
+
         AlertDialog(
             onDismissRequest = { showCreateKeyDialog = false },
-            title = { Text("Create New Access Key") },
+            title = {
+                Text(
+                    text = "New Access Key",
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = keyName,
-                        onValueChange = { keyName = it },
-                        label = { Text("Key Name (e.g. Android Phone)") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Create a new Access Key associated with your account.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedTextField(
-                        value = expiryDays,
-                        onValueChange = { expiryDays = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("Expiration Days (leave blank for no expiry)") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedTextField(
+                            value = keyName,
+                            onValueChange = {
+                                keyName = it
+                                if (it.isNotBlank()) nameError = false
+                            },
+                            label = { Text("Name") },
+                            placeholder = { Text("e.g. Android Phone") },
+                            isError = nameError,
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (nameError) {
+                            Text(
+                                text = "Required",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Expires After:",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Surface(
+                            onClick = { showExpiryPickerDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = selectedExpiryLabel,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    contentDescription = "Select Expiration",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Access Keys expire after one year at most.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             },
             confirmButton = {
                 Button(
+                    shape = RoundedCornerShape(10.dp),
                     onClick = {
-                        showCreateKeyDialog = false
-                        onCreateAccessKey(keyName, expiryDays.toIntOrNull())
+                        if (keyName.trim().isEmpty()) {
+                            nameError = true
+                        } else {
+                            showCreateKeyDialog = false
+                            onCreateAccessKey(keyName.trim(), selectedExpiryDays)
+                        }
                     }
                 ) {
-                    Text("Create")
+                    Text("Create Access Key", fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateKeyDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+
+        if (showExpiryPickerDialog) {
+            AlertDialog(
+                onDismissRequest = { showExpiryPickerDialog = false },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        expiryOptions.forEachIndexed { idx, (days, label) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        selectedExpiryDays = days
+                                        showExpiryPickerDialog = false
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                RadioButton(
+                                    selected = selectedExpiryDays == days,
+                                    onClick = {
+                                        selectedExpiryDays = days
+                                        showExpiryPickerDialog = false
+                                    }
+                                )
+                            }
+                            if (idx < expiryOptions.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+    }
+
+    deletingAccessKey?.let { keyToDelete ->
+        AlertDialog(
+            onDismissRequest = { deletingAccessKey = null },
+            icon = {
+                Icon(
+                    imageVector = MailxIcons.Trash2,
+                    contentDescription = null,
+                    tint = MailxPalette.BlockedRose
+                )
+            },
+            title = {
+                Text(
+                    text = "Delete Access Key",
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete Access Key \"${keyToDelete.name.ifBlank { keyToDelete.id }}\"? Any active sessions using this key will be terminated immediately."
+                )
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MailxPalette.BlockedRose,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    onClick = {
+                        val targetId = keyToDelete.id
+                        deletingAccessKey = null
+                        onDeleteAccessKey(targetId)
+                    }
+                ) {
+                    Text("Delete", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingAccessKey = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    deletingPasskey?.let { pkToDelete ->
+        AlertDialog(
+            onDismissRequest = { deletingPasskey = null },
+            icon = {
+                Icon(
+                    imageVector = MailxIcons.Trash2,
+                    contentDescription = null,
+                    tint = MailxPalette.BlockedRose
+                )
+            },
+            title = {
+                Text(
+                    text = "Delete Passkey",
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove passkey credential (${pkToDelete.id}) from your account?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MailxPalette.BlockedRose,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    onClick = {
+                        val targetId = pkToDelete.id
+                        deletingPasskey = null
+                        onDeletePasskey(targetId)
+                    }
+                ) {
+                    Text("Delete", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingPasskey = null }) {
                     Text("Cancel")
                 }
             }
@@ -1185,7 +1408,7 @@ fun DiagnosticsBottomSheet(
                     fontWeight = FontWeight.Medium
                 )
                 IconButton(onClick = onRefreshLogs) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
                 }
             }
 
@@ -1194,14 +1417,14 @@ fun DiagnosticsBottomSheet(
             MailxSectionRow(
                 title = "Server Health Check (/livez & /readyz)",
                 description = serverHealthStatus.ifBlank { "Tap to verify live connectivity with the Mailx API server" },
-                startIcon = Icons.Default.Dns,
+                startIcon = Icons.Outlined.Dns,
                 onClick = onCheckServerHealth
             )
 
             MailxSectionRow(
                 title = "Enable Diagnostics Logging",
                 description = "Record delivery errors, bounced messages, and rule-blocked emails",
-                startIcon = Icons.Default.BugReport,
+                startIcon = Icons.Outlined.BugReport,
                 showSwitch = true,
                 switchChecked = logIssuesEnabled,
                 onSwitchChange = onToggleLogIssues
@@ -1217,7 +1440,7 @@ fun DiagnosticsBottomSheet(
                     shape = CircleShape,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Delete All Logs")
                 }
@@ -1225,7 +1448,7 @@ fun DiagnosticsBottomSheet(
 
             if (logs.isEmpty()) {
                 EmptyStateBox(
-                    icon = Icons.Default.Verified,
+                    icon = Icons.Outlined.Verified,
                     title = "No diagnostic logs found",
                     subtitle = "There are no recorded delivery failures, bounces, or blocked message logs."
                 )
@@ -1346,7 +1569,7 @@ fun AnnouncementsBottomSheet(
 
             if (announcements.isEmpty()) {
                 EmptyStateBox(
-                    icon = Icons.Default.Campaign,
+                    icon = Icons.Outlined.Campaign,
                     title = "No announcements",
                     subtitle = "Service updates and announcements from Mailx will appear here."
                 )
@@ -1459,7 +1682,7 @@ fun TrackersReportBottomSheet(
                             }
                         }
                     ) {
-                        Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
+                        Icon(Icons.Outlined.ContentPaste, contentDescription = "Paste")
                     }
                 },
                 singleLine = true,

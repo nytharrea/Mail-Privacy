@@ -17,10 +17,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.AlternateEmail
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -217,7 +217,7 @@ private fun ReverseAliasDialogCard(
                         recompute(it, targetEmail)
                     },
                     label = { Text("Sender Alias") },
-                    leadingIcon = { Icon(Icons.Default.AlternateEmail, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Outlined.AlternateEmail, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -230,7 +230,7 @@ private fun ReverseAliasDialogCard(
                         recompute(senderAlias, it)
                     },
                     label = { Text("Recipient Email") },
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -273,7 +273,7 @@ private fun ReverseAliasDialogCard(
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Copy")
                     }
@@ -284,7 +284,7 @@ private fun ReverseAliasDialogCard(
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Compose")
                     }

@@ -1938,12 +1938,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun createAccessKey(name: String, expiresDays: Int?) {
         viewModelScope.launch {
+            val resolvedDays = (expiresDays ?: 365).coerceIn(1, 365)
+            val expIso = Instant.now().plusSeconds(resolvedDays.toLong() * 86400L).toString()
             val body = JSONObject().apply {
                 put("name", name.trim().ifEmpty { "Mailx Android" })
-                if (expiresDays != null && expiresDays > 0) {
-                    val expIso = Instant.now().plusSeconds(expiresDays.toLong() * 86400L).toString()
-                    put("expires_at", expIso)
-                }
+                put("expires_at", expIso)
             }.toString()
             val res = MailxRustBridge.apiRequest(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,

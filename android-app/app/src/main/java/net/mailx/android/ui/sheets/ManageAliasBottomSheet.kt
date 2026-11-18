@@ -9,9 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ForwardToInbox
-import androidx.compose.material.icons.automirrored.filled.Reply
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.ForwardToInbox
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -92,7 +92,7 @@ fun ManageAliasBottomSheet(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Spellcheck,
+                        imageVector = Icons.Outlined.Spellcheck,
                         contentDescription = "NATO Phonetic",
                         tint = if (showNato) {
                             MaterialTheme.colorScheme.onPrimaryContainer
@@ -124,7 +124,7 @@ fun ManageAliasBottomSheet(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PushPin,
+                        imageVector = Icons.Outlined.PushPin,
                         contentDescription = "Pin",
                         tint = if (alias.pinned) {
                             MailxPalette.PausedAmber
@@ -244,22 +244,22 @@ fun ManageAliasBottomSheet(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.Default.Inbox,
+                                        icon = Icons.Outlined.Inbox,
                                         tint = MailxPalette.ForwardEmerald,
                                         text = "${alias.forwards} fwd"
                                     )
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.AutoMirrored.Filled.Reply,
+                                        icon = Icons.AutoMirrored.Outlined.Reply,
                                         tint = MailxPalette.ReplySky,
                                         text = "${alias.replies} rep"
                                     )
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.AutoMirrored.Filled.ForwardToInbox,
+                                        icon = Icons.AutoMirrored.Outlined.ForwardToInbox,
                                         tint = MailxPalette.SentIndigo,
                                         text = "${alias.sends} sent"
                                     )
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.Default.Block,
+                                        icon = Icons.Outlined.Block,
                                         tint = MailxPalette.BlockedRose,
                                         text = "${alias.blocks} blk"
                                     )
@@ -285,7 +285,7 @@ fun ManageAliasBottomSheet(
                                 shape = CircleShape
                             ) {
                                 Icon(
-                                    imageVector = if (alias.wildcard) Icons.Default.AutoAwesome else Icons.Default.ContentCopy,
+                                    imageVector = if (alias.wildcard) Icons.Outlined.AutoAwesome else Icons.Outlined.ContentCopy,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -306,7 +306,7 @@ fun ManageAliasBottomSheet(
                                 shape = CircleShape
                             ) {
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ForwardToInbox,
+                                    imageVector = Icons.AutoMirrored.Outlined.ForwardToInbox,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -328,7 +328,7 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = "Restore Deleted Alias",
                         description = "Restore from Trash and resume forwarding",
-                        startIcon = Icons.Default.Restore,
+                        startIcon = Icons.Outlined.Restore,
                         accentColor = MailxPalette.ForwardEmerald,
                         onClick = onRestoreAlias
                     )
@@ -336,7 +336,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = "Permanently Forget",
                             description = "Completely erase this custom-domain alias",
-                            startIcon = Icons.Default.DeleteForever,
+                            startIcon = Icons.Outlined.DeleteForever,
                             accentColor = MailxPalette.BlockedRose,
                             onClick = onForgetAlias
                         )
@@ -345,7 +345,7 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = if (alias.enabled) "Forwarding Active" else "Forwarding Disabled",
                         description = "Toggle incoming email forwarding for this alias",
-                        startIcon = Icons.Default.CheckCircleOutline,
+                        startIcon = Icons.Outlined.CheckCircleOutline,
                         showSwitch = true,
                         switchChecked = alias.enabled,
                         onSwitchChange = onToggleEnabled
@@ -358,7 +358,7 @@ fun ManageAliasBottomSheet(
                         } else {
                             "Pause incoming forwards for 1-10 hours, days, or weeks"
                         },
-                        startIcon = if (alias.isPaused) Icons.Default.PlayCircleOutline else Icons.Default.PauseCircleOutline,
+                        startIcon = if (alias.isPaused) Icons.Outlined.PlayCircleOutline else Icons.Outlined.PauseCircleOutline,
                         onClick = {
                             if (alias.isPaused) {
                                 onUnpauseAlias()
@@ -371,7 +371,7 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = "Pin to Top",
                         description = "Keep this alias in Quick Access and at the top of lists",
-                        startIcon = Icons.Default.PushPin,
+                        startIcon = Icons.Outlined.PushPin,
                         showSwitch = true,
                         switchChecked = alias.pinned,
                         onSwitchChange = onTogglePinned
@@ -381,38 +381,38 @@ fun ManageAliasBottomSheet(
                 MailxSectionRow(
                     title = "Description / Note",
                     description = alias.description.ifBlank { "No description set" },
-                    startIcon = Icons.Default.Notes,
-                    endIcon = Icons.Default.Edit,
+                    startIcon = Icons.Outlined.Notes,
+                    endIcon = Icons.Outlined.Edit,
                     onClick = { editingField = "description" }
                 )
 
                 MailxSectionRow(
                     title = "Target Recipients",
                     description = alias.recipients.ifBlank { "Default account recipient" },
-                    startIcon = Icons.Default.Inbox,
-                    endIcon = Icons.Default.Edit,
+                    startIcon = Icons.Outlined.Inbox,
+                    endIcon = Icons.Outlined.Edit,
                     onClick = { editingField = "recipients" }
                 )
 
                 MailxSectionRow(
                     title = "Sender Display Name",
                     description = alias.fromName.ifBlank { "Uses alias address" },
-                    startIcon = Icons.Default.Badge,
-                    endIcon = Icons.Default.Edit,
+                    startIcon = Icons.Outlined.Badge,
+                    endIcon = Icons.Outlined.Edit,
                     onClick = { editingField = "from_name" }
                 )
 
                 MailxSectionRow(
                     title = "Timestamps",
                     description = "Created ${formatIsoDateShort(alias.createdAt)} • Updated ${formatIsoDateShort(alias.updatedAt)}",
-                    startIcon = Icons.Default.Schedule
+                    startIcon = Icons.Outlined.Schedule
                 )
 
                 if (alias.deletedAt.isBlank()) {
                     MailxSectionRow(
                         title = "Move to Trash",
                         description = "Reject incoming mail (restorable for 90 days)",
-                        startIcon = Icons.Default.DeleteOutline,
+                        startIcon = Icons.Outlined.DeleteOutline,
                         accentColor = MailxPalette.BlockedRose,
                         onClick = onRequestDelete
                     )
@@ -420,7 +420,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = "Permanently Forget",
                             description = "Immediately purge this custom-domain alias",
-                            startIcon = Icons.Default.DeleteForever,
+                            startIcon = Icons.Outlined.DeleteForever,
                             accentColor = MailxPalette.BlockedRose,
                             onClick = onForgetAlias
                         )

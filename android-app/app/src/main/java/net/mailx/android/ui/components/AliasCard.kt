@@ -9,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -68,7 +67,6 @@ fun AliasCard(
         }
     }
 
-    // Shape morph is reserved strictly for selected state (no per-click / copy shape bounce)
     val cardCorner by animateDpAsState(
         targetValue = if (isSelected) 18.dp else 14.dp,
         animationSpec = if (reducedMotion) snap() else tween(durationMillis = 160),
@@ -91,9 +89,9 @@ fun AliasCard(
         border = BorderStroke(
             width = 1.dp,
             color = if (isSelected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
             }
         ),
         tonalElevation = 0.dp
@@ -121,23 +119,37 @@ fun AliasCard(
                     modifier = Modifier.padding(end = 8.dp)
                 )
             } else {
-                MailxActivityRing(
-                    forwards = alias.forwards,
-                    replies = alias.replies,
-                    sends = alias.sends,
-                    blocks = alias.blocks,
-                    enabled = alias.enabled,
-                    size = 36.dp,
-                    strokeWidth = 3.5.dp
-                )
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = when {
+                                alias.wildcard -> MailxIcons.Sparkles
+                                alias.isPaused -> MailxIcons.PauseCircle
+                                else -> MailxIcons.AtSign
+                            },
+                            contentDescription = null,
+                            tint = when {
+                                alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose
+                                alias.isPaused -> MailxPalette.PausedAmber
+                                alias.enabled -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(12.dp))
             }
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                    .padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -177,22 +189,6 @@ fun AliasCard(
                             modifier = Modifier.size(13.dp)
                         )
                     }
-                    if (alias.wildcard) {
-                        Icon(
-                            imageVector = MailxIcons.Sparkles,
-                            contentDescription = "Wildcard",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(13.dp)
-                        )
-                    }
-                    if (alias.isPaused) {
-                        Icon(
-                            imageVector = MailxIcons.PauseCircle,
-                            contentDescription = "Paused",
-                            tint = MailxPalette.PausedAmber,
-                            modifier = Modifier.size(13.dp)
-                        )
-                    }
                 }
 
                 Text(
@@ -208,7 +204,6 @@ fun AliasCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Calm, low-noise telemetry badges; only critical states (Blocked, Paused) stay vibrant
                     MiniMetricBadge(
                         label = "↑ ${alias.forwards}",
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

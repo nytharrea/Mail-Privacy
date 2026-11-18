@@ -58,7 +58,7 @@ fun MailxStatTile(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
         ),
         tonalElevation = 0.dp
     ) {
@@ -169,7 +169,7 @@ fun MailxSectionRow(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
         ),
         tonalElevation = 0.dp
     ) {
@@ -323,7 +323,7 @@ fun EmptyStateBox(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
         ),
         tonalElevation = 0.dp
     ) {

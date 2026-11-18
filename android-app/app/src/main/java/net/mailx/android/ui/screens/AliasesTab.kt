@@ -146,7 +146,7 @@ fun AliasesTab(
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -199,7 +199,7 @@ fun AliasesTab(
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()

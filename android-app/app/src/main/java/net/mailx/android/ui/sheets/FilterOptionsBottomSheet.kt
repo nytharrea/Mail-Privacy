@@ -6,10 +6,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.FilterAltOff
-import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.FilterAltOff
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,7 +91,7 @@ fun FilterOptionsBottomSheet(
                         modifier = Modifier.height(30.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FilterAltOff,
+                            imageVector = Icons.Outlined.FilterAltOff,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -126,7 +126,7 @@ fun FilterOptionsBottomSheet(
                 MailxSectionRow(
                     title = "Pin Priority",
                     description = "Keep pinned aliases at the top regardless of sort order",
-                    startIcon = Icons.Default.PushPin,
+                    startIcon = Icons.Outlined.PushPin,
                     showSwitch = true,
                     switchChecked = tempPinnedFirst,
                     onSwitchChange = { tempPinnedFirst = it }
@@ -151,7 +151,7 @@ fun FilterOptionsBottomSheet(
                         modifier = Modifier.height(30.dp)
                     ) {
                         Icon(
-                            imageVector = if (tempDesc) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                            imageVector = if (tempDesc) Icons.Outlined.ArrowDownward else Icons.Outlined.ArrowUpward,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )

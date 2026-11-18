@@ -648,7 +648,7 @@ private fun MailxModernBottomBar(
             shadowElevation = 0.dp,
             border = BorderStroke(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -770,7 +770,7 @@ private fun MailxCleanTopBar(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                     )
                 ) {
                     Text(
@@ -881,7 +881,7 @@ private fun MailxCommandBottomSheet(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -932,7 +932,7 @@ private fun MailxCommandBottomSheet(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
