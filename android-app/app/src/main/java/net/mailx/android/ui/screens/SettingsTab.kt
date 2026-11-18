@@ -95,25 +95,59 @@ fun SettingsTab(
         }
 
         item(key = "group_appearance") {
+            val colorModes = listOf(1 to "Dark", -1 to "System", 0 to "Light")
+            val selectedColorIdx = colorModes.indexOfFirst { it.first == themeState.darkModeMode }.coerceAtLeast(0)
+
             MailxSettingsGroupCard {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Color Mode",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "$darkModeLabel · $motionModeLabel",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    MailxSegmentedControl(
+                        options = colorModes.map { it.second },
+                        selectedIndex = selectedColorIdx,
+                        onSelect = { idx -> onUpdateDarkModeMode(colorModes[idx].first) },
+                        compact = true
+                    )
+                }
+
+                MailxGroupDivider(startIndent = false)
                 MailxSectionRow(
-                    title = "Theme & Motion Preferences",
-                    description = "Configure color mode and transition physics",
-                    startIcon = MailxIcons.MoonStar,
-                    iconTint = MailxPalette.BrandAccentTeal,
-                    trailingBadge = "$darkModeLabel · $motionModeLabel",
-                    endIcon = MailxIcons.ChevronRight,
-                    grouped = true,
-                    onClick = { showInterfaceSheet = true }
+                    title = "Pure Black Surface (AMOLED)",
+                    description = "True #000000 OLED background with high-contrast carbon cards",
+                    startIcon = Icons.Outlined.Contrast,
+                    showSwitch = true,
+                    switchChecked = themeState.amoledDarkEnabled,
+                    onSwitchChange = onToggleAmoledDark,
+                    grouped = true
                 )
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     MailxGroupDivider()
                     MailxSectionRow(
-                        title = "Material You Surface Harmonization",
-                        description = "Adapt surfaces to wallpaper while preserving Mailx Indigo",
+                        title = "Dynamic Wallpaper Accents",
+                        description = "Adapt accent colors to wallpaper while keeping carbon surfaces",
                         startIcon = MailxIcons.Palette,
-                        iconTint = MailxPalette.ReplySky,
                         showSwitch = true,
                         switchChecked = themeState.dynamicColorEnabled,
                         onSwitchChange = onToggleDynamicColor,
@@ -123,13 +157,13 @@ fun SettingsTab(
 
                 MailxGroupDivider()
                 MailxSectionRow(
-                    title = "Pure Black Surface (AMOLED)",
-                    description = "True #000000 background with WCAG AA high-contrast text",
-                    startIcon = Icons.Outlined.Contrast,
-                    iconTint = MailxPalette.BrandAccentTeal,
+                    title = "Expressive Spring Motion",
+                    description = "Fluid spring physics across navigation, sheets, and cards",
+                    startIcon = MailxIcons.Sparkles,
                     showSwitch = true,
-                    switchChecked = themeState.amoledDarkEnabled,
-                    onSwitchChange = onToggleAmoledDark,
+                    enabled = !themeState.reducedMotionEnabled,
+                    switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
+                    onSwitchChange = onToggleExpressiveMotion,
                     grouped = true
                 )
 
@@ -138,23 +172,9 @@ fun SettingsTab(
                     title = "Reduced Motion",
                     description = "Minimize transitions and disable pulsing animations",
                     startIcon = Icons.Outlined.MotionPhotosOff,
-                    iconTint = MailxPalette.SentIndigo,
                     showSwitch = true,
                     switchChecked = themeState.reducedMotionEnabled,
                     onSwitchChange = onToggleReducedMotion,
-                    grouped = true
-                )
-
-                MailxGroupDivider()
-                MailxSectionRow(
-                    title = "Expressive Spring Motion",
-                    description = "Optional spring physics (default uses calm standard motion)",
-                    startIcon = MailxIcons.Sparkles,
-                    iconTint = MailxPalette.SentIndigo,
-                    showSwitch = true,
-                    enabled = !themeState.reducedMotionEnabled,
-                    switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
-                    onSwitchChange = onToggleExpressiveMotion,
                     grouped = true
                 )
             }
@@ -525,66 +545,31 @@ fun SettingsTab(
     }
 
     if (showRecipientDialog) {
-        var customRec by remember { mutableStateOf(defaultsState.defaultRecipient) }
-        MailxModernDialog(
-            title = "Default Recipient",
-            subtitle = "Select or enter the default forwarding destination.",
-            icon = MailxIcons.Inbox,
-            confirmText = "Update",
-            onConfirm = {
-                showRecipientDialog = false
-                if (customRec.isNotBlank()) onUpdateDefaultRecipient(customRec.trim())
-            },
-            onDismiss = { showRecipientDialog = false }
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                defaultsState.availableRecipients.forEach { rec ->
-                    val isSelected = defaultsState.defaultRecipient == rec
-                    Surface(
-                        onClick = {
-                            onUpdateDefaultRecipient(rec)
-                            showRecipientDialog = false
-                        },
-                        shape = RoundedCornerShape(11.dp),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLow
-                        },
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                            } else {
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-                            }
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 13.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = rec,
-                                fontSize = 13.5.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = MailxIcons.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+        if (defaultsState.availableRecipients.isNotEmpty()) {
+            MailxOptionPickerDialog(
+                title = "Default Recipient",
+                subtitle = "Choose the verified destination address for newly created aliases.",
+                options = defaultsState.availableRecipients.map { it to it },
+                selectedKey = defaultsState.defaultRecipient,
+                onSelect = { rec ->
+                    onUpdateDefaultRecipient(rec)
+                    showRecipientDialog = false
+                },
+                onDismiss = { showRecipientDialog = false }
+            )
+        } else {
+            var customRec by remember { mutableStateOf(defaultsState.defaultRecipient) }
+            MailxModernDialog(
+                title = "Default Recipient",
+                subtitle = "Enter the default forwarding destination address.",
+                icon = MailxIcons.Inbox,
+                confirmText = "Save",
+                onConfirm = {
+                    showRecipientDialog = false
+                    if (customRec.isNotBlank()) onUpdateDefaultRecipient(customRec.trim())
+                },
+                onDismiss = { showRecipientDialog = false }
+            ) {
                 OutlinedTextField(
                     value = customRec,
                     onValueChange = { customRec = it },
@@ -592,9 +577,7 @@ fun SettingsTab(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = mailxTextFieldColors(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -617,26 +600,67 @@ fun SettingsTab(
 
     if (showFromNameDialog) {
         var nameInput by remember { mutableStateOf(defaultsState.defaultFromName) }
-        MailxModernDialog(
-            title = "Default Sender Name",
-            subtitle = "Display name used when replying or sending via an alias (leave blank to use the alias address).",
-            icon = Icons.Outlined.Badge,
-            confirmText = "Update",
-            onConfirm = {
-                showFromNameDialog = false
-                onUpdateDefaultFromName(nameInput)
-            },
-            onDismiss = { showFromNameDialog = false }
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showFromNameDialog = false },
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
-            OutlinedTextField(
-                value = nameInput,
-                onValueChange = { nameInput = it },
-                label = { Text("From Name") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = mailxTextFieldColors(),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Default Sender Name",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Display name used when replying or sending via an alias (leave blank to use the alias address).",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = { nameInput = it },
+                    label = { Text("Sender Display Name") },
+                    placeholder = { Text("e.g. Alex Privacy") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(13.dp),
+                    colors = mailxTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = { showFromNameDialog = false },
+                        shape = RoundedCornerShape(13.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.SemiBold)
+                    }
+                    Button(
+                        onClick = {
+                            showFromNameDialog = false
+                            onUpdateDefaultFromName(nameInput.trim())
+                        },
+                        shape = RoundedCornerShape(13.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Save Name", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 

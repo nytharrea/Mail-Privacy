@@ -20,15 +20,15 @@ val LocalReducedMotion = compositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
     primary = MailxPalette.BrandPrimaryDark,
-    onPrimary = Color(0xFF0F122E),
+    onPrimary = Color(0xFF042F20),
     primaryContainer = MailxPalette.BrandPrimaryContainerDark,
     onPrimaryContainer = MailxPalette.BrandOnPrimaryContainerDark,
     secondary = MailxPalette.BrandAccentTealDark,
-    onSecondary = Color(0xFF042630),
+    onSecondary = Color(0xFF042F2E),
     secondaryContainer = MailxPalette.BrandSecondaryContainerDark,
     onSecondaryContainer = MailxPalette.BrandOnSecondaryContainerDark,
     tertiary = MailxPalette.BrandTertiaryVioletDark,
-    onTertiary = Color(0xFF280B45),
+    onTertiary = Color(0xFF1E1B4B),
     tertiaryContainer = MailxPalette.BrandTertiaryContainerDark,
     onTertiaryContainer = MailxPalette.BrandOnTertiaryContainerDark,
     background = MailxPalette.Obsidian950,
@@ -37,7 +37,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = MailxPalette.Slate100,
     surfaceVariant = MailxPalette.Obsidian800,
     onSurfaceVariant = MailxPalette.Slate400,
-    surfaceContainerLowest = Color(0xFF04060B),
+    surfaceContainerLowest = Color(0xFF050608),
     surfaceContainerLow = MailxPalette.Obsidian900,
     surfaceContainer = MailxPalette.Obsidian850,
     surfaceContainerHigh = MailxPalette.Obsidian800,
@@ -45,7 +45,7 @@ private val DarkColorScheme = darkColorScheme(
     outline = MailxPalette.Slate600,
     outlineVariant = MailxPalette.ObsidianBorder,
     error = MailxPalette.BlockedRose,
-    onError = Color.White,
+    onError = Color(0xFF3F0614),
     errorContainer = Color(0xFF4C0519),
     onErrorContainer = Color(0xFFFFE4E6)
 )
@@ -70,41 +70,59 @@ private val LightColorScheme = lightColorScheme(
     surfaceVariant = MailxPalette.Pearl150,
     onSurfaceVariant = MailxPalette.Slate600,
     surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFF4F7FB),
-    surfaceContainer = Color(0xFFEEF2F7),
-    surfaceContainerHigh = Color(0xFFE6ECF4),
+    surfaceContainerLow = Color(0xFFF4F6F8),
+    surfaceContainer = Color(0xFFEDEFF3),
+    surfaceContainerHigh = Color(0xFFE5E8EE),
     surfaceContainerHighest = MailxPalette.Pearl200,
     outline = MailxPalette.Slate400,
     outlineVariant = MailxPalette.Pearl300,
-    error = MailxPalette.BlockedRose,
+    error = Color(0xFFE11D48),
     onError = Color.White,
     errorContainer = Color(0xFFFFE4E6),
     onErrorContainer = Color(0xFF881337)
 )
 
+private fun ColorScheme.withCarbonDarkSurfaces(): ColorScheme = copy(
+    background = MailxPalette.Obsidian950,
+    surface = MailxPalette.Obsidian925,
+    surfaceVariant = MailxPalette.Obsidian800,
+    surfaceContainerLowest = Color(0xFF050608),
+    surfaceContainerLow = MailxPalette.Obsidian900,
+    surfaceContainer = MailxPalette.Obsidian850,
+    surfaceContainerHigh = MailxPalette.Obsidian800,
+    surfaceContainerHighest = MailxPalette.Obsidian750,
+    outlineVariant = MailxPalette.ObsidianBorder
+)
+
 private fun ColorScheme.withAmoledPitchBlack(): ColorScheme = copy(
     background = Color.Black,
-    surface = Color.Black,
+    surface = Color(0xFF07080B),
     surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = Color(0xFF090C14),
-    surfaceContainer = Color(0xFF101420),
-    surfaceContainerHigh = Color(0xFF161C2C),
-    surfaceContainerHighest = Color(0xFF1E263B)
+    surfaceContainerLow = Color(0xFF0D0F14),
+    surfaceContainer = Color(0xFF13161D),
+    surfaceContainerHigh = Color(0xFF1A1E27),
+    surfaceContainerHighest = Color(0xFF222733),
+    outlineVariant = Color(0xFF242A35)
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MailxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     amoledDark: Boolean = false,
-    expressiveMotion: Boolean = false,
+    expressiveMotion: Boolean = true,
     reducedMotion: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     val baseScheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        if (darkTheme) {
+            // Preserve crisp Carbon-Graphite surface hierarchy even when Dynamic Color is active
+            dynamicDarkColorScheme(context).withCarbonDarkSurfaces()
+        } else {
+            dynamicLightColorScheme(context)
+        }
     } else {
         if (darkTheme) DarkColorScheme else LightColorScheme
     }
@@ -115,7 +133,9 @@ fun MailxTheme(
         baseScheme
     }
 
-    val motionScheme = if (expressiveMotion && !reducedMotion) {
+    val motionScheme = if (reducedMotion) {
+        MotionScheme.standard()
+    } else if (expressiveMotion) {
         MotionScheme.expressive()
     } else {
         MotionScheme.standard()

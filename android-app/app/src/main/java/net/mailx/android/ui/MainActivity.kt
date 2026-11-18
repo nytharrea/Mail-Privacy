@@ -11,12 +11,16 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -266,15 +270,17 @@ fun MailxAppScreen(vm: MailxViewModel) {
             AnimatedContent(
                 targetState = currentTab,
                 transitionSpec = {
+                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
                     when {
                         reducedMotion -> EnterTransition.None togetherWith ExitTransition.None
-                        themeState.expressiveMotionEnabled -> {
-                            (fadeIn(animationSpec = effectsSpec) + scaleIn(initialScale = 0.97f, animationSpec = spatialSpec))
-                                .togetherWith(fadeOut(animationSpec = effectsSpec))
-                        }
                         else -> {
-                            (fadeIn(animationSpec = tween(170)) + scaleIn(initialScale = 0.985f, animationSpec = tween(170)))
-                                .togetherWith(fadeOut(animationSpec = tween(130)))
+                            (fadeIn(animationSpec = tween(190)) +
+                                slideInHorizontally(animationSpec = tween(220)) { (it / 14) * direction } +
+                                scaleIn(initialScale = 0.985f, animationSpec = tween(210)))
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(140)) +
+                                        slideOutHorizontally(animationSpec = tween(180)) { -(it / 18) * direction }
+                                )
                         }
                     }
                 },
@@ -611,13 +617,13 @@ private fun MailxModernBottomBar(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(22.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -631,17 +637,28 @@ private fun MailxModernBottomBar(
                 MainNavTab.entries.forEach { tab ->
                     val selected = currentTab == tab
                     val scale by animateFloatAsState(
-                        targetValue = if (selected && !reducedMotion) 1.02f else 1f,
-                        animationSpec = if (reducedMotion) snap() else tween(160),
+                        targetValue = if (selected && !reducedMotion) 1.04f else 1f,
+                        animationSpec = if (reducedMotion) snap() else spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
                         label = "nav_item_scale_${tab.name}"
+                    )
+                    val liftY by animateFloatAsState(
+                        targetValue = if (selected && !reducedMotion) -2f else 0f,
+                        animationSpec = if (reducedMotion) snap() else spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "nav_item_lift_${tab.name}"
                     )
                     val pillColor by animateColorAsState(
                         targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                         } else {
                             Color.Transparent
                         },
-                        animationSpec = if (reducedMotion) snap() else tween(160),
+                        animationSpec = if (reducedMotion) snap() else tween(180),
                         label = "nav_item_pill_${tab.name}"
                     )
                     val contentColor by animateColorAsState(
@@ -650,7 +667,7 @@ private fun MailxModernBottomBar(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = if (reducedMotion) snap() else tween(160),
+                        animationSpec = if (reducedMotion) snap() else tween(180),
                         label = "nav_item_fg_${tab.name}"
                     )
                     val interactionSource = remember { MutableInteractionSource() }
@@ -658,7 +675,7 @@ private fun MailxModernBottomBar(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(15.dp))
                             .background(pillColor)
                             .clickable(
                                 interactionSource = interactionSource,
@@ -674,6 +691,7 @@ private fun MailxModernBottomBar(
                             modifier = Modifier.graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
+                                translationY = liftY
                             }
                         ) {
                             Icon(
@@ -685,7 +703,7 @@ private fun MailxModernBottomBar(
                             Text(
                                 text = tab.label,
                                 fontSize = 11.sp,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 color = contentColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -708,6 +726,17 @@ private fun MailxCleanTopBar(
     onRefreshClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    val reducedMotion = LocalReducedMotion.current
+    var refreshTapCount by remember { mutableIntStateOf(0) }
+    val refreshRotation by animateFloatAsState(
+        targetValue = refreshTapCount * 360f,
+        animationSpec = if (reducedMotion) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "topbar_refresh_spin"
+    )
+
     Surface(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
@@ -736,11 +765,12 @@ private fun MailxCleanTopBar(
                 )
 
                 Surface(
+                    onClick = onProfileClick,
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
                     )
                 ) {
                     Text(
@@ -748,7 +778,7 @@ private fun MailxCleanTopBar(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
                     )
                 }
             }
@@ -757,62 +787,80 @@ private fun MailxCleanTopBar(
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalIconButton(
+                // Unified architectural topbar action buttons
+                Surface(
                     onClick = onPrivacyLabClick,
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f),
-                        contentColor = MaterialTheme.colorScheme.secondary
-                    )
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                    ),
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = MailxIcons.Sparkles,
-                        contentDescription = "Rust Privacy Lab",
-                        modifier = Modifier.size(17.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = MailxIcons.Sparkles,
+                            contentDescription = "Rust Privacy Lab",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
 
-                FilledTonalIconButton(
+                Surface(
                     onClick = onSendMailClick,
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                    ),
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = MailxIcons.Send,
-                        contentDescription = "Send from Alias",
-                        modifier = Modifier.size(17.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = MailxIcons.Send,
+                            contentDescription = "Send from Alias",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
 
-                FilledTonalIconButton(
-                    onClick = onRefreshClick,
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Surface(
+                    onClick = {
+                        refreshTapCount++
+                        onRefreshClick()
+                    },
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                    ),
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = MailxIcons.RefreshCw,
-                        contentDescription = "Refresh",
-                        modifier = Modifier.size(17.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = MailxIcons.RefreshCw,
+                            contentDescription = "Refresh",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .graphicsLayer { rotationZ = refreshRotation }
+                        )
+                    }
                 }
 
                 Surface(
                     onClick = onProfileClick,
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                     contentColor = MaterialTheme.colorScheme.primary,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
                     ),
                     modifier = Modifier.size(36.dp)
                 ) {

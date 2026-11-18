@@ -129,7 +129,7 @@ class EncryptedPrefsManager(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_AMOLED_DARK_ENABLED, value).apply()
 
     var expressiveMotionEnabled: Boolean
-        get() = prefs.getBoolean(KEY_EXPRESSIVE_MOTION_ENABLED, false)
+        get() = prefs.getBoolean(KEY_EXPRESSIVE_MOTION_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_EXPRESSIVE_MOTION_ENABLED, value).apply()
 
     var reducedMotionEnabled: Boolean
