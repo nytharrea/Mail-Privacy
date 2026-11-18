@@ -2,13 +2,11 @@ package net.mailx.android.ui.sheets
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -17,16 +15,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.copyToClipboard
 import net.mailx.android.ui.theme.MailxIcons
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * Rust-Powered Privacy Lab Bottom Sheet (Material 3 Expressive + Lucide Icons).
- * Overwrites stale PrivacyLabBottomSheet.kt in repository and binds to Rust skeleton tools.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrivacyLabBottomSheet(
@@ -59,7 +55,7 @@ fun PrivacyLabBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -73,32 +69,18 @@ fun PrivacyLabBottomSheet(
         ) {
             Text(
                 text = "Rust Privacy Lab",
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                    selected = selectedTool == 0,
-                    onClick = { selectedTool = 0 },
-                    label = { Text("URL Sanitizer", fontSize = 11.sp) }
-                )
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                    selected = selectedTool == 1,
-                    onClick = { selectedTool = 1 },
-                    label = { Text("Headers", fontSize = 11.sp) }
-                )
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                    selected = selectedTool == 2,
-                    onClick = { selectedTool = 2 },
-                    label = { Text("Contextual", fontSize = 11.sp) }
-                )
-            }
+            MailxSegmentedControl(
+                options = listOf("URL Sanitizer", "Headers", "Contextual"),
+                selectedIndex = selectedTool,
+                onSelect = { selectedTool = it },
+                compact = true
+            )
 
             when (selectedTool) {
                 0 -> {
@@ -114,12 +96,13 @@ fun PrivacyLabBottomSheet(
                             }
                         },
                         label = { Text("Paste URL with tracking parameters (utm_*, fbclid...)") },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = mailxTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (cleanedUrlOutput.isNotBlank()) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(15.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -144,7 +127,7 @@ fun PrivacyLabBottomSheet(
                                     onClick = {
                                         copyToClipboard(context, "Sanitized URL", cleanedUrlOutput)
                                     },
-                                    shape = CircleShape
+                                    shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Icon(MailxIcons.Copy, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -170,12 +153,13 @@ fun PrivacyLabBottomSheet(
                         label = { Text("Paste Raw Email Headers") },
                         minLines = 4,
                         maxLines = 8,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = mailxTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (headerVerdict.isNotBlank()) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(15.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -199,7 +183,8 @@ fun PrivacyLabBottomSheet(
                             onValueChange = { serviceNameInput = it },
                             label = { Text("Service Name (e.g. github, steam)") },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = mailxTextFieldColors(),
                             modifier = Modifier.weight(1f)
                         )
                         Button(
@@ -220,7 +205,7 @@ fun PrivacyLabBottomSheet(
                                     }
                                 }
                             },
-                            shape = CircleShape
+                            shape = RoundedCornerShape(11.dp)
                         ) {
                             Text("Generate")
                         }
@@ -228,7 +213,7 @@ fun PrivacyLabBottomSheet(
                     generatedCandidates.forEach { cand ->
                         Surface(
                             onClick = { copyToClipboard(context, "Contextual Alias", cand) },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(13.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -249,7 +234,7 @@ fun PrivacyLabBottomSheet(
 
             if (hygieneSummary != null) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(15.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth()
                 ) {

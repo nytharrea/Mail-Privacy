@@ -22,6 +22,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -115,6 +116,27 @@ private val MailxLightColorScheme = lightColorScheme(
     inversePrimary = MailxPalette.PrimaryDark
 )
 
+/**
+ * Harmonizes Android 12+ Material You dynamic wallpaper colors with Mailx Brand Teal.
+ * Primary interactive roles (switches, active pills, CTAs, brand accents) remain locked
+ * to Mailx Teal so brand identity is never lost to generic system blue, while secondary,
+ * tertiary, and surface containers subtly adapt to the user's wallpaper.
+ */
+private fun ColorScheme.withBrandTealIdentity(darkTheme: Boolean): ColorScheme {
+    val brandScheme = if (darkTheme) MailxDarkColorScheme else MailxLightColorScheme
+    return copy(
+        primary = brandScheme.primary,
+        onPrimary = brandScheme.onPrimary,
+        primaryContainer = brandScheme.primaryContainer,
+        onPrimaryContainer = brandScheme.onPrimaryContainer,
+        inversePrimary = brandScheme.inversePrimary,
+        error = brandScheme.error,
+        onError = brandScheme.onError,
+        errorContainer = brandScheme.errorContainer,
+        onErrorContainer = brandScheme.onErrorContainer
+    )
+}
+
 private fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
     background = MailxPalette.AmoledBackground,
     onBackground = MailxPalette.AmoledOnSurface,
@@ -146,7 +168,12 @@ fun MailxTheme(
 
     val baseScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            val rawDynamic = if (darkTheme) {
+                dynamicDarkColorScheme(context)
+            } else {
+                dynamicLightColorScheme(context)
+            }
+            rawDynamic.withBrandTealIdentity(darkTheme = darkTheme)
         }
         darkTheme -> MailxDarkColorScheme
         else -> MailxLightColorScheme
@@ -166,9 +193,10 @@ fun MailxTheme(
             window.statusBarColor = Color.Transparent.toArgb()
             @Suppress("DEPRECATION")
             window.navigationBarColor = Color.Transparent.toArgb()
+            val lightBars = !darkTheme && colorScheme.background.luminance() > 0.5f
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
+                isAppearanceLightStatusBars = lightBars
+                isAppearanceLightNavigationBars = lightBars
             }
         }
     }

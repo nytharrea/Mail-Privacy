@@ -1,12 +1,11 @@
 package net.mailx.android.ui.screens
 
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Contrast
@@ -23,8 +22,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.ui.components.MailxGroupDivider
+import net.mailx.android.ui.components.MailxModernDialog
+import net.mailx.android.ui.components.MailxOptionPickerDialog
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSectionRow
+import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.MailxSettingsGroupCard
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.DefaultsUiState
 import net.mailx.android.ui.model.MailxRuleCatalog
 import net.mailx.android.ui.model.ThemeUiState
@@ -73,227 +78,279 @@ fun SettingsTab(
     }
 
     val motionModeLabel = when {
-        themeState.reducedMotionEnabled -> "Reduced Motion"
-        themeState.expressiveMotionEnabled -> "Expressive Motion"
-        else -> "Standard Motion"
+        themeState.reducedMotionEnabled -> "Reduced"
+        themeState.expressiveMotionEnabled -> "Spring"
+        else -> "Standard"
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 36.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 40.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item(key = "header_general") {
-            MailxSectionHeader(title = "Appearance & Privacy Tools")
+        // 1. APPEARANCE & DISPLAY GROUP
+        item(key = "header_appearance") {
+            MailxSectionHeader(title = "Appearance & Display")
         }
 
-        item(key = "section_uiux_interface") {
-            MailxSectionRow(
-                title = "Theme & Motion Preferences",
-                description = "Theme: $darkModeLabel • $motionModeLabel",
-                startIcon = MailxIcons.MoonStar,
-                endIcon = MailxIcons.ChevronRight,
-                onClick = { showInterfaceSheet = true }
-            )
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            item(key = "section_dynamic_colors") {
+        item(key = "group_appearance") {
+            MailxSettingsGroupCard {
                 MailxSectionRow(
-                    title = "Material You Dynamic Color",
-                    description = "Optional system wallpaper colors (off by default to preserve Mailx Teal)",
-                    startIcon = MailxIcons.Palette,
+                    title = "Theme & Motion Preferences",
+                    description = "Configure color mode and transition physics",
+                    startIcon = MailxIcons.MoonStar,
+                    iconTint = MailxPalette.BrandAccentTeal,
+                    trailingBadge = "$darkModeLabel · $motionModeLabel",
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = { showInterfaceSheet = true }
+                )
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    MailxGroupDivider()
+                    MailxSectionRow(
+                        title = "Material You Surface Harmonization",
+                        description = "Adapt surfaces to wallpaper while preserving Mailx Teal",
+                        startIcon = MailxIcons.Palette,
+                        iconTint = MailxPalette.ReplySky,
+                        showSwitch = true,
+                        switchChecked = themeState.dynamicColorEnabled,
+                        onSwitchChange = onToggleDynamicColor,
+                        grouped = true
+                    )
+                }
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Pure Black Surface (AMOLED)",
+                    description = "True #000000 background with WCAG AA high-contrast text",
+                    startIcon = Icons.Outlined.Contrast,
+                    iconTint = MailxPalette.BrandAccentTeal,
                     showSwitch = true,
-                    switchChecked = themeState.dynamicColorEnabled,
-                    onSwitchChange = onToggleDynamicColor
+                    switchChecked = themeState.amoledDarkEnabled,
+                    onSwitchChange = onToggleAmoledDark,
+                    grouped = true
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Reduced Motion",
+                    description = "Minimize transitions and disable pulsing animations",
+                    startIcon = Icons.Outlined.MotionPhotosOff,
+                    iconTint = MailxPalette.SentIndigo,
+                    showSwitch = true,
+                    switchChecked = themeState.reducedMotionEnabled,
+                    onSwitchChange = onToggleReducedMotion,
+                    grouped = true
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Expressive Spring Motion",
+                    description = "Optional spring physics (default uses calm standard motion)",
+                    startIcon = MailxIcons.Sparkles,
+                    iconTint = MailxPalette.SentIndigo,
+                    showSwitch = true,
+                    enabled = !themeState.reducedMotionEnabled,
+                    switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
+                    onSwitchChange = onToggleExpressiveMotion,
+                    grouped = true
                 )
             }
         }
 
-        item(key = "section_amoled_dark") {
-            MailxSectionRow(
-                title = "Pure Black Surface (AMOLED)",
-                description = "True #000000 background with WCAG AA high-contrast text",
-                startIcon = Icons.Outlined.Contrast,
-                showSwitch = true,
-                switchChecked = themeState.amoledDarkEnabled,
-                onSwitchChange = onToggleAmoledDark
+        // 2. PRIVACY & RELAY TOOLS GROUP
+        item(key = "header_privacy_tools") {
+            MailxSectionHeader(
+                title = "Privacy & Relay Tools",
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
 
-        item(key = "section_reduced_motion") {
-            MailxSectionRow(
-                title = "Reduced Motion",
-                description = "Minimize transitions and disable pulsing animations",
-                startIcon = Icons.Outlined.MotionPhotosOff,
-                showSwitch = true,
-                switchChecked = themeState.reducedMotionEnabled,
-                onSwitchChange = onToggleReducedMotion
-            )
+        item(key = "group_privacy_tools") {
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Send via Reverse Alias",
+                    description = "Generate outbound relay addresses for any recipient",
+                    startIcon = MailxIcons.Send,
+                    iconTint = MailxPalette.BrandAccentTeal,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenReverseAliasTool
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Trackers Report Decoder",
+                    description = "Decode removed email tracker fragments offline in Rust",
+                    startIcon = MailxIcons.ShieldCheck,
+                    iconTint = MailxPalette.ForwardEmerald,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenTrackersReportSheet
+                )
+            }
         }
 
-        item(key = "section_expressive_motion") {
-            MailxSectionRow(
-                title = "Expressive Spring Motion",
-                description = "Optional spring physics (default uses calm MotionScheme.standard())",
-                startIcon = MailxIcons.Sparkles,
-                showSwitch = true,
-                enabled = !themeState.reducedMotionEnabled,
-                switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
-                onSwitchChange = onToggleExpressiveMotion
-            )
-        }
-
-        item(key = "section_mailto_integration") {
-            MailxSectionRow(
-                title = "Send via Reverse Alias",
-                description = "Generate outbound relay addresses for any recipient",
-                startIcon = MailxIcons.Send,
-                endIcon = MailxIcons.ChevronRight,
-                onClick = onOpenReverseAliasTool
-            )
-        }
-
-        item(key = "section_trackers_report_decoder") {
-            MailxSectionRow(
-                title = "Trackers Report Decoder",
-                description = "Decode removed email tracker fragments offline in Rust",
-                startIcon = MailxIcons.ShieldCheck,
-                endIcon = MailxIcons.ChevronRight,
-                onClick = onOpenTrackersReportSheet
-            )
-        }
-
+        // 3. SERVER FORWARDING DEFAULTS GROUP
         item(key = "header_defaults") {
             MailxSectionHeader(
                 title = "Server Forwarding Defaults",
                 actionText = "Sync",
                 onActionClick = onSyncDefaults,
-                modifier = Modifier.padding(top = 14.dp)
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
 
-        item(key = "section_default_domain") {
-            MailxSectionRow(
-                title = "Default Domain",
-                description = "@${defaultsState.defaultDomain}",
-                startIcon = MailxIcons.Globe,
-                endIcon = MailxIcons.Edit3,
-                onClick = { showDomainDialog = true }
+        item(key = "group_forwarding_defaults") {
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Default Domain",
+                    description = "Primary domain used when creating new aliases",
+                    startIcon = MailxIcons.Globe,
+                    iconTint = MailxPalette.ReplySky,
+                    trailingBadge = "@${defaultsState.defaultDomain}",
+                    endIcon = MailxIcons.Edit3,
+                    grouped = true,
+                    onClick = { showDomainDialog = true }
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Default Recipient",
+                    description = defaultsState.defaultRecipient.ifBlank { "Select default forwarding recipient" },
+                    startIcon = MailxIcons.Inbox,
+                    iconTint = MailxPalette.BrandAccentTeal,
+                    endIcon = MailxIcons.Edit3,
+                    grouped = true,
+                    onClick = { showRecipientDialog = true }
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Default Alias Format",
+                    description = formatAliasTypeLabel(defaultsState.defaultFormat),
+                    startIcon = MailxIcons.AtSign,
+                    iconTint = MailxPalette.SentIndigo,
+                    trailingBadge = defaultsState.defaultFormat.uppercase(),
+                    endIcon = MailxIcons.Edit3,
+                    grouped = true,
+                    onClick = { showFormatDialog = true }
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Default Sender Name",
+                    description = defaultsState.defaultFromName.ifBlank {
+                        "Uses the alias address when left blank"
+                    },
+                    startIcon = Icons.Outlined.Badge,
+                    iconTint = MailxPalette.ReplySky,
+                    endIcon = MailxIcons.Edit3,
+                    grouped = true,
+                    onClick = { showFromNameDialog = true }
+                )
+
+                MailxGroupDivider()
+                val includeHeader = !defaultsState.removeHeader
+                MailxSectionRow(
+                    title = "Include Relay Banner Header",
+                    description = "Show 'Sent to <alias> from <sender>' header in forwarded emails",
+                    startIcon = Icons.Outlined.MailOutline,
+                    iconTint = MailxPalette.BrandAccentTeal,
+                    showSwitch = true,
+                    switchChecked = includeHeader,
+                    onSwitchChange = onUpdateIncludeMailxHeader,
+                    grouped = true
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Strip Spy Pixels & Trackers",
+                    description = "Automatically remove tracking pixels and spy links before forwarding",
+                    startIcon = MailxIcons.ShieldCheck,
+                    iconTint = MailxPalette.ForwardEmerald,
+                    showSwitch = true,
+                    switchChecked = defaultsState.blockTrackers,
+                    onSwitchChange = onUpdateBlockTrackers,
+                    grouped = true
+                )
+
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "List-Unsubscribe Action",
+                    description = MailxRuleCatalog.unsubscribeLabel(defaultsState.unsubscribeBehaviour),
+                    startIcon = Icons.Outlined.Unsubscribe,
+                    iconTint = MailxPalette.PausedAmber,
+                    endIcon = MailxIcons.Edit3,
+                    grouped = true,
+                    onClick = { showUnsubscribeDialog = true }
+                )
+            }
+        }
+
+        // 4. DIAGNOSTICS & DELIVERY LOGS GROUP
+        item(key = "header_diagnostics") {
+            MailxSectionHeader(
+                title = "Diagnostics & Delivery Logs",
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
 
-        item(key = "section_default_recipient") {
-            MailxSectionRow(
-                title = "Default Recipient",
-                description = defaultsState.defaultRecipient.ifBlank { "Select default recipient" },
-                startIcon = MailxIcons.Inbox,
-                endIcon = MailxIcons.Edit3,
-                onClick = { showRecipientDialog = true }
-            )
+        item(key = "group_diagnostics") {
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Diagnostic Issue Logging",
+                    description = "Record delivery errors, bounces, and rule blocks",
+                    startIcon = MailxIcons.Bug,
+                    iconTint = MailxPalette.PausedAmber,
+                    showSwitch = true,
+                    switchChecked = defaultsState.logIssues,
+                    onSwitchChange = onUpdateLogIssues,
+                    grouped = true
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Inspect Delivery & Bounce Logs",
+                    description = "View MTA delivery logs, raw bounce files & server health",
+                    startIcon = Icons.Outlined.ReceiptLong,
+                    iconTint = MailxPalette.ReplySky,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenDiagnosticsSheet
+                )
+            }
         }
 
-        item(key = "section_default_format") {
-            MailxSectionRow(
-                title = "Default Alias Format",
-                description = formatAliasTypeLabel(defaultsState.defaultFormat),
-                startIcon = MailxIcons.AtSign,
-                endIcon = MailxIcons.Edit3,
-                onClick = { showFormatDialog = true }
-            )
-        }
-
-        item(key = "section_from_name") {
-            MailxSectionRow(
-                title = "Default Sender Name",
-                description = defaultsState.defaultFromName.ifBlank {
-                    "Uses the alias address when left blank"
-                },
-                startIcon = Icons.Outlined.Badge,
-                endIcon = MailxIcons.Edit3,
-                onClick = { showFromNameDialog = true }
-            )
-        }
-
-        item(key = "section_mailx_header") {
-            val includeHeader = !defaultsState.removeHeader
-            MailxSectionRow(
-                title = "Include Relay Banner Header",
-                description = "Show 'Sent to <alias> from <sender>' header in forwarded emails",
-                startIcon = Icons.Outlined.MailOutline,
-                showSwitch = true,
-                switchChecked = includeHeader,
-                onSwitchChange = onUpdateIncludeMailxHeader
-            )
-        }
-
-        item(key = "section_block_trackers") {
-            MailxSectionRow(
-                title = "Strip Spy Pixels & Trackers",
-                description = "Automatically remove tracking pixels and spy links before forwarding",
-                startIcon = MailxIcons.ShieldCheck,
-                showSwitch = true,
-                switchChecked = defaultsState.blockTrackers,
-                onSwitchChange = onUpdateBlockTrackers
-            )
-        }
-
-        item(key = "section_unsubscribe_behaviour") {
-            MailxSectionRow(
-                title = "List-Unsubscribe Action",
-                description = MailxRuleCatalog.unsubscribeLabel(defaultsState.unsubscribeBehaviour),
-                startIcon = Icons.Outlined.Unsubscribe,
-                endIcon = MailxIcons.Edit3,
-                onClick = { showUnsubscribeDialog = true }
-            )
-        }
-
-        item(key = "section_enable_diagnostics") {
-            MailxSectionRow(
-                title = "Diagnostic Issue Logging",
-                description = "Record delivery errors, bounces, and rule blocks",
-                startIcon = MailxIcons.Bug,
-                showSwitch = true,
-                switchChecked = defaultsState.logIssues,
-                onSwitchChange = onUpdateLogIssues
-            )
-        }
-
-        item(key = "section_open_diagnostics") {
-            MailxSectionRow(
-                title = "Inspect Delivery & Bounce Logs",
-                description = "View MTA delivery logs, raw bounce files & server health",
-                startIcon = Icons.Outlined.ReceiptLong,
-                endIcon = MailxIcons.ChevronRight,
-                onClick = onOpenDiagnosticsSheet
-            )
-        }
-
+        // 5. ACCOUNT, SECURITY & BACKUP GROUP
         item(key = "header_manage_data") {
             MailxSectionHeader(
                 title = "Account, Security & Backup",
-                modifier = Modifier.padding(top = 14.dp)
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
 
-        item(key = "section_account_security") {
-            MailxSectionRow(
-                title = "Account, 2FA, Passkeys & CSV",
-                description = "Manage TOTP, passkeys, API access keys, and CSV import/export",
-                startIcon = MailxIcons.UserCog,
-                endIcon = MailxIcons.ChevronRight,
-                onClick = onOpenAccountSheet
-            )
-        }
-
-        item(key = "section_announcements") {
-            MailxSectionRow(
-                title = "Service Announcements",
-                description = "Instance updates and operational notices",
-                startIcon = MailxIcons.Megaphone,
-                endIcon = MailxIcons.ChevronRight,
-                onClick = onOpenAnnouncementsSheet
-            )
+        item(key = "group_account_security") {
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Account, 2FA, Passkeys & CSV",
+                    description = "Manage TOTP, passkeys, API access keys, and CSV import/export",
+                    startIcon = MailxIcons.UserCog,
+                    iconTint = MailxPalette.SentIndigo,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenAccountSheet
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Service Announcements",
+                    description = "Instance updates and operational notices",
+                    startIcon = MailxIcons.Megaphone,
+                    iconTint = MailxPalette.BrandAccentTeal,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenAnnouncementsSheet
+                )
+            }
         }
 
         item(key = "section_reset_logout") {
@@ -302,7 +359,8 @@ fun SettingsTab(
                 description = "Wipe encrypted credentials and local cache from this device",
                 startIcon = MailxIcons.LogOut,
                 accentColor = MailxPalette.BlockedRose,
-                onClick = onRequestLogout
+                onClick = onRequestLogout,
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
 
@@ -310,7 +368,7 @@ fun SettingsTab(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp, bottom = 6.dp),
+                    .padding(top = 12.dp, bottom = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -322,9 +380,9 @@ fun SettingsTab(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "v0.5.0 • Material 3 • $baseUrl",
+                    text = "v0.5.0 • Material 3 Expressive • $baseUrl",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                     textAlign = TextAlign.Center
                 )
             }
@@ -333,21 +391,24 @@ fun SettingsTab(
 
     if (showInterfaceSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val colorModes = listOf(1 to "Dark", -1 to "System", 0 to "Light")
+        val selectedColorIdx = colorModes.indexOfFirst { it.first == themeState.darkModeMode }.coerceAtLeast(0)
+
         ModalBottomSheet(
             onDismissRequest = { showInterfaceSheet = false },
             sheetState = sheetState,
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = 26.dp)
             ) {
                 Text(
                     text = "Theme & Motion",
-                    fontSize = 16.sp,
+                    fontSize = 16.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
@@ -357,302 +418,227 @@ fun SettingsTab(
                 )
 
                 HorizontalDivider(
-                    thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    thickness = 0.75.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
                 )
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Color Mode",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "COLOR MODE",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.75.sp,
+                        color = MaterialTheme.colorScheme.primary
                     )
 
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                            selected = themeState.darkModeMode == 1,
-                            onClick = { onUpdateDarkModeMode(1) },
-                            label = { Text("Dark") }
-                        )
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                            selected = themeState.darkModeMode == -1,
-                            onClick = { onUpdateDarkModeMode(-1) },
-                            label = { Text("System") }
-                        )
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                            selected = themeState.darkModeMode == 0,
-                            onClick = { onUpdateDarkModeMode(0) },
-                            label = { Text("Light") }
-                        )
-                    }
+                    MailxSegmentedControl(
+                        options = colorModes.map { it.second },
+                        selectedIndex = selectedColorIdx,
+                        onSelect = { idx -> onUpdateDarkModeMode(colorModes[idx].first) }
+                    )
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    MailxSettingsGroupCard {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            MailxSectionRow(
+                                title = "Material You Surface Harmonization",
+                                description = "Harmonize surfaces with wallpaper while keeping Mailx Teal",
+                                startIcon = MailxIcons.Palette,
+                                iconTint = MailxPalette.ReplySky,
+                                showSwitch = true,
+                                switchChecked = themeState.dynamicColorEnabled,
+                                onSwitchChange = onToggleDynamicColor,
+                                grouped = true
+                            )
+                            MailxGroupDivider()
+                        }
+
                         MailxSectionRow(
-                            title = "Material You Dynamic Color",
-                            description = "Adapt colors to your device wallpaper",
-                            startIcon = MailxIcons.Palette,
+                            title = "Pure Black Surface (AMOLED)",
+                            description = "True black background with WCAG AA contrast",
+                            startIcon = Icons.Outlined.Contrast,
+                            iconTint = MailxPalette.BrandAccentTeal,
                             showSwitch = true,
-                            switchChecked = themeState.dynamicColorEnabled,
-                            onSwitchChange = onToggleDynamicColor
+                            switchChecked = themeState.amoledDarkEnabled,
+                            onSwitchChange = onToggleAmoledDark,
+                            grouped = true
+                        )
+
+                        MailxGroupDivider()
+                        MailxSectionRow(
+                            title = "Reduced Motion",
+                            description = "Disable non-essential animations",
+                            startIcon = Icons.Outlined.MotionPhotosOff,
+                            iconTint = MailxPalette.SentIndigo,
+                            showSwitch = true,
+                            switchChecked = themeState.reducedMotionEnabled,
+                            onSwitchChange = onToggleReducedMotion,
+                            grouped = true
+                        )
+
+                        MailxGroupDivider()
+                        MailxSectionRow(
+                            title = "Expressive Motion Physics",
+                            description = "Optional spring overshoot (default is standard motion)",
+                            startIcon = MailxIcons.Sparkles,
+                            iconTint = MailxPalette.SentIndigo,
+                            showSwitch = true,
+                            enabled = !themeState.reducedMotionEnabled,
+                            switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
+                            onSwitchChange = onToggleExpressiveMotion,
+                            grouped = true
                         )
                     }
-
-                    MailxSectionRow(
-                        title = "Pure Black Surface (AMOLED)",
-                        description = "True black background with WCAG AA contrast",
-                        startIcon = Icons.Outlined.Contrast,
-                        showSwitch = true,
-                        switchChecked = themeState.amoledDarkEnabled,
-                        onSwitchChange = onToggleAmoledDark
-                    )
-
-                    MailxSectionRow(
-                        title = "Reduced Motion",
-                        description = "Disable non-essential animations",
-                        startIcon = Icons.Outlined.MotionPhotosOff,
-                        showSwitch = true,
-                        switchChecked = themeState.reducedMotionEnabled,
-                        onSwitchChange = onToggleReducedMotion
-                    )
-
-                    MailxSectionRow(
-                        title = "Expressive Motion Physics",
-                        description = "Optional spring overshoot (default is MotionScheme.standard())",
-                        startIcon = MailxIcons.Sparkles,
-                        showSwitch = true,
-                        enabled = !themeState.reducedMotionEnabled,
-                        switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
-                        onSwitchChange = onToggleExpressiveMotion
-                    )
                 }
             }
         }
     }
 
     if (showDomainDialog) {
-        AlertDialog(
-            onDismissRequest = { showDomainDialog = false },
-            title = { Text("Default Domain") },
-            text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    defaultsState.availableDomains.forEach { dom ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onUpdateDefaultDomain(dom)
-                                    showDomainDialog = false
-                                }
-                                .padding(vertical = 8.dp, horizontal = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = defaultsState.defaultDomain == dom,
-                                onClick = {
-                                    onUpdateDefaultDomain(dom)
-                                    showDomainDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("@$dom")
-                        }
-                    }
-                }
+        MailxOptionPickerDialog(
+            title = "Default Domain",
+            subtitle = "Choose the default domain for newly created aliases.",
+            options = defaultsState.availableDomains.map { it to "@$it" },
+            selectedKey = defaultsState.defaultDomain,
+            onSelect = { dom ->
+                onUpdateDefaultDomain(dom)
+                showDomainDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showDomainDialog = false }) {
-                    Text("Close")
-                }
-            }
+            onDismiss = { showDomainDialog = false }
         )
     }
 
     if (showRecipientDialog) {
         var customRec by remember { mutableStateOf(defaultsState.defaultRecipient) }
-        AlertDialog(
-            onDismissRequest = { showRecipientDialog = false },
-            title = { Text("Default Recipient") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    defaultsState.availableRecipients.forEach { rec ->
+        MailxModernDialog(
+            title = "Default Recipient",
+            subtitle = "Select or enter the default forwarding destination.",
+            icon = MailxIcons.Inbox,
+            confirmText = "Update",
+            onConfirm = {
+                showRecipientDialog = false
+                if (customRec.isNotBlank()) onUpdateDefaultRecipient(customRec.trim())
+            },
+            onDismiss = { showRecipientDialog = false }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                defaultsState.availableRecipients.forEach { rec ->
+                    val isSelected = defaultsState.defaultRecipient == rec
+                    Surface(
+                        onClick = {
+                            onUpdateDefaultRecipient(rec)
+                            showRecipientDialog = false
+                        },
+                        shape = RoundedCornerShape(11.dp),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerLow
+                        },
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                            }
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onUpdateDefaultRecipient(rec)
-                                    showRecipientDialog = false
-                                }
-                                .padding(vertical = 6.dp, horizontal = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 13.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            RadioButton(
-                                selected = defaultsState.defaultRecipient == rec,
-                                onClick = {
-                                    onUpdateDefaultRecipient(rec)
-                                    showRecipientDialog = false
-                                }
+                            Text(
+                                text = rec,
+                                fontSize = 13.5.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(rec)
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = MailxIcons.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
-                    OutlinedTextField(
-                        value = customRec,
-                        onValueChange = { customRec = it },
-                        label = { Text("Recipient Email Address") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showRecipientDialog = false
-                        if (customRec.isNotBlank()) onUpdateDefaultRecipient(customRec.trim())
-                    }
-                ) {
-                    Text("Update")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRecipientDialog = false }) {
-                    Text("Close")
-                }
+                OutlinedTextField(
+                    value = customRec,
+                    onValueChange = { customRec = it },
+                    label = { Text("Recipient Email Address") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = mailxTextFieldColors(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                )
             }
-        )
+        }
     }
 
     if (showFormatDialog) {
         val formats = listOf("words", "random", "uuid")
-        AlertDialog(
-            onDismissRequest = { showFormatDialog = false },
-            title = { Text("Default Alias Format") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    formats.forEach { fmt ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onUpdateDefaultFormat(fmt)
-                                    showFormatDialog = false
-                                }
-                                .padding(vertical = 8.dp, horizontal = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = defaultsState.defaultFormat == fmt,
-                                onClick = {
-                                    onUpdateDefaultFormat(fmt)
-                                    showFormatDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(formatAliasTypeLabel(fmt))
-                        }
-                    }
-                }
+        MailxOptionPickerDialog(
+            title = "Default Alias Format",
+            subtitle = "Select how random aliases are generated by default.",
+            options = formats.map { it to formatAliasTypeLabel(it) },
+            selectedKey = defaultsState.defaultFormat,
+            onSelect = { fmt ->
+                onUpdateDefaultFormat(fmt)
+                showFormatDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showFormatDialog = false }) {
-                    Text("Close")
-                }
-            }
+            onDismiss = { showFormatDialog = false }
         )
     }
 
     if (showFromNameDialog) {
         var nameInput by remember { mutableStateOf(defaultsState.defaultFromName) }
-        AlertDialog(
-            onDismissRequest = { showFromNameDialog = false },
-            title = { Text("Default Sender Name") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Display name used when replying or sending via an alias (leave blank to use the alias address):",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    OutlinedTextField(
-                        value = nameInput,
-                        onValueChange = { nameInput = it },
-                        label = { Text("From Name") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+        MailxModernDialog(
+            title = "Default Sender Name",
+            subtitle = "Display name used when replying or sending via an alias (leave blank to use the alias address).",
+            icon = Icons.Outlined.Badge,
+            confirmText = "Update",
+            onConfirm = {
+                showFromNameDialog = false
+                onUpdateDefaultFromName(nameInput)
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showFromNameDialog = false
-                        onUpdateDefaultFromName(nameInput)
-                    }
-                ) {
-                    Text("Update")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showFromNameDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { showFromNameDialog = false }
+        ) {
+            OutlinedTextField(
+                value = nameInput,
+                onValueChange = { nameInput = it },
+                label = { Text("From Name") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     if (showUnsubscribeDialog) {
-        AlertDialog(
-            onDismissRequest = { showUnsubscribeDialog = false },
-            title = { Text("List-Unsubscribe Action") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MailxRuleCatalog.unsubscribeBehaviours.forEach { (code, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onUpdateUnsubscribeBehaviour(code)
-                                    showUnsubscribeDialog = false
-                                }
-                                .padding(vertical = 6.dp, horizontal = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = defaultsState.unsubscribeBehaviour == code,
-                                onClick = {
-                                    onUpdateUnsubscribeBehaviour(code)
-                                    showUnsubscribeDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(label, fontSize = 13.sp)
-                        }
-                    }
-                }
+        MailxOptionPickerDialog(
+            title = "List-Unsubscribe Action",
+            subtitle = "Choose how List-Unsubscribe headers are processed in forwarded emails.",
+            options = MailxRuleCatalog.unsubscribeBehaviours,
+            selectedKey = defaultsState.unsubscribeBehaviour,
+            onSelect = { code ->
+                onUpdateUnsubscribeBehaviour(code)
+                showUnsubscribeDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showUnsubscribeDialog = false }) {
-                    Text("Close")
-                }
-            }
+            onDismiss = { showUnsubscribeDialog = false }
         )
     }
 }

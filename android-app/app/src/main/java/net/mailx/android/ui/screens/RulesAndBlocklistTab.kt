@@ -1,7 +1,6 @@
 package net.mailx.android.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,13 +15,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.EmptyStateBox
+import net.mailx.android.ui.components.MailxModernDialog
+import net.mailx.android.ui.components.MailxOptionPickerDialog
+import net.mailx.android.ui.components.MailxSectionHeader
+import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.mailxSwitchColors
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.MailxPalette
 
@@ -69,24 +72,16 @@ fun RulesAndBlocklistTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 36.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item(key = "rules_blocklist_segmented") {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    selected = selectedSection == 0,
-                    onClick = { selectedSection = 0 },
-                    label = { Text("Rules (${rules.size})") }
-                )
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    selected = selectedSection == 1,
-                    onClick = { selectedSection = 1 },
-                    label = { Text("Blocklist (${blocklist.size})") }
-                )
-            }
+            MailxSegmentedControl(
+                options = listOf("Rules", "Blocklist"),
+                selectedIndex = selectedSection,
+                onSelect = { selectedSection = it },
+                badges = listOf(rules.size, blocklist.size)
+            )
         }
 
         if (selectedSection == 0) {
@@ -119,20 +114,20 @@ fun RulesAndBlocklistTab(
                 }
             } else {
                 itemsIndexed(rules, key = { _, r -> r.id.ifEmpty { r.name } }) { index, rule ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
+                    var showRuleMenu by remember { mutableStateOf(false) }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+                        tonalElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                .padding(15.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -144,22 +139,22 @@ fun RulesAndBlocklistTab(
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primaryContainer
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                                     ) {
                                         Text(
                                             text = "#${index + 1}",
-                                            fontSize = 12.sp,
+                                            fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = rule.name,
-                                            fontSize = 16.sp,
+                                            fontSize = 15.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
@@ -171,41 +166,134 @@ fun RulesAndBlocklistTab(
                                             if (rule.sends) add("Sends")
                                         }.joinToString(", ")
                                         Text(
-                                            text = "Applied: ${rule.applied} times • $relayLabels",
-                                            fontSize = 12.sp,
+                                            text = "Applied ${rule.applied}× • $relayLabels",
+                                            fontSize = 11.5.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
 
-                                Switch(
-                                    checked = rule.active,
-                                    onCheckedChange = { onToggleRuleActive(rule, it) }
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Switch(
+                                        checked = rule.active,
+                                        onCheckedChange = { onToggleRuleActive(rule, it) },
+                                        colors = mailxSwitchColors()
+                                    )
+                                    Box {
+                                        IconButton(
+                                            onClick = { showRuleMenu = true },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.MoreVert,
+                                                contentDescription = "Rule Actions",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showRuleMenu,
+                                            onDismissRequest = { showRuleMenu = false },
+                                            shape = RoundedCornerShape(14.dp),
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Edit Rule", fontSize = 13.5.sp) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                },
+                                                onClick = {
+                                                    showRuleMenu = false
+                                                    editingRule = rule
+                                                    isDuplicatingRule = false
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Duplicate Rule", fontSize = 13.5.sp) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                },
+                                                onClick = {
+                                                    showRuleMenu = false
+                                                    editingRule = rule
+                                                    isDuplicatingRule = true
+                                                }
+                                            )
+                                            if (index > 0) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Move Up Priority", fontSize = 13.5.sp) },
+                                                    leadingIcon = {
+                                                        Icon(Icons.Outlined.ArrowUpward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                    },
+                                                    onClick = {
+                                                        showRuleMenu = false
+                                                        onMoveRuleOrder(rule.id, true)
+                                                    }
+                                                )
+                                            }
+                                            if (index < rules.lastIndex) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Move Down Priority", fontSize = 13.5.sp) },
+                                                    leadingIcon = {
+                                                        Icon(Icons.Outlined.ArrowDownward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                    },
+                                                    onClick = {
+                                                        showRuleMenu = false
+                                                        onMoveRuleOrder(rule.id, false)
+                                                    }
+                                                )
+                                            }
+                                            HorizontalDivider(
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+                                            )
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        "Delete Rule",
+                                                        fontSize = 13.5.sp,
+                                                        color = MailxPalette.BlockedRose
+                                                    )
+                                                },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        Icons.Outlined.DeleteOutline,
+                                                        contentDescription = null,
+                                                        tint = MailxPalette.BlockedRose,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                },
+                                                onClick = {
+                                                    showRuleMenu = false
+                                                    onDeleteRule(rule.id)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
 
                             rule.conditions.forEachIndexed { cIdx, cond ->
                                 val isBool = MailxRuleCatalog.booleanConditionTypes.contains(cond.type)
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = buildString {
-                                            append(if (cIdx == 0) "IF: " else "${rule.operator}: ")
+                                            append(if (cIdx == 0) "IF " else "${rule.operator} ")
                                             append(MailxRuleCatalog.conditionLabel(cond.type))
                                             if (!isBool) {
                                                 append(" • ")
                                                 append(MailxRuleCatalog.matchLabel(cond.match))
                                                 if (cond.values.isNotEmpty()) {
-                                                    append(" -> \"${cond.values.joinToString(", ")}\"")
+                                                    append(" → \"${cond.values.joinToString(", ")}\"")
                                                 }
                                             }
                                         },
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                                     )
                                 }
                             }
@@ -220,76 +308,23 @@ fun RulesAndBlocklistTab(
                                     act.value
                                 }
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
                                         text = buildString {
-                                            append("THEN: ")
+                                            append("THEN ")
                                             append(MailxRuleCatalog.actionLabel(act.type))
                                             if (displayVal.isNotBlank() && displayVal != "true") {
-                                                append(" -> \"$displayVal\"")
+                                                append(" → \"$displayVal\"")
                                             }
                                         },
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                                     )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    IconButton(
-                                        onClick = { onMoveRuleOrder(rule.id, true) },
-                                        enabled = index > 0
-                                    ) {
-                                        Icon(Icons.Outlined.ArrowUpward, contentDescription = "Move Up")
-                                    }
-                                    IconButton(
-                                        onClick = { onMoveRuleOrder(rule.id, false) },
-                                        enabled = index < rules.lastIndex
-                                    ) {
-                                        Icon(Icons.Outlined.ArrowDownward, contentDescription = "Move Down")
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            editingRule = rule
-                                            isDuplicatingRule = true
-                                        }
-                                    ) {
-                                        Icon(Icons.Outlined.ContentCopy, contentDescription = "Duplicate Rule")
-                                    }
-                                }
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilledTonalButton(
-                                        onClick = {
-                                            editingRule = rule
-                                            isDuplicatingRule = false
-                                        },
-                                        shape = CircleShape
-                                    ) {
-                                        Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Edit")
-                                    }
-                                    FilledTonalButton(
-                                        onClick = { onDeleteRule(rule.id) },
-                                        shape = CircleShape,
-                                        colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = MailxPalette.BlockedRose.copy(alpha = 0.14f),
-                                            contentColor = MailxPalette.BlockedRose
-                                        )
-                                    ) {
-                                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
-                                    }
                                 }
                             }
                         }
@@ -318,19 +353,17 @@ fun RulesAndBlocklistTab(
                 }
             } else {
                 itemsIndexed(blocklist, key = { _, b -> b.id.ifEmpty { b.value } }) { _, item ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
+                    Surface(
+                        shape = RoundedCornerShape(15.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+                        tonalElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 15.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -338,17 +371,26 @@ fun RulesAndBlocklistTab(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(
-                                    imageVector = if (item.type == "domain") Icons.Outlined.Language else Icons.Outlined.AlternateEmail,
-                                    contentDescription = null,
-                                    tint = MailxPalette.BlockedRose
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MailxPalette.BlockedRose.copy(alpha = 0.14f),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (item.type == "domain") Icons.Outlined.Language else Icons.Outlined.AlternateEmail,
+                                            contentDescription = null,
+                                            tint = MailxPalette.BlockedRose,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
                                         text = item.value,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
@@ -369,7 +411,8 @@ fun RulesAndBlocklistTab(
                                 Icon(
                                     imageVector = Icons.Outlined.DeleteOutline,
                                     contentDescription = "Remove",
-                                    tint = MailxPalette.BlockedRose
+                                    tint = MailxPalette.BlockedRose,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -383,57 +426,41 @@ fun RulesAndBlocklistTab(
         var blockType by remember { mutableStateOf("email") }
         var blockValue by remember { mutableStateOf("") }
 
-        AlertDialog(
-            onDismissRequest = { showAddBlockDialog = false },
-            title = { Text("Block Email or Domain") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            selected = blockType == "email",
-                            onClick = { blockType = "email" },
-                            label = { Text("Email Address") }
-                        )
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            selected = blockType == "domain",
-                            onClick = { blockType = "domain" },
-                            label = { Text("Domain") }
-                        )
-                    }
+        MailxModernDialog(
+            title = "Block Email or Domain",
+            subtitle = "Incoming emails matching this sender or domain will be rejected automatically.",
+            icon = Icons.Outlined.Block,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = "Block",
+            confirmEnabled = blockValue.trim().isNotEmpty(),
+            isDestructive = true,
+            onConfirm = {
+                val t = blockType
+                val v = blockValue.trim()
+                showAddBlockDialog = false
+                onAddBlocklistItem(t, v)
+            },
+            onDismiss = { showAddBlockDialog = false }
+        ) {
+            MailxSegmentedControl(
+                options = listOf("Email Address", "Domain"),
+                selectedIndex = if (blockType == "email") 0 else 1,
+                onSelect = { idx -> blockType = if (idx == 0) "email" else "domain" },
+                compact = true
+            )
 
-                    OutlinedTextField(
-                        value = blockValue,
-                        onValueChange = { blockValue = it },
-                        label = {
-                            Text(if (blockType == "domain") "Domain (e.g. spam.com)" else "Email (e.g. info@spam.com)")
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    enabled = blockValue.trim().isNotEmpty(),
-                    onClick = {
-                        val t = blockType
-                        val v = blockValue.trim()
-                        showAddBlockDialog = false
-                        onAddBlocklistItem(t, v)
-                    }
-                ) {
-                    Text("Block")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddBlockDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            OutlinedTextField(
+                value = blockValue,
+                onValueChange = { blockValue = it },
+                label = {
+                    Text(if (blockType == "domain") "Domain (e.g. spam.com)" else "Email (e.g. info@spam.com)")
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     if (showCreateRuleSheet || editingRule != null) {
@@ -550,7 +577,7 @@ private fun RuleEditorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -560,19 +587,22 @@ private fun RuleEditorBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            verticalArrangement = Arrangement.spacedBy(11.dp)
         ) {
             Text(
                 text = when {
                     initialRule == null || duplicateMode -> "New Rule"
                     else -> "Edit Rule"
                 },
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(
+                thickness = 0.75.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+            )
 
             OutlinedTextField(
                 value = name,
@@ -581,10 +611,17 @@ private fun RuleEditorBottomSheet(
                 placeholder = { Text("e.g. Block Marketing Newsletters") },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text("Apply to Email Types:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "APPLY TO EMAIL TYPES",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.7.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -592,61 +629,45 @@ private fun RuleEditorBottomSheet(
                 FilterChip(
                     selected = forwards,
                     onClick = { forwards = !forwards },
-                    label = { Text("Forwards") }
+                    shape = RoundedCornerShape(10.dp),
+                    label = { Text("Forwards", fontSize = 12.5.sp) }
                 )
                 FilterChip(
                     selected = replies,
                     onClick = { replies = !replies },
-                    label = { Text("Replies") }
+                    shape = RoundedCornerShape(10.dp),
+                    label = { Text("Replies", fontSize = 12.5.sp) }
                 )
                 FilterChip(
                     selected = sends,
                     onClick = { sends = !sends },
-                    label = { Text("Sends") }
+                    shape = RoundedCornerShape(10.dp),
+                    label = { Text("Sends", fontSize = 12.5.sp) }
                 )
             }
 
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    selected = operator == "AND",
-                    onClick = { operator = "AND" },
-                    label = { Text("AND (All Conditions)") }
-                )
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    selected = operator == "OR",
-                    onClick = { operator = "OR" },
-                    label = { Text("OR (Any Condition)") }
-                )
-            }
+            MailxSegmentedControl(
+                options = listOf("AND (All Conditions)", "OR (Any Condition)"),
+                selectedIndex = if (operator == "AND") 0 else 1,
+                onSelect = { idx -> operator = if (idx == 0) "AND" else "OR" }
+            )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("CONDITIONS (${conditions.size}/5)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                if (conditions.size < 5) {
-                    TextButton(
-                        onClick = {
-                            conditions = conditions + UiRuleCondition(type = "subject", match = "contains", values = emptyList())
-                        }
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Condition")
+            MailxSectionHeader(
+                title = "Conditions (${conditions.size}/5)",
+                actionText = if (conditions.size < 5) "+ Add Condition" else null,
+                onActionClick = {
+                    if (conditions.size < 5) {
+                        conditions = conditions + UiRuleCondition(type = "subject", match = "contains", values = emptyList())
                     }
                 }
-            }
+            )
 
             conditions.forEachIndexed { idx, cond ->
                 val isBool = MailxRuleCatalog.booleanConditionTypes.contains(cond.type)
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -661,34 +682,75 @@ private fun RuleEditorBottomSheet(
                             Text(
                                 text = if (idx == 0) "IF" else operator,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                letterSpacing = 0.5.sp,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             if (conditions.size > 1) {
                                 IconButton(
                                     onClick = { conditions = conditions.filterIndexed { i, _ -> i != idx } },
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(26.dp)
                                 ) {
                                     Icon(Icons.Outlined.Close, contentDescription = "Remove Condition", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
 
-                        OutlinedButton(
+                        Surface(
                             onClick = { pickingCondTypeIndex = idx },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(11.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("If: ${MailxRuleCatalog.conditionLabel(cond.type)}")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 13.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "If: ${MailxRuleCatalog.conditionLabel(cond.type)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
                         if (!isBool) {
-                            OutlinedButton(
+                            Surface(
                                 onClick = { pickingMatchTypeIndex = idx },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(11.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Match: ${MailxRuleCatalog.matchLabel(cond.match.ifEmpty { "contains" })}")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 13.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Match: ${MailxRuleCatalog.matchLabel(cond.match.ifEmpty { "contains" })}",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Outlined.ArrowDropDown,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
 
                             OutlinedTextField(
@@ -703,6 +765,7 @@ private fun RuleEditorBottomSheet(
                                 placeholder = { Text("newsletter, promo@example.com") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
+                                colors = mailxTextFieldColors(),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -710,34 +773,24 @@ private fun RuleEditorBottomSheet(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("ACTIONS (${actions.size}/5)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                if (actions.size < 5) {
-                    TextButton(
-                        onClick = {
-                            actions = actions + UiRuleAction(type = "replace_subject", value = "")
-                        }
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Action")
+            MailxSectionHeader(
+                title = "Actions (${actions.size}/5)",
+                actionText = if (actions.size < 5) "+ Add Action" else null,
+                onActionClick = {
+                    if (actions.size < 5) {
+                        actions = actions + UiRuleAction(type = "replace_subject", value = "")
                     }
                 }
-            }
+            )
 
             actions.forEachIndexed { idx, act ->
                 val needsText = MailxRuleCatalog.textValueActions.contains(act.type)
                 val isForwardTo = act.type == "forward_to"
 
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -752,25 +805,46 @@ private fun RuleEditorBottomSheet(
                             Text(
                                 text = if (idx == 0) "THEN" else "AND",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                letterSpacing = 0.5.sp,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             if (actions.size > 1) {
                                 IconButton(
                                     onClick = { actions = actions.filterIndexed { i, _ -> i != idx } },
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(26.dp)
                                 ) {
                                     Icon(Icons.Outlined.Close, contentDescription = "Remove Action", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
 
-                        OutlinedButton(
+                        Surface(
                             onClick = { pickingActionTypeIndex = idx },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(11.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Action: ${MailxRuleCatalog.actionLabel(act.type)}")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 13.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Action: ${MailxRuleCatalog.actionLabel(act.type)}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
                         if (isForwardTo) {
@@ -798,7 +872,8 @@ private fun RuleEditorBottomSheet(
                                                     list[idx] = act.copy(value = next.joinToString(","))
                                                 }
                                             },
-                                            label = { Text(recEmail) }
+                                            shape = RoundedCornerShape(10.dp),
+                                            label = { Text(recEmail, fontSize = 12.sp) }
                                         )
                                     }
                                 }
@@ -828,6 +903,7 @@ private fun RuleEditorBottomSheet(
                                 },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
+                                colors = mailxTextFieldColors(),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -843,6 +919,7 @@ private fun RuleEditorBottomSheet(
                 Text(
                     text = "Stop processing more rules when this rule matches",
                     fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 Checkbox(
@@ -888,20 +965,26 @@ private fun RuleEditorBottomSheet(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-                shape = CircleShape
+                    .height(48.dp),
+                shape = RoundedCornerShape(13.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 Text(
                     text = if (initialRule == null || duplicateMode) "Create Rule" else "Save Changes",
-                    fontSize = 16.sp
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
     }
 
     pickingCondTypeIndex?.let { idx ->
-        SimplePickerDialog(
+        MailxOptionPickerDialog(
             title = "Select Condition (IF)",
+            subtitle = "Choose which email field or property to inspect.",
             options = MailxRuleCatalog.conditionTypes,
             selectedKey = conditions[idx].type,
             onSelect = { selectedType ->
@@ -920,8 +1003,9 @@ private fun RuleEditorBottomSheet(
     }
 
     pickingMatchTypeIndex?.let { idx ->
-        SimplePickerDialog(
+        MailxOptionPickerDialog(
             title = "Select Match Type",
+            subtitle = "Choose how the condition value should be matched.",
             options = MailxRuleCatalog.matchTypes,
             selectedKey = conditions[idx].match.ifEmpty { "contains" },
             onSelect = { selectedMatch ->
@@ -935,8 +1019,9 @@ private fun RuleEditorBottomSheet(
     }
 
     pickingActionTypeIndex?.let { idx ->
-        SimplePickerDialog(
+        MailxOptionPickerDialog(
             title = "Select Action (THEN)",
+            subtitle = "Choose the action to execute when conditions match.",
             options = MailxRuleCatalog.actionTypes,
             selectedKey = actions[idx].type,
             onSelect = { selectedAction ->
@@ -948,49 +1033,4 @@ private fun RuleEditorBottomSheet(
             onDismiss = { pickingActionTypeIndex = null }
         )
     }
-}
-
-@Composable
-private fun SimplePickerDialog(
-    title: String,
-    options: List<Pair<String, String>>,
-    selectedKey: String,
-    onSelect: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                options.forEach { (key, label) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onSelect(key) }
-                            .padding(vertical = 8.dp, horizontal = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selectedKey == key,
-                            onClick = { onSelect(key) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(label, fontSize = 14.sp)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
 }

@@ -27,6 +27,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.ui.components.MailxModernDialog
+import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.AuthUiState
 import net.mailx.android.ui.theme.MailxIcons
 
@@ -54,16 +57,7 @@ fun SetupScreen(
     val isOfficial = authState.baseUrl.contains("api.mailx.net") || authState.baseUrl.isBlank()
     val isCredentialsMode = authState.loginMode == "credentials"
 
-    val cleanFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-        focusedLabelColor = MaterialTheme.colorScheme.primary,
-        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        cursorColor = MaterialTheme.colorScheme.primary
-    )
+    val cleanFieldColors = mailxTextFieldColors()
 
     CompositionLocalProvider(LocalAutofillHighlightColor provides Color.Transparent) {
         Box(
@@ -82,7 +76,7 @@ fun SetupScreen(
             ) {
                 // Focal Brand Header Card with subtle Teal border accent
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(
                         width = 1.dp,
@@ -154,11 +148,11 @@ fun SetupScreen(
 
                 // Authentication Form Card
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -188,7 +182,7 @@ fun SetupScreen(
                                     }
                                     onLoginModeChange("access_key")
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(9.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -207,39 +201,26 @@ fun SetupScreen(
                             }
                         }
 
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                                selected = isCredentialsMode,
-                                onClick = { onLoginModeChange("credentials") },
-                                label = { Text("Email & Password", fontSize = 12.sp) }
-                            )
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                selected = !isCredentialsMode,
-                                onClick = { onLoginModeChange("access_key") },
-                                label = { Text("Access Key", fontSize = 12.sp) }
-                            )
-                        }
+                        MailxSegmentedControl(
+                            options = listOf("Email & Password", "Access Key"),
+                            selectedIndex = if (isCredentialsMode) 0 else 1,
+                            onSelect = { idx ->
+                                onLoginModeChange(if (idx == 0) "credentials" else "access_key")
+                            }
+                        )
 
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                                selected = isOfficial,
-                                onClick = { onBaseUrlChange("https://api.mailx.net") },
-                                label = { Text("Official (api.mailx.net)", fontSize = 12.sp) }
-                            )
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                selected = !isOfficial,
-                                onClick = {
-                                    if (isOfficial) {
-                                        onBaseUrlChange("https://")
-                                    }
-                                },
-                                label = { Text("Self-Hosted", fontSize = 12.sp) }
-                            )
-                        }
+                        MailxSegmentedControl(
+                            options = listOf("Official (api.mailx.net)", "Self-Hosted"),
+                            selectedIndex = if (isOfficial) 0 else 1,
+                            onSelect = { idx ->
+                                if (idx == 0) {
+                                    onBaseUrlChange("https://api.mailx.net")
+                                } else if (isOfficial) {
+                                    onBaseUrlChange("https://")
+                                }
+                            },
+                            compact = true
+                        )
 
                         AnimatedVisibility(visible = !isOfficial) {
                             OutlinedTextField(
@@ -359,7 +340,7 @@ fun SetupScreen(
                             }
                         }
 
-                        // Always active Brand Teal button (validates on tap instead of staying flat disabled grey)
+                        // Brand Teal primary button
                         Button(
                             onClick = {
                                 if (isCredentialsMode) {
@@ -422,18 +403,18 @@ fun SetupScreen(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(15.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -471,123 +452,81 @@ fun SetupScreen(
             runCatching { otpFocusRequester.requestFocus() }
         }
 
-        AlertDialog(
-            onDismissRequest = {
+        MailxModernDialog(
+            title = "2FA Verification",
+            subtitle = "Enter the 6-digit code from your authenticator app to finish signing in.",
+            icon = MailxIcons.ShieldCheck,
+            confirmText = if (authState.isLoading) "Verifying..." else "Verify",
+            confirmEnabled = !authState.isLoading && authState.otpInput.trim().length == 6,
+            onConfirm = onConnectWithCredentials,
+            onDismiss = {
                 if (!authState.isLoading) {
                     onDismissTotp()
                 }
-            },
-            icon = {
-                Icon(
-                    imageVector = MailxIcons.ShieldCheck,
-                    contentDescription = "2FA Verification",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            title = {
-                Text(
-                    text = "2FA Verification",
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "Enter the 6-digit code from your authenticator app to finish signing in.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = authState.otpInput,
-                        onValueChange = { input ->
-                            onOtpChange(input.filter { it.isDigit() }.take(6))
-                        },
-                        label = { Text("6-Digit 2FA Code") },
-                        leadingIcon = { Icon(MailxIcons.KeyRound, contentDescription = null) },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = {
-                                    val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clipDigits = cb.primaryClip?.getItemAt(0)
-                                        ?.coerceToText(context)
-                                        ?.toString()
-                                        ?.filter { it.isDigit() }
-                                        ?.take(6)
-                                        .orEmpty()
-                                    if (clipDigits.isNotEmpty()) {
-                                        onOtpChange(clipDigits)
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = MailxIcons.ClipboardPaste,
-                                    contentDescription = "Paste 2FA code"
-                                )
+            }
+        ) {
+            OutlinedTextField(
+                value = authState.otpInput,
+                onValueChange = { input ->
+                    onOtpChange(input.filter { it.isDigit() }.take(6))
+                },
+                label = { Text("6-Digit 2FA Code") },
+                leadingIcon = { Icon(MailxIcons.KeyRound, contentDescription = null) },
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clipDigits = cb.primaryClip?.getItemAt(0)
+                                ?.coerceToText(context)
+                                ?.toString()
+                                ?.filter { it.isDigit() }
+                                ?.take(6)
+                                .orEmpty()
+                            if (clipDigits.isNotEmpty()) {
+                                onOtpChange(clipDigits)
                             }
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.NumberPassword,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                if (!authState.isLoading && authState.otpInput.trim().length == 6) {
-                                    onConnectWithCredentials()
-                                }
-                            }
-                        ),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = cleanFieldColors,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(otpFocusRequester)
-                    )
-
-                    authState.errorMessage?.let { err ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = err,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = MailxIcons.ClipboardPaste,
+                            contentDescription = "Paste 2FA code"
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (!authState.isLoading && authState.otpInput.trim().length == 6) {
+                            onConnectWithCredentials()
                         }
                     }
-                }
-            },
-            confirmButton = {
-                Button(
-                    enabled = !authState.isLoading && authState.otpInput.trim().length == 6,
-                    onClick = onConnectWithCredentials
+                ),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = cleanFieldColors,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(otpFocusRequester)
+            )
+
+            authState.errorMessage?.let { err ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (authState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Verifying...")
-                    } else {
-                        Text("Verify")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !authState.isLoading,
-                    onClick = onDismissTotp
-                ) {
-                    Text("Cancel")
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp)
+                    )
                 }
             }
-        )
+        }
     }
 
     if (showResetPasswordDialog) {
@@ -596,95 +535,66 @@ fun SetupScreen(
         var resetToken by remember { mutableStateOf("") }
         var newPw by remember { mutableStateOf("") }
 
-        AlertDialog(
-            onDismissRequest = { showResetPasswordDialog = false },
-            title = { Text("Reset Password") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            selected = resetStep == 0,
-                            onClick = { resetStep = 0 },
-                            label = { Text("1. Request Code") }
-                        )
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            selected = resetStep == 1,
-                            onClick = { resetStep = 1 },
-                            label = { Text("2. Set Password") }
-                        )
-                    }
-
-                    if (resetStep == 0) {
-                        Text(
-                            text = "Enter your account email to receive a password reset token:",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        OutlinedTextField(
-                            value = resetEmail,
-                            onValueChange = { resetEmail = it },
-                            label = { Text("Email Address") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = cleanFieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Text(
-                            text = "Enter the 32-character reset token and choose a new password (12+ chars):",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        OutlinedTextField(
-                            value = resetToken,
-                            onValueChange = { resetToken = it.trim() },
-                            label = { Text("Reset Token (32 chars)") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = cleanFieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = newPw,
-                            onValueChange = { newPw = it },
-                            label = { Text("New Password") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = cleanFieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
+        MailxModernDialog(
+            title = "Reset Password",
+            subtitle = if (resetStep == 0) {
+                "Enter your account email to receive a password reset token."
+            } else {
+                "Enter the 32-character reset token and choose a new password (12+ chars)."
             },
-            confirmButton = {
+            icon = MailxIcons.Lock,
+            confirmText = if (resetStep == 0) "Send Code" else "Update Password",
+            confirmEnabled = if (resetStep == 0) resetEmail.contains("@") else (resetToken.length == 32 && newPw.length >= 12),
+            onConfirm = {
                 if (resetStep == 0) {
-                    Button(
-                        enabled = resetEmail.contains("@"),
-                        onClick = {
-                            onInitiatePasswordReset(resetEmail.trim())
-                            resetStep = 1
-                        }
-                    ) {
-                        Text("Send Instructions")
-                    }
+                    onInitiatePasswordReset(resetEmail.trim())
+                    resetStep = 1
                 } else {
-                    Button(
-                        enabled = resetToken.length == 32 && newPw.length >= 12,
-                        onClick = {
-                            showResetPasswordDialog = false
-                            onConfirmPasswordReset(resetToken, newPw)
-                        }
-                    ) {
-                        Text("Update Password")
-                    }
+                    showResetPasswordDialog = false
+                    onConfirmPasswordReset(resetToken, newPw)
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showResetPasswordDialog = false }) {
-                    Text("Close")
-                }
+            dismissText = "Close",
+            onDismiss = { showResetPasswordDialog = false }
+        ) {
+            MailxSegmentedControl(
+                options = listOf("1. Request Code", "2. Set Password"),
+                selectedIndex = resetStep,
+                onSelect = { resetStep = it },
+                compact = true
+            )
+
+            if (resetStep == 0) {
+                OutlinedTextField(
+                    value = resetEmail,
+                    onValueChange = { resetEmail = it },
+                    label = { Text("Email Address") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = cleanFieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = resetToken,
+                    onValueChange = { resetToken = it.trim() },
+                    label = { Text("Reset Token (32 chars)") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = cleanFieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = newPw,
+                    onValueChange = { newPw = it },
+                    label = { Text("New Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = cleanFieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-        )
+        }
     }
 }

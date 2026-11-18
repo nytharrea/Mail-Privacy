@@ -67,14 +67,13 @@ fun AliasCard(
     }
 
     val cardCorner by animateDpAsState(
-        targetValue = if (isSelected) 18.dp else 14.dp,
+        targetValue = if (isSelected) 18.dp else 15.dp,
         animationSpec = if (reducedMotion) snap() else tween(durationMillis = 160),
         label = "alias_card_selected_corner"
     )
 
     val cardShape = RoundedCornerShape(cardCorner)
 
-    // Secondary hierarchy: surfaceContainerLow + soft border so Hero card stays primary focal point
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -82,16 +81,16 @@ fun AliasCard(
             .clickable(onClick = if (selectionMode) onToggleSelect else onClick),
         shape = cardShape,
         color = if (isSelected) {
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
         border = BorderStroke(
             width = 1.dp,
             color = if (isSelected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
             } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f)
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
             }
         ),
         tonalElevation = 0.dp
@@ -124,7 +123,7 @@ fun AliasCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 12.5.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Row(
@@ -187,12 +186,11 @@ fun AliasCard(
                     text = subtitleText,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.88f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // Subtle, non-boxy inline telemetry metadata
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -239,7 +237,6 @@ fun AliasCard(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Subtle, low-prominence copy button without a heavy box container
             IconButton(
                 onClick = {
                     if (!alias.wildcard) justCopied = true

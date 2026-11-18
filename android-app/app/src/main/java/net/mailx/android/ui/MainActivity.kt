@@ -25,7 +25,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -46,6 +45,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.components.MailxGroupDivider
+import net.mailx.android.ui.components.MailxModernDialog
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.screens.*
 import net.mailx.android.ui.sheets.*
@@ -236,8 +237,8 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 ExtendedFloatingActionButton(
                     onClick = { vm.openSheet(ActiveSheet.CreateAlias) },
                     shape = RoundedCornerShape(16.dp),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = {
                         Icon(
                             imageVector = MailxIcons.Plus,
@@ -560,69 +561,27 @@ fun MailxAppScreen(vm: MailxViewModel) {
             onDismiss = vm::closeSheet
         )
 
-        is ActiveSheet.ConfirmDelete -> AlertDialog(
-            onDismissRequest = vm::closeSheet,
-            icon = {
-                Icon(
-                    imageVector = MailxIcons.Trash2,
-                    contentDescription = null,
-                    tint = MailxPalette.BlockedRose
-                )
-            },
-            title = { Text("Delete Alias") },
-            text = {
-                Text(
-                    text = "Move ${sheet.alias.name} to Trash? Incoming emails will be rejected and the alias can be restored within 90 days."
-                )
-            },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MailxPalette.BlockedRose,
-                        contentColor = Color.White
-                    ),
-                    onClick = { vm.deleteAliasConfirmed(sheet.alias) }
-                ) {
-                    Text("Delete", fontWeight = FontWeight.Medium)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = vm::closeSheet) {
-                    Text("Cancel")
-                }
-            }
-        )
+        is ActiveSheet.ConfirmDelete -> MailxModernDialog(
+            title = "Delete Alias",
+            subtitle = "Move ${sheet.alias.name} to Trash? Incoming emails will be rejected and the alias can be restored within 90 days.",
+            icon = MailxIcons.Trash2,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = "Delete",
+            isDestructive = true,
+            onConfirm = { vm.deleteAliasConfirmed(sheet.alias) },
+            onDismiss = vm::closeSheet
+        ) {}
 
-        ActiveSheet.ConfirmLogout -> AlertDialog(
-            onDismissRequest = vm::closeSheet,
-            icon = {
-                Icon(
-                    imageVector = MailxIcons.LogOut,
-                    contentDescription = null,
-                    tint = MailxPalette.BlockedRose
-                )
-            },
-            title = { Text("Sign Out & Clear Cache") },
-            text = {
-                Text("This clears your encrypted local session tokens and offline alias cache on this device.")
-            },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MailxPalette.BlockedRose,
-                        contentColor = Color.White
-                    ),
-                    onClick = vm::logoutConfirmed
-                ) {
-                    Text("Sign Out", fontWeight = FontWeight.Medium)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = vm::closeSheet) {
-                    Text("Cancel")
-                }
-            }
-        )
+        ActiveSheet.ConfirmLogout -> MailxModernDialog(
+            title = "Sign Out & Clear Cache",
+            subtitle = "This clears your encrypted local session tokens and offline alias cache on this device.",
+            icon = MailxIcons.LogOut,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = "Sign Out",
+            isDestructive = true,
+            onConfirm = vm::logoutConfirmed,
+            onDismiss = vm::closeSheet
+        ) {}
     }
 }
 
@@ -642,13 +601,13 @@ private fun MailxModernBottomBar(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f)
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -668,7 +627,7 @@ private fun MailxModernBottomBar(
                     )
                     val pillColor by animateColorAsState(
                         targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
                         } else {
                             Color.Transparent
                         },
@@ -689,7 +648,7 @@ private fun MailxModernBottomBar(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(pillColor)
                             .clickable(
                                 interactionSource = interactionSource,
@@ -747,7 +706,7 @@ private fun MailxCleanTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -767,10 +726,10 @@ private fun MailxCleanTopBar(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                     )
                 ) {
                     Text(
@@ -822,15 +781,19 @@ private fun MailxCleanTopBar(
                 Surface(
                     onClick = onProfileClick,
                     shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
+                    ),
                     modifier = Modifier.size(36.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = userInitials,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -864,7 +827,7 @@ private fun MailxCommandBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -873,15 +836,15 @@ private fun MailxCommandBottomSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(bottom = 26.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -890,19 +853,23 @@ private fun MailxCommandBottomSheet(
                         .fillMaxWidth()
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                        ),
                         modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = userInitials,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -928,11 +895,11 @@ private fun MailxCommandBottomSheet(
             }
 
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -941,32 +908,42 @@ private fun MailxCommandBottomSheet(
                         icon = MailxIcons.Send,
                         title = "Send via Reverse Alias",
                         subtitle = "Compose outgoing email from any alias",
+                        iconTint = MailxPalette.BrandAccentTeal,
                         onClick = onOpenReverseSend
                     )
+                    MailxGroupDivider()
                     CompactMenuItemRow(
                         icon = MailxIcons.ShieldCheck,
                         title = "Trackers Report Decoder",
                         subtitle = "Inspect removed email trackers offline in Rust",
+                        iconTint = MailxPalette.ForwardEmerald,
                         onClick = onOpenTrackersReport
                     )
+                    MailxGroupDivider()
                     CompactMenuItemRow(
                         icon = MailxIcons.Bug,
                         title = "Delivery & Bounce Logs",
                         subtitle = "Server health check & raw MTA bounce viewer",
+                        iconTint = MailxPalette.PausedAmber,
                         onClick = onOpenDiagnostics
                     )
+                    MailxGroupDivider()
                     CompactMenuItemRow(
                         icon = MailxIcons.UserCog,
                         title = "Account, 2FA, Keys & CSV",
                         subtitle = "TOTP, passkeys, API access keys & CSV backup",
+                        iconTint = MailxPalette.SentIndigo,
                         onClick = onOpenAccount
                     )
+                    MailxGroupDivider()
                     CompactMenuItemRow(
                         icon = MailxIcons.Megaphone,
                         title = "Service Announcements",
                         subtitle = "Updates from your Mailx instance",
+                        iconTint = MailxPalette.ReplySky,
                         onClick = onOpenAnnouncements
                     )
+                    MailxGroupDivider()
                     CompactMenuItemRow(
                         icon = MailxIcons.LogOut,
                         title = "Sign Out & Clear Cache",
@@ -981,7 +958,7 @@ private fun MailxCommandBottomSheet(
             Text(
                 text = "$baseUrl • Rust Core v0.5.0",
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1002,13 +979,13 @@ private fun CompactMenuItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+            .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             shape = RoundedCornerShape(10.dp),
-            color = iconTint.copy(alpha = 0.12f),
-            modifier = Modifier.size(34.dp)
+            color = iconTint.copy(alpha = 0.14f),
+            modifier = Modifier.size(36.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -1019,21 +996,27 @@ private fun CompactMenuItemRow(
                 )
             }
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(13.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = titleColor
             )
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
+        Icon(
+            imageVector = MailxIcons.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.size(17.dp)
+        )
     }
 }

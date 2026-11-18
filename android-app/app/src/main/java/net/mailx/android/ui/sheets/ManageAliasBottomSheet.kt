@@ -22,13 +22,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.components.MailxActivityRing
+import net.mailx.android.ui.components.MailxGroupDivider
+import net.mailx.android.ui.components.MailxModernDialog
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSectionRow
+import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.MailxSettingsGroupCard
 import net.mailx.android.ui.components.MailxTelemetryBar
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.NatoPhoneticHelper
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.copyToClipboard
@@ -62,7 +66,7 @@ fun ManageAliasBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -70,12 +74,12 @@ fun ManageAliasBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp)
+                .padding(bottom = 26.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp),
+                    .padding(horizontal = 16.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -85,7 +89,7 @@ fun ManageAliasBottomSheet(
                     shape = RoundedCornerShape(10.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = if (showNato) {
-                            MaterialTheme.colorScheme.primaryContainer
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
                         } else {
                             MaterialTheme.colorScheme.surfaceContainerHigh
                         }
@@ -95,7 +99,7 @@ fun ManageAliasBottomSheet(
                         imageVector = Icons.Outlined.Spellcheck,
                         contentDescription = "NATO Phonetic",
                         tint = if (showNato) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
@@ -105,8 +109,8 @@ fun ManageAliasBottomSheet(
 
                 Text(
                     text = "Alias Inspector",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
@@ -139,16 +143,16 @@ fun ManageAliasBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(11.dp)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(15.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         SelectionContainer {
@@ -282,7 +286,7 @@ fun ManageAliasBottomSheet(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(42.dp),
-                                shape = CircleShape
+                                shape = RoundedCornerShape(11.dp)
                             ) {
                                 Icon(
                                     imageVector = if (alias.wildcard) Icons.Outlined.AutoAwesome else Icons.Outlined.ContentCopy,
@@ -303,7 +307,7 @@ fun ManageAliasBottomSheet(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(42.dp),
-                                shape = CircleShape
+                                shape = RoundedCornerShape(11.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.ForwardToInbox,
@@ -324,106 +328,139 @@ fun ManageAliasBottomSheet(
 
                 MailxSectionHeader(title = "Routing & Controls")
 
-                if (alias.deletedAt.isNotBlank()) {
-                    MailxSectionRow(
-                        title = "Restore Deleted Alias",
-                        description = "Restore from Trash and resume forwarding",
-                        startIcon = Icons.Outlined.Restore,
-                        accentColor = MailxPalette.ForwardEmerald,
-                        onClick = onRestoreAlias
-                    )
-                    if (alias.isCustomDomain) {
+                MailxSettingsGroupCard {
+                    if (alias.deletedAt.isNotBlank()) {
                         MailxSectionRow(
-                            title = "Permanently Forget",
-                            description = "Completely erase this custom-domain alias",
-                            startIcon = Icons.Outlined.DeleteForever,
-                            accentColor = MailxPalette.BlockedRose,
-                            onClick = onForgetAlias
+                            title = "Restore Deleted Alias",
+                            description = "Restore from Trash and resume forwarding",
+                            startIcon = Icons.Outlined.Restore,
+                            accentColor = MailxPalette.ForwardEmerald,
+                            grouped = true,
+                            onClick = onRestoreAlias
+                        )
+                        if (alias.isCustomDomain) {
+                            MailxGroupDivider()
+                            MailxSectionRow(
+                                title = "Permanently Forget",
+                                description = "Completely erase this custom-domain alias",
+                                startIcon = Icons.Outlined.DeleteForever,
+                                accentColor = MailxPalette.BlockedRose,
+                                grouped = true,
+                                onClick = onForgetAlias
+                            )
+                        }
+                    } else {
+                        MailxSectionRow(
+                            title = if (alias.enabled) "Forwarding Active" else "Forwarding Disabled",
+                            description = "Toggle incoming email forwarding for this alias",
+                            startIcon = Icons.Outlined.CheckCircleOutline,
+                            iconTint = MailxPalette.ForwardEmerald,
+                            showSwitch = true,
+                            switchChecked = alias.enabled,
+                            onSwitchChange = onToggleEnabled,
+                            grouped = true
+                        )
+
+                        MailxGroupDivider()
+                        MailxSectionRow(
+                            title = if (alias.isPaused) "Resume Alias" else "Snooze / Pause Temporarily",
+                            description = if (alias.isPaused) {
+                                "Paused until ${formatIsoDateShort(alias.pausedUntil)} • Tap to resume"
+                            } else {
+                                "Pause incoming forwards for 1-10 hours, days, or weeks"
+                            },
+                            startIcon = if (alias.isPaused) Icons.Outlined.PlayCircleOutline else Icons.Outlined.PauseCircleOutline,
+                            iconTint = MailxPalette.PausedAmber,
+                            grouped = true,
+                            onClick = {
+                                if (alias.isPaused) {
+                                    onUnpauseAlias()
+                                } else {
+                                    showPauseDialog = true
+                                }
+                            }
+                        )
+
+                        MailxGroupDivider()
+                        MailxSectionRow(
+                            title = "Pin to Top",
+                            description = "Keep this alias in Quick Access and at the top of lists",
+                            startIcon = Icons.Outlined.PushPin,
+                            iconTint = MailxPalette.BrandAccentTeal,
+                            showSwitch = true,
+                            switchChecked = alias.pinned,
+                            onSwitchChange = onTogglePinned,
+                            grouped = true
                         )
                     }
-                } else {
+                }
+
+                MailxSectionHeader(title = "Metadata & Destinations")
+
+                MailxSettingsGroupCard {
                     MailxSectionRow(
-                        title = if (alias.enabled) "Forwarding Active" else "Forwarding Disabled",
-                        description = "Toggle incoming email forwarding for this alias",
-                        startIcon = Icons.Outlined.CheckCircleOutline,
-                        showSwitch = true,
-                        switchChecked = alias.enabled,
-                        onSwitchChange = onToggleEnabled
+                        title = "Description / Note",
+                        description = alias.description.ifBlank { "No description set" },
+                        startIcon = Icons.Outlined.Notes,
+                        iconTint = MailxPalette.ReplySky,
+                        endIcon = Icons.Outlined.Edit,
+                        grouped = true,
+                        onClick = { editingField = "description" }
                     )
 
+                    MailxGroupDivider()
                     MailxSectionRow(
-                        title = if (alias.isPaused) "Resume Alias" else "Snooze / Pause Temporarily",
-                        description = if (alias.isPaused) {
-                            "Paused until ${formatIsoDateShort(alias.pausedUntil)} • Tap to resume"
-                        } else {
-                            "Pause incoming forwards for 1-10 hours, days, or weeks"
-                        },
-                        startIcon = if (alias.isPaused) Icons.Outlined.PlayCircleOutline else Icons.Outlined.PauseCircleOutline,
-                        onClick = {
-                            if (alias.isPaused) {
-                                onUnpauseAlias()
-                            } else {
-                                showPauseDialog = true
-                            }
-                        }
+                        title = "Target Recipients",
+                        description = alias.recipients.ifBlank { "Default account recipient" },
+                        startIcon = Icons.Outlined.Inbox,
+                        iconTint = MailxPalette.BrandAccentTeal,
+                        endIcon = Icons.Outlined.Edit,
+                        grouped = true,
+                        onClick = { editingField = "recipients" }
                     )
 
+                    MailxGroupDivider()
                     MailxSectionRow(
-                        title = "Pin to Top",
-                        description = "Keep this alias in Quick Access and at the top of lists",
-                        startIcon = Icons.Outlined.PushPin,
-                        showSwitch = true,
-                        switchChecked = alias.pinned,
-                        onSwitchChange = onTogglePinned
+                        title = "Sender Display Name",
+                        description = alias.fromName.ifBlank { "Uses alias address" },
+                        startIcon = Icons.Outlined.Badge,
+                        iconTint = MailxPalette.SentIndigo,
+                        endIcon = Icons.Outlined.Edit,
+                        grouped = true,
+                        onClick = { editingField = "from_name" }
+                    )
+
+                    MailxGroupDivider()
+                    MailxSectionRow(
+                        title = "Timestamps",
+                        description = "Created ${formatIsoDateShort(alias.createdAt)} • Updated ${formatIsoDateShort(alias.updatedAt)}",
+                        startIcon = Icons.Outlined.Schedule,
+                        iconTint = MailxPalette.Slate400,
+                        grouped = true
                     )
                 }
 
-                MailxSectionRow(
-                    title = "Description / Note",
-                    description = alias.description.ifBlank { "No description set" },
-                    startIcon = Icons.Outlined.Notes,
-                    endIcon = Icons.Outlined.Edit,
-                    onClick = { editingField = "description" }
-                )
-
-                MailxSectionRow(
-                    title = "Target Recipients",
-                    description = alias.recipients.ifBlank { "Default account recipient" },
-                    startIcon = Icons.Outlined.Inbox,
-                    endIcon = Icons.Outlined.Edit,
-                    onClick = { editingField = "recipients" }
-                )
-
-                MailxSectionRow(
-                    title = "Sender Display Name",
-                    description = alias.fromName.ifBlank { "Uses alias address" },
-                    startIcon = Icons.Outlined.Badge,
-                    endIcon = Icons.Outlined.Edit,
-                    onClick = { editingField = "from_name" }
-                )
-
-                MailxSectionRow(
-                    title = "Timestamps",
-                    description = "Created ${formatIsoDateShort(alias.createdAt)} • Updated ${formatIsoDateShort(alias.updatedAt)}",
-                    startIcon = Icons.Outlined.Schedule
-                )
-
                 if (alias.deletedAt.isBlank()) {
-                    MailxSectionRow(
-                        title = "Move to Trash",
-                        description = "Reject incoming mail (restorable for 90 days)",
-                        startIcon = Icons.Outlined.DeleteOutline,
-                        accentColor = MailxPalette.BlockedRose,
-                        onClick = onRequestDelete
-                    )
-                    if (alias.isCustomDomain) {
+                    MailxSettingsGroupCard {
                         MailxSectionRow(
-                            title = "Permanently Forget",
-                            description = "Immediately purge this custom-domain alias",
-                            startIcon = Icons.Outlined.DeleteForever,
+                            title = "Move to Trash",
+                            description = "Reject incoming mail (restorable for 90 days)",
+                            startIcon = Icons.Outlined.DeleteOutline,
                             accentColor = MailxPalette.BlockedRose,
-                            onClick = onForgetAlias
+                            grouped = true,
+                            onClick = onRequestDelete
                         )
+                        if (alias.isCustomDomain) {
+                            MailxGroupDivider()
+                            MailxSectionRow(
+                                title = "Permanently Forget",
+                                description = "Immediately purge this custom-domain alias",
+                                startIcon = Icons.Outlined.DeleteForever,
+                                accentColor = MailxPalette.BlockedRose,
+                                grouped = true,
+                                onClick = onForgetAlias
+                            )
+                        }
                     }
                 }
             }
@@ -438,60 +475,42 @@ fun ManageAliasBottomSheet(
             "days" to "Days",
             "weeks" to "Weeks"
         )
+        val unitIdx = units.indexOfFirst { it.first == durationUnit }.coerceAtLeast(0)
 
-        AlertDialog(
-            onDismissRequest = { showPauseDialog = false },
-            title = { Text("Snooze Alias") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "How long should incoming forwards be paused?",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Duration: $durationVal", fontWeight = FontWeight.SemiBold)
-                        Slider(
-                            value = durationVal.toFloat(),
-                            onValueChange = { durationVal = it.toInt().coerceIn(1, 10) },
-                            valueRange = 1f..10f,
-                            steps = 8,
-                            modifier = Modifier.width(180.dp)
-                        )
-                    }
-
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        units.forEachIndexed { idx, (key, label) ->
-                            SegmentedButton(
-                                shape = SegmentedButtonDefaults.itemShape(index = idx, count = units.size),
-                                selected = durationUnit == key,
-                                onClick = { durationUnit = key },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
-                }
+        MailxModernDialog(
+            title = "Snooze Alias",
+            subtitle = "How long should incoming forwards be paused?",
+            icon = Icons.Outlined.PauseCircleOutline,
+            iconTint = MailxPalette.PausedAmber,
+            confirmText = "Pause Alias",
+            onConfirm = {
+                showPauseDialog = false
+                onPauseAlias(durationVal, durationUnit)
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showPauseDialog = false
-                        onPauseAlias(durationVal, durationUnit)
-                    }
-                ) {
-                    Text("Pause")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPauseDialog = false }) {
-                    Text("Cancel")
-                }
+            onDismiss = { showPauseDialog = false }
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Duration: $durationVal", fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
+                Slider(
+                    value = durationVal.toFloat(),
+                    onValueChange = { durationVal = it.toInt().coerceIn(1, 10) },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    modifier = Modifier.width(180.dp)
+                )
             }
-        )
+
+            MailxSegmentedControl(
+                options = units.map { it.second },
+                selectedIndex = unitIdx,
+                onSelect = { idx -> durationUnit = units[idx].first },
+                compact = true
+            )
+        }
     }
 
     editingField?.let { field ->
@@ -505,74 +524,60 @@ fun ManageAliasBottomSheet(
                 }
             )
         }
-        AlertDialog(
-            onDismissRequest = { editingField = null },
-            title = {
-                Text(
-                    when (field) {
-                        "description" -> "Edit Description"
-                        "from_name" -> "Edit Sender Name"
-                        else -> "Edit Recipients"
-                    }
-                )
+        MailxModernDialog(
+            title = when (field) {
+                "description" -> "Edit Description"
+                "from_name" -> "Edit Sender Name"
+                else -> "Edit Recipients"
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (field == "recipients" && availableRecipients.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            availableRecipients.forEach { rec ->
-                                val list = textVal.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                val selected = list.contains(rec)
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        val m = list.toMutableList()
-                                        if (selected) {
-                                            if (m.size > 1) m.remove(rec)
-                                        } else {
-                                            m.add(rec)
-                                        }
-                                        textVal = m.joinToString(",")
-                                    },
-                                    label = { Text(rec) }
-                                )
-                            }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = textVal,
-                        onValueChange = { textVal = it },
-                        singleLine = field != "description",
-                        minLines = if (field == "description") 3 else 1,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+            icon = Icons.Outlined.Edit,
+            confirmText = "Save",
+            onConfirm = {
+                val d = if (field == "description") textVal.trim() else alias.description
+                val f = if (field == "from_name") textVal.trim() else alias.fromName
+                val r = if (field == "recipients") textVal.trim() else alias.recipients
+                editingField = null
+                onUpdateMetadata(d, f, r)
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val d = if (field == "description") textVal.trim() else alias.description
-                        val f = if (field == "from_name") textVal.trim() else alias.fromName
-                        val r = if (field == "recipients") textVal.trim() else alias.recipients
-                        editingField = null
-                        onUpdateMetadata(d, f, r)
-                    }
+            onDismiss = { editingField = null }
+        ) {
+            if (field == "recipients" && availableRecipients.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingField = null }) {
-                    Text("Cancel")
+                    availableRecipients.forEach { rec ->
+                        val list = textVal.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                        val selected = list.contains(rec)
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                val m = list.toMutableList()
+                                if (selected) {
+                                    if (m.size > 1) m.remove(rec)
+                                } else {
+                                    m.add(rec)
+                                }
+                                textVal = m.joinToString(",")
+                            },
+                            shape = RoundedCornerShape(9.dp),
+                            label = { Text(rec, fontSize = 12.sp) }
+                        )
+                    }
                 }
             }
-        )
+            OutlinedTextField(
+                value = textVal,
+                onValueChange = { textVal = it },
+                singleLine = field != "description",
+                minLines = if (field == "description") 3 else 1,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 

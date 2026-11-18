@@ -10,10 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import java.net.URLEncoder
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +26,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -38,13 +38,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.components.EmptyStateBox
+import net.mailx.android.ui.components.MailxGroupDivider
+import net.mailx.android.ui.components.MailxModernDialog
+import net.mailx.android.ui.components.MailxOptionPickerDialog
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSectionRow
-import net.mailx.android.ui.components.EmptyStateBox
+import net.mailx.android.ui.components.MailxSettingsGroupCard
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 import org.json.JSONObject
+import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,7 +125,7 @@ fun AccountBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -129,45 +135,50 @@ fun AccountBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 text = "Account, Subscription & Security",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(
+                thickness = 0.75.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+            )
 
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Subscription Status", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Subscription Status", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         Surface(
-                            shape = CircleShape,
+                            shape = RoundedCornerShape(8.dp),
                             color = MailxPalette.ForwardEmerald.copy(alpha = 0.16f)
                         ) {
                             Text(
                                 text = userAccount.subStatus.ifBlank { "Active" },
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MailxPalette.ForwardEmerald,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
                             )
                         }
                     }
@@ -175,7 +186,7 @@ fun AccountBottomSheet(
                     if (userAccount.subActiveUntil.isNotBlank()) {
                         Text(
                             text = "Valid Until: ${formatIsoDateShort(userAccount.subActiveUntil)}",
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -183,7 +194,7 @@ fun AccountBottomSheet(
                     if (userAccount.email.isNotBlank()) {
                         Text(
                             text = "Primary Email: ${userAccount.email} (${if (userAccount.isActive) "Verified" else "Unverified"})",
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -192,7 +203,7 @@ fun AccountBottomSheet(
                         SelectionContainer {
                             Text(
                                 text = "Mailx ID: ${userAccount.id}",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -202,11 +213,9 @@ fun AccountBottomSheet(
             }
 
             if (!userAccount.isActive) {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.65f)
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.65f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -253,32 +262,37 @@ fun AccountBottomSheet(
 
             MailxSectionHeader(title = "Security & Credentials")
 
-            MailxSectionRow(
-                title = "Change Primary Email",
-                description = userAccount.email.ifBlank { "Update account email address" },
-                startIcon = Icons.Outlined.Email,
-                endIcon = Icons.Outlined.Edit,
-                onClick = { showChangeEmailDialog = true }
-            )
-
-            MailxSectionRow(
-                title = "Change Password",
-                description = "Update your account login password",
-                startIcon = Icons.Outlined.LockReset,
-                endIcon = Icons.Outlined.Edit,
-                onClick = { showChangePasswordDialog = true }
-            )
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Change Primary Email",
+                    description = userAccount.email.ifBlank { "Update account email address" },
+                    startIcon = Icons.Outlined.Email,
+                    iconTint = MailxPalette.ReplySky,
+                    endIcon = Icons.Outlined.Edit,
+                    grouped = true,
+                    onClick = { showChangeEmailDialog = true }
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Change Password",
+                    description = "Update your account login password",
+                    startIcon = Icons.Outlined.LockReset,
+                    iconTint = MailxPalette.SentIndigo,
+                    endIcon = Icons.Outlined.Edit,
+                    grouped = true,
+                    onClick = { showChangePasswordDialog = true }
+                )
+            }
 
             // Compact, single-line 2FA Card
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
@@ -299,7 +313,7 @@ fun AccountBottomSheet(
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = totpColor.copy(alpha = 0.14f),
-                                modifier = Modifier.size(34.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -322,20 +336,20 @@ fun AccountBottomSheet(
                                     Text(
                                         text = "2FA Authenticator",
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 14.sp,
+                                        fontSize = 14.5.sp,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.secondaryContainer
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                                     ) {
                                         Text(
                                             text = "TOTP",
-                                            fontSize = 9.sp,
+                                            fontSize = 9.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                                         )
                                     }
@@ -376,7 +390,7 @@ fun AccountBottomSheet(
                         if (userAccount.totpEnabled) {
                             OutlinedButton(
                                 onClick = { showDisableTotpDialog = true },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 border = BorderStroke(1.dp, MailxPalette.BlockedRose.copy(alpha = 0.5f)),
                                 modifier = Modifier.height(32.dp)
@@ -391,7 +405,11 @@ fun AccountBottomSheet(
                         } else {
                             FilledTonalButton(
                                 onClick = onInitiateTotp,
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                ),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 modifier = Modifier.height(32.dp)
                             ) {
@@ -413,7 +431,7 @@ fun AccountBottomSheet(
                                 "otpauth://totp/Mailx:$label?secret=${userAccount.totpSetupSecret}&issuer=Mailx"
                             }
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f))
                         Text(
                             text = "Scan QR code or copy setup key into your authenticator app:",
                             fontSize = 12.sp,
@@ -481,9 +499,11 @@ fun AccountBottomSheet(
                                     ).show()
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(36.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            shape = CircleShape
+                            shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
@@ -504,10 +524,12 @@ fun AccountBottomSheet(
                                 label = { Text("6-Digit Code") },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
+                                colors = mailxTextFieldColors(),
                                 modifier = Modifier.weight(1f)
                             )
                             Button(
                                 enabled = totpConfirmInput.length == 6,
+                                shape = RoundedCornerShape(11.dp),
                                 onClick = { onConfirmTotp(totpConfirmInput) }
                             ) {
                                 Text("Confirm")
@@ -516,11 +538,9 @@ fun AccountBottomSheet(
                     }
 
                     if (userAccount.totpBackupCodes.isNotBlank()) {
-                        Card(
+                        Surface(
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -554,7 +574,7 @@ fun AccountBottomSheet(
                                             )
                                         },
                                         modifier = Modifier.weight(1f),
-                                        shape = CircleShape
+                                        shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.ContentCopy,
@@ -569,7 +589,7 @@ fun AccountBottomSheet(
                                             saveBackupTxtLauncher.launch("mailx-2fa-backup-codes.txt")
                                         },
                                         modifier = Modifier.weight(1f),
-                                        shape = CircleShape
+                                        shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.Download,
@@ -586,7 +606,7 @@ fun AccountBottomSheet(
                 }
             }
 
-            // Passkeys Section (Always visible with "+ Add Passkey" button)
+            // Passkeys Section
             MailxSectionHeader(
                 title = "Passkeys (WebAuthn)",
                 countBadge = passkeys.size,
@@ -595,24 +615,23 @@ fun AccountBottomSheet(
             )
 
             if (passkeys.isEmpty()) {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(15.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .padding(horizontal = 15.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -627,12 +646,12 @@ fun AccountBottomSheet(
                             Text(
                                 text = "Passwordless Sign-In",
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "Register a device passkey via Android Credential Manager for biometric sign-in.",
-                                fontSize = 11.5.sp,
+                                fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -640,13 +659,10 @@ fun AccountBottomSheet(
                 }
             } else {
                 passkeys.forEach { pk ->
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    Surface(
+                        shape = RoundedCornerShape(15.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -690,11 +706,10 @@ fun AccountBottomSheet(
             )
 
             if (userAccount.newlyCreatedAccessKeyToken.isNotBlank()) {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(15.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.40f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -705,14 +720,14 @@ fun AccountBottomSheet(
                             text = "New Access Key (Shown only once):",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.primary
                         )
                         SelectionContainer {
                             Text(
                                 text = userAccount.newlyCreatedAccessKeyToken,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -725,7 +740,7 @@ fun AccountBottomSheet(
                                         "85-character access key copied"
                                     )
                                 },
-                                shape = CircleShape
+                                shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text("Copy Key")
                             }
@@ -738,13 +753,10 @@ fun AccountBottomSheet(
             }
 
             accessKeys.forEach { keyItem ->
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                Surface(
+                    shape = RoundedCornerShape(15.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -755,7 +767,7 @@ fun AccountBottomSheet(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(keyItem.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text(keyItem.name, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp)
                             Text(
                                 text = "ID: ${keyItem.id}",
                                 fontSize = 11.sp,
@@ -785,23 +797,31 @@ fun AccountBottomSheet(
 
             MailxSectionHeader(title = "Alias CSV Import & Export")
 
-            MailxSectionRow(
-                title = "Export All Aliases as CSV",
-                description = "Export $aliasCount aliases with status, recipients, and descriptions in CSV format",
-                startIcon = Icons.Outlined.Download,
-                onClick = {
-                    onExportAliasesCsv { csvText ->
-                        exportedCsvPreview = csvText
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Export All Aliases as CSV",
+                    description = "Export $aliasCount aliases with status, recipients, and descriptions",
+                    startIcon = Icons.Outlined.Download,
+                    iconTint = MailxPalette.BrandAccentTeal,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = {
+                        onExportAliasesCsv { csvText ->
+                            exportedCsvPreview = csvText
+                        }
                     }
-                }
-            )
-
-            MailxSectionRow(
-                title = "Import Aliases from CSV",
-                description = "Import custom-domain aliases using CSV rows (alias,description,enabled,recipients)",
-                startIcon = Icons.Outlined.UploadFile,
-                onClick = { showImportCsvDialog = true }
-            )
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Import Aliases from CSV",
+                    description = "Import custom-domain aliases using CSV rows (alias,description,enabled,recipients)",
+                    startIcon = Icons.Outlined.UploadFile,
+                    iconTint = MailxPalette.ReplySky,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = { showImportCsvDialog = true }
+                )
+            }
 
             MailxSectionHeader(title = "Danger Zone")
 
@@ -818,94 +838,76 @@ fun AccountBottomSheet(
     if (showChangePasswordDialog) {
         var oldPw by remember { mutableStateOf("") }
         var newPw by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showChangePasswordDialog = false },
-            title = { Text("Change Password") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = oldPw,
-                        onValueChange = { oldPw = it },
-                        label = { Text("Current Password") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = newPw,
-                        onValueChange = { newPw = it },
-                        label = { Text("New Password (At least 12 characters)") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+        MailxModernDialog(
+            title = "Change Password",
+            subtitle = "Enter your current password and choose a strong new password (12+ characters).",
+            icon = Icons.Outlined.LockReset,
+            confirmText = "Update Password",
+            confirmEnabled = oldPw.isNotEmpty() && newPw.length >= 8,
+            onConfirm = {
+                showChangePasswordDialog = false
+                onChangePassword(oldPw, newPw)
             },
-            confirmButton = {
-                Button(
-                    enabled = oldPw.isNotEmpty() && newPw.length >= 8,
-                    onClick = {
-                        showChangePasswordDialog = false
-                        onChangePassword(oldPw, newPw)
-                    }
-                ) {
-                    Text("Update Password")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showChangePasswordDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { showChangePasswordDialog = false }
+        ) {
+            OutlinedTextField(
+                value = oldPw,
+                onValueChange = { oldPw = it },
+                label = { Text("Current Password") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = newPw,
+                onValueChange = { newPw = it },
+                label = { Text("New Password (At least 12 characters)") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     if (showChangeEmailDialog) {
         var newEm by remember { mutableStateOf(userAccount.email) }
         var curPw by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showChangeEmailDialog = false },
-            title = { Text("Change Primary Email") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = newEm,
-                        onValueChange = { newEm = it },
-                        label = { Text("New Email Address") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = curPw,
-                        onValueChange = { curPw = it },
-                        label = { Text("Current Password for Verification") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+        MailxModernDialog(
+            title = "Change Primary Email",
+            subtitle = "Update the primary email address associated with your account.",
+            icon = Icons.Outlined.Email,
+            confirmText = "Update",
+            confirmEnabled = newEm.contains("@"),
+            onConfirm = {
+                showChangeEmailDialog = false
+                onChangeEmail(newEm, curPw)
             },
-            confirmButton = {
-                Button(
-                    enabled = newEm.contains("@"),
-                    onClick = {
-                        showChangeEmailDialog = false
-                        onChangeEmail(newEm, curPw)
-                    }
-                ) {
-                    Text("Update")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showChangeEmailDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { showChangeEmailDialog = false }
+        ) {
+            OutlinedTextField(
+                value = newEm,
+                onValueChange = { newEm = it },
+                label = { Text("New Email Address") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = curPw,
+                onValueChange = { curPw = it },
+                label = { Text("Current Password for Verification") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     if (showCreateKeyDialog) {
@@ -924,295 +926,224 @@ fun AccountBottomSheet(
         var showExpiryPickerDialog by remember { mutableStateOf(false) }
         val selectedExpiryLabel = expiryOptions.firstOrNull { it.first == selectedExpiryDays }?.second ?: "1 year"
 
-        AlertDialog(
-            onDismissRequest = { showCreateKeyDialog = false },
-            title = {
-                Text(
-                    text = "New Access Key",
-                    fontWeight = FontWeight.SemiBold
-                )
+        MailxModernDialog(
+            title = "New Access Key",
+            subtitle = "Create a scoped API Access Key associated with your account.",
+            icon = MailxIcons.KeyRound,
+            confirmText = "Create Access Key",
+            onConfirm = {
+                if (keyName.trim().isEmpty()) {
+                    nameError = true
+                } else {
+                    showCreateKeyDialog = false
+                    onCreateAccessKey(keyName.trim(), selectedExpiryDays)
+                }
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            onDismiss = { showCreateKeyDialog = false }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedTextField(
+                    value = keyName,
+                    onValueChange = {
+                        keyName = it
+                        if (it.isNotBlank()) nameError = false
+                    },
+                    label = { Text("Key Name") },
+                    placeholder = { Text("e.g. Android Phone, CLI") },
+                    isError = nameError,
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = mailxTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (nameError) {
                     Text(
-                        text = "Create a new Access Key associated with your account.",
-                        fontSize = 13.sp,
+                        text = "Key name is required",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "EXPIRES AFTER",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.65.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Max 1 year",
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        OutlinedTextField(
-                            value = keyName,
-                            onValueChange = {
-                                keyName = it
-                                if (it.isNotBlank()) nameError = false
-                            },
-                            label = { Text("Name") },
-                            placeholder = { Text("e.g. Android Phone") },
-                            isError = nameError,
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                // Inline quick-select chips + sleek dropdown trigger
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    expiryOptions.forEach { (days, label) ->
+                        val isSelected = selectedExpiryDays == days
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedExpiryDays = days },
+                            shape = RoundedCornerShape(9.dp),
+                            label = {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            }
                         )
-                        if (nameError) {
-                            Text(
-                                text = "Required",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
                     }
+                }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Surface(
+                    onClick = { showExpiryPickerDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 13.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = "Expires After:",
+                            text = "Selected duration: $selectedExpiryLabel",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Surface(
-                            onClick = { showExpiryPickerDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = selectedExpiryLabel,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Icon(
-                                    imageVector = Icons.Outlined.ArrowDropDown,
-                                    contentDescription = "Select Expiration",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Access Keys expire after one year at most.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowDropDown,
+                            contentDescription = "Select Expiration",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    shape = RoundedCornerShape(10.dp),
-                    onClick = {
-                        if (keyName.trim().isEmpty()) {
-                            nameError = true
-                        } else {
-                            showCreateKeyDialog = false
-                            onCreateAccessKey(keyName.trim(), selectedExpiryDays)
-                        }
-                    }
-                ) {
-                    Text("Create Access Key", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreateKeyDialog = false }) {
-                    Text("Cancel")
-                }
             }
-        )
+        }
 
         if (showExpiryPickerDialog) {
-            AlertDialog(
-                onDismissRequest = { showExpiryPickerDialog = false },
-                shape = RoundedCornerShape(16.dp),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        expiryOptions.forEachIndexed { idx, (days, label) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        selectedExpiryDays = days
-                                        showExpiryPickerDialog = false
-                                    }
-                                    .padding(horizontal = 8.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Normal,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                RadioButton(
-                                    selected = selectedExpiryDays == days,
-                                    onClick = {
-                                        selectedExpiryDays = days
-                                        showExpiryPickerDialog = false
-                                    }
-                                )
-                            }
-                            if (idx < expiryOptions.lastIndex) {
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                )
-                            }
-                        }
-                    }
+            MailxOptionPickerDialog(
+                title = "Key Expiration",
+                subtitle = "Access Keys automatically expire after the selected period.",
+                options = expiryOptions,
+                selectedKey = selectedExpiryDays,
+                onSelect = { days ->
+                    selectedExpiryDays = days
+                    showExpiryPickerDialog = false
                 },
-                confirmButton = {}
+                onDismiss = { showExpiryPickerDialog = false }
             )
         }
     }
 
     deletingAccessKey?.let { keyToDelete ->
-        AlertDialog(
-            onDismissRequest = { deletingAccessKey = null },
-            icon = {
-                Icon(
-                    imageVector = MailxIcons.Trash2,
-                    contentDescription = null,
-                    tint = MailxPalette.BlockedRose
-                )
+        MailxModernDialog(
+            title = "Delete Access Key",
+            subtitle = "Are you sure you want to delete Access Key \"${keyToDelete.name.ifBlank { keyToDelete.id }}\"? Active sessions using this key will be terminated immediately.",
+            icon = MailxIcons.Trash2,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = "Delete",
+            isDestructive = true,
+            onConfirm = {
+                val targetId = keyToDelete.id
+                deletingAccessKey = null
+                onDeleteAccessKey(targetId)
             },
-            title = {
-                Text(
-                    text = "Delete Access Key",
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to delete Access Key \"${keyToDelete.name.ifBlank { keyToDelete.id }}\"? Any active sessions using this key will be terminated immediately."
-                )
-            },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MailxPalette.BlockedRose,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    onClick = {
-                        val targetId = keyToDelete.id
-                        deletingAccessKey = null
-                        onDeleteAccessKey(targetId)
-                    }
-                ) {
-                    Text("Delete", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletingAccessKey = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { deletingAccessKey = null }
+        ) {}
     }
 
     deletingPasskey?.let { pkToDelete ->
-        AlertDialog(
-            onDismissRequest = { deletingPasskey = null },
-            icon = {
-                Icon(
-                    imageVector = MailxIcons.Trash2,
-                    contentDescription = null,
-                    tint = MailxPalette.BlockedRose
-                )
+        MailxModernDialog(
+            title = "Delete Passkey",
+            subtitle = "Are you sure you want to remove passkey credential (${pkToDelete.id}) from your account?",
+            icon = MailxIcons.Trash2,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = "Delete",
+            isDestructive = true,
+            onConfirm = {
+                val targetId = pkToDelete.id
+                deletingPasskey = null
+                onDeletePasskey(targetId)
             },
-            title = {
-                Text(
-                    text = "Delete Passkey",
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to remove passkey credential (${pkToDelete.id}) from your account?"
-                )
-            },
-            confirmButton = {
-                Button(
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MailxPalette.BlockedRose,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    onClick = {
-                        val targetId = pkToDelete.id
-                        deletingPasskey = null
-                        onDeletePasskey(targetId)
-                    }
-                ) {
-                    Text("Delete", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deletingPasskey = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { deletingPasskey = null }
+        ) {}
     }
 
     if (showDisableTotpDialog) {
         var otp by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showDisableTotpDialog = false },
-            title = { Text("Disable 2FA") },
-            text = {
-                OutlinedTextField(
-                    value = otp,
-                    onValueChange = { otp = it.take(6) },
-                    label = { Text("6-Digit 2FA Code") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
+        MailxModernDialog(
+            title = "Disable 2FA",
+            subtitle = "Enter your current 6-digit authenticator code to disable TOTP.",
+            icon = MailxIcons.ShieldCheck,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = "Disable",
+            confirmEnabled = otp.length == 6,
+            isDestructive = true,
+            onConfirm = {
+                showDisableTotpDialog = false
+                onDisableTotp(otp)
             },
-            confirmButton = {
-                Button(
-                    enabled = otp.length == 6,
-                    onClick = {
-                        showDisableTotpDialog = false
-                        onDisableTotp(otp)
-                    }
-                ) {
-                    Text("Disable")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDisableTotpDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { showDisableTotpDialog = false }
+        ) {
+            OutlinedTextField(
+                value = otp,
+                onValueChange = { otp = it.take(6) },
+                label = { Text("6-Digit 2FA Code") },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     exportedCsvPreview?.let { csv ->
-        AlertDialog(
-            onDismissRequest = { exportedCsvPreview = null },
-            title = { Text("Aliases CSV Export") },
-            text = {
+        MailxModernDialog(
+            title = "Aliases CSV Export",
+            subtitle = "Copy your exported aliases CSV below:",
+            icon = Icons.Outlined.Download,
+            confirmText = "Copy CSV",
+            onConfirm = {
+                copyToClipboard(context, "Mailx Aliases CSV", csv, "CSV content copied to clipboard")
+                exportedCsvPreview = null
+            },
+            dismissText = "Close",
+            onDismiss = { exportedCsvPreview = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(11.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 260.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp)
                 ) {
                     SelectionContainer {
                         Text(
@@ -1222,69 +1153,38 @@ fun AccountBottomSheet(
                         )
                     }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        copyToClipboard(context, "Mailx Aliases CSV", csv, "CSV content copied to clipboard")
-                        exportedCsvPreview = null
-                    }
-                ) {
-                    Text("Copy CSV to Clipboard")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { exportedCsvPreview = null }) {
-                    Text("Close")
-                }
             }
-        )
+        }
     }
 
     if (showImportCsvDialog) {
         var csvInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showImportCsvDialog = false },
-            title = { Text("Import Aliases from CSV") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Paste CSV lines in format:\nalias,description,enabled,recipients",
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedTextField(
-                        value = csvInput,
-                        onValueChange = { csvInput = it },
-                        placeholder = {
-                            Text("alias,description,enabled,recipients\nshop@mydomain.com,Shopping,true,me@proton.me")
-                        },
-                        minLines = 5,
-                        maxLines = 10,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+        MailxModernDialog(
+            title = "Import Aliases from CSV",
+            subtitle = "Paste CSV lines in format: alias,description,enabled,recipients",
+            icon = Icons.Outlined.UploadFile,
+            confirmText = "Import",
+            confirmEnabled = csvInput.isNotBlank(),
+            onConfirm = {
+                val content = csvInput
+                showImportCsvDialog = false
+                onImportAliasesCsv(content)
             },
-            confirmButton = {
-                Button(
-                    enabled = csvInput.isNotBlank(),
-                    onClick = {
-                        val content = csvInput
-                        showImportCsvDialog = false
-                        onImportAliasesCsv(content)
-                    }
-                ) {
-                    Text("Import Aliases")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportCsvDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
+            onDismiss = { showImportCsvDialog = false }
+        ) {
+            OutlinedTextField(
+                value = csvInput,
+                onValueChange = { csvInput = it },
+                placeholder = {
+                    Text("alias,description,enabled,recipients\nshop@mydomain.com,Shopping,true,me@proton.me", fontSize = 11.5.sp)
+                },
+                minLines = 5,
+                maxLines = 9,
+                shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 
     if (showDeleteAccountDialog) {
@@ -1292,77 +1192,53 @@ fun AccountBottomSheet(
         var confirmCode by remember { mutableStateOf("") }
         val expectedCode = userAccount.deleteAccountOtp
 
-        AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
-            title = { Text("Delete Account") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "WARNING: This operation cannot be undone. Deleting your account permanently removes all your aliases and data.",
-                        fontSize = 13.sp,
-                        color = MailxPalette.BlockedRose
-                    )
-                    if (expectedCode.isBlank()) {
-                        OutlinedTextField(
-                            value = stepPassword,
-                            onValueChange = { stepPassword = it },
-                            label = { Text("Enter Current Password to Request Code") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Text(
-                            text = "Enter the following 8-character confirmation code to permanently delete your account: $expectedCode",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        OutlinedTextField(
-                            value = confirmCode,
-                            onValueChange = { confirmCode = it.take(8) },
-                            label = { Text("8-Symbol Confirmation Code") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            },
-            confirmButton = {
+        MailxModernDialog(
+            title = "Delete Account",
+            subtitle = "WARNING: This operation cannot be undone. Deleting your account permanently removes all your aliases and data.",
+            icon = Icons.Outlined.DeleteForever,
+            iconTint = MailxPalette.BlockedRose,
+            confirmText = if (expectedCode.isBlank()) "Request Code" else "Permanently Delete",
+            confirmEnabled = if (expectedCode.isBlank()) stepPassword.isNotEmpty() else confirmCode.trim().length == 8,
+            isDestructive = true,
+            onConfirm = {
                 if (expectedCode.isBlank()) {
-                    Button(
-                        enabled = stepPassword.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MailxPalette.BlockedRose,
-                            contentColor = Color.White
-                        ),
-                        onClick = { onRequestDeleteAccount(stepPassword) }
-                    ) {
-                        Text("Request Deletion Code")
-                    }
+                    onRequestDeleteAccount(stepPassword)
                 } else {
-                    Button(
-                        enabled = confirmCode.trim().length == 8,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MailxPalette.BlockedRose,
-                            contentColor = Color.White
-                        ),
-                        onClick = {
-                            showDeleteAccountDialog = false
-                            onConfirmDeleteAccount(confirmCode.trim())
-                        }
-                    ) {
-                        Text("Permanently Delete")
-                    }
+                    showDeleteAccountDialog = false
+                    onConfirmDeleteAccount(confirmCode.trim())
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) {
-                    Text("Cancel")
-                }
+            onDismiss = { showDeleteAccountDialog = false }
+        ) {
+            if (expectedCode.isBlank()) {
+                OutlinedTextField(
+                    value = stepPassword,
+                    onValueChange = { stepPassword = it },
+                    label = { Text("Enter Current Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = mailxTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Text(
+                    text = "Enter confirmation code: $expectedCode",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MailxPalette.BlockedRose
+                )
+                OutlinedTextField(
+                    value = confirmCode,
+                    onValueChange = { confirmCode = it.take(8) },
+                    label = { Text("8-Symbol Confirmation Code") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = mailxTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-        )
+        }
     }
 }
 
@@ -1385,7 +1261,7 @@ fun DiagnosticsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -1395,7 +1271,7 @@ fun DiagnosticsBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1404,31 +1280,40 @@ fun DiagnosticsBottomSheet(
             ) {
                 Text(
                     text = "Diagnostics & Delivery Logs",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
                 IconButton(onClick = onRefreshLogs) {
                     Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-            MailxSectionRow(
-                title = "Server Health Check (/livez & /readyz)",
-                description = serverHealthStatus.ifBlank { "Tap to verify live connectivity with the Mailx API server" },
-                startIcon = Icons.Outlined.Dns,
-                onClick = onCheckServerHealth
+            HorizontalDivider(
+                thickness = 0.75.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
             )
 
-            MailxSectionRow(
-                title = "Enable Diagnostics Logging",
-                description = "Record delivery errors, bounced messages, and rule-blocked emails",
-                startIcon = Icons.Outlined.BugReport,
-                showSwitch = true,
-                switchChecked = logIssuesEnabled,
-                onSwitchChange = onToggleLogIssues
-            )
+            MailxSettingsGroupCard {
+                MailxSectionRow(
+                    title = "Server Health Check (/livez & /readyz)",
+                    description = serverHealthStatus.ifBlank { "Tap to verify live connectivity with the Mailx API server" },
+                    startIcon = Icons.Outlined.Dns,
+                    iconTint = MailxPalette.ReplySky,
+                    grouped = true,
+                    onClick = onCheckServerHealth
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Enable Diagnostics Logging",
+                    description = "Record delivery errors, bounced messages, and rule-blocked emails",
+                    startIcon = Icons.Outlined.BugReport,
+                    iconTint = MailxPalette.PausedAmber,
+                    showSwitch = true,
+                    switchChecked = logIssuesEnabled,
+                    onSwitchChange = onToggleLogIssues,
+                    grouped = true
+                )
+            }
 
             if (logs.isNotEmpty()) {
                 Button(
@@ -1437,7 +1322,7 @@ fun DiagnosticsBottomSheet(
                         containerColor = MailxPalette.BlockedRose,
                         contentColor = Color.White
                     ),
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Outlined.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1454,13 +1339,13 @@ fun DiagnosticsBottomSheet(
                 )
             } else {
                 logs.forEach { log ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable {
                                 onFetchBounceFile(log.id) { raw ->
                                     viewingRawBounceText = raw
@@ -1489,7 +1374,7 @@ fun DiagnosticsBottomSheet(
                             }
                             if (log.from.isNotBlank() || log.destination.isNotBlank()) {
                                 Text(
-                                    text = "${log.from} -> ${log.destination}",
+                                    text = "${log.from} → ${log.destination}",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -1517,22 +1402,30 @@ fun DiagnosticsBottomSheet(
     }
 
     viewingRawBounceText?.let { raw ->
-        AlertDialog(
-            onDismissRequest = { viewingRawBounceText = null },
-            title = { Text("Raw Log Details (Bounce Log)") },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        MailxModernDialog(
+            title = "Raw Bounce Log",
+            icon = Icons.Outlined.ReceiptLong,
+            dismissText = "Close",
+            onDismiss = { viewingRawBounceText = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(11.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 280.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp)
+                ) {
                     SelectionContainer {
                         Text(raw, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { viewingRawBounceText = null }) {
-                    Text("Close")
-                }
             }
-        )
+        }
     }
 }
 
@@ -1546,7 +1439,7 @@ fun AnnouncementsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -1556,16 +1449,19 @@ fun AnnouncementsBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Announcements",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                text = "Service Announcements",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(
+                thickness = 0.75.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+            )
 
             if (announcements.isEmpty()) {
                 EmptyStateBox(
@@ -1575,18 +1471,17 @@ fun AnnouncementsBottomSheet(
                 )
             } else {
                 announcements.forEach { ann ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
+                    Surface(
+                        shape = RoundedCornerShape(15.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(ann.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(ann.title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             Text(ann.body, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (ann.link.isNotBlank()) {
                                 SelectionContainer {
@@ -1636,7 +1531,7 @@ fun TrackersReportBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -1646,20 +1541,23 @@ fun TrackersReportBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
                 text = "Trackers Report Inspector",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(
+                thickness = 0.75.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+            )
 
             Text(
                 text = "Paste a 'View report' link (or its #fragment) from any forwarded email. The report is decoded locally on your device using Rust and never contacts any server.",
-                fontSize = 13.sp,
+                fontSize = 12.5.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -1687,6 +1585,7 @@ fun TrackersReportBottomSheet(
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
+                colors = mailxTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1699,28 +1598,26 @@ fun TrackersReportBottomSheet(
             }
 
             decodedReport?.let { report ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "Mailx removed ${report.total} ${if (report.total == 1) "tracker" else "trackers"} from this email before forwarding it.",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(14.dp)
                     )
                 }
 
                 report.trackers.forEachIndexed { idx, tracker ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1729,7 +1626,7 @@ fun TrackersReportBottomSheet(
                         ) {
                             Text(
                                 text = "${idx + 1}. ${tracker.domain}",
-                                fontSize = 14.sp,
+                                fontSize = 13.5.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -1746,7 +1643,6 @@ fun TrackersReportBottomSheet(
         }
     }
 }
-
 
 @Composable
 private fun TotpQrCodeView(

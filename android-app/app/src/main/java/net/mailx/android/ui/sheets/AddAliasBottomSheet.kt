@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -16,6 +15,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.DefaultsUiState
 import net.mailx.android.ui.model.UiCustomDomain
 import net.mailx.android.ui.model.UiWildcardDomainInfo
@@ -96,10 +97,12 @@ fun AddAliasBottomSheet(
         len in 6..12 && wildcardLocalPart.trim().all { it.isLetterOrDigit() }
     }
 
+    val fieldColors = mailxTextFieldColors()
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -107,11 +110,11 @@ fun AddAliasBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp)
+                .padding(bottom = 26.dp)
         ) {
             Text(
                 text = "Create New Alias",
-                fontSize = 16.sp,
+                fontSize = 16.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
@@ -121,15 +124,15 @@ fun AddAliasBottomSheet(
             )
 
             HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                thickness = 0.75.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
             )
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(11.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -149,7 +152,8 @@ fun AddAliasBottomSheet(
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = domainDropdownExpanded)
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = fieldColors,
                             modifier = Modifier
                                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth()
@@ -184,7 +188,8 @@ fun AddAliasBottomSheet(
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatDropdownExpanded)
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = fieldColors,
                             modifier = Modifier
                                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth()
@@ -214,7 +219,8 @@ fun AddAliasBottomSheet(
                             label = { Text("Custom Local Part (1-64 chars)") },
                             suffix = { Text("@$selectedDomain") },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = fieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )
                         if (matchingCustomDomain == null) {
@@ -234,20 +240,13 @@ fun AddAliasBottomSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.width(120.dp)) {
-                                SegmentedButton(
-                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                                    selected = wildcardDelimiter == ".",
-                                    onClick = { wildcardDelimiter = "." },
-                                    label = { Text("*.") }
-                                )
-                                SegmentedButton(
-                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                    selected = wildcardDelimiter == "+",
-                                    onClick = { wildcardDelimiter = "+" },
-                                    label = { Text("*+") }
-                                )
-                            }
+                            MailxSegmentedControl(
+                                options = listOf("*.", "*+"),
+                                selectedIndex = if (wildcardDelimiter == ".") 0 else 1,
+                                onSelect = { idx -> wildcardDelimiter = if (idx == 0) "." else "+" },
+                                compact = true,
+                                modifier = Modifier.width(108.dp)
+                            )
                             OutlinedTextField(
                                 value = wildcardLocalPart,
                                 onValueChange = {
@@ -260,7 +259,8 @@ fun AddAliasBottomSheet(
                                     }
                                 },
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = fieldColors,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -281,7 +281,8 @@ fun AddAliasBottomSheet(
                     onValueChange = { description = it },
                     label = { Text("Description / Service Note (Optional)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -290,17 +291,19 @@ fun AddAliasBottomSheet(
                     onValueChange = { fromName = it },
                     label = { Text("Sender Display Name (Optional)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 if (defaultsState.availableRecipients.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Forwarding Recipient(s)",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "FORWARDING RECIPIENT(S)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.65.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Row(
                             modifier = Modifier
@@ -321,6 +324,7 @@ fun AddAliasBottomSheet(
                                         }
                                         selectedRecipients = next
                                     },
+                                    shape = RoundedCornerShape(10.dp),
                                     label = { Text(rec, fontSize = 12.sp) }
                                 )
                             }
@@ -357,8 +361,12 @@ fun AddAliasBottomSheet(
                         (selectedFormat != "wildcard" || wildcardSuffixValid),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    shape = CircleShape
+                        .height(48.dp),
+                    shape = RoundedCornerShape(13.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     if (isSubmitting) {
                         CircularProgressIndicator(
@@ -367,9 +375,9 @@ fun AddAliasBottomSheet(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Creating...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Creating...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     } else {
-                        Text("Create & Copy Alias", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Create & Copy Alias", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
