@@ -130,6 +130,9 @@ object MailxIcons {
     val ExternalLink: ImageVector get() = Icons.AutoMirrored.Outlined.OpenInNew
     val ClipboardPaste: ImageVector get() = Icons.Outlined.ContentPaste
     val Mail: ImageVector get() = Icons.Outlined.Mail
+    val MailCheck: ImageVector get() = Icons.Outlined.CheckCircle
+    val Shield: ImageVector get() = Icons.Outlined.Shield
+    val Add: ImageVector get() = Icons.Outlined.Add
     val Eye: ImageVector get() = Icons.Outlined.Visibility
     val EyeOff: ImageVector get() = Icons.Outlined.VisibilityOff
     val ArrowUpDown: ImageVector get() = Icons.Outlined.SwapVert
