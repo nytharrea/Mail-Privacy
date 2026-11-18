@@ -1,6 +1,7 @@
 package net.mailx.android.ui.sheets
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -21,6 +23,7 @@ import net.mailx.android.ui.model.DefaultsUiState
 import net.mailx.android.ui.model.UiCustomDomain
 import net.mailx.android.ui.model.UiWildcardDomainInfo
 import net.mailx.android.ui.theme.MailxIcons
+import net.mailx.android.ui.theme.MailxPalette
 import org.json.JSONObject
 import kotlin.random.Random
 
@@ -71,6 +74,20 @@ fun AddAliasBottomSheet(
     var domainDropdownExpanded by remember { mutableStateOf(false) }
     var formatDropdownExpanded by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
+    var previewSeed by remember { mutableIntStateOf(0) }
+
+    val rustCandidatePreview = remember(selectedDomain, selectedFormat, previewSeed) {
+        if (selectedFormat in listOf("words", "random", "uuid")) {
+            runCatching {
+                val res = JSONObject(
+                    MailxRustBridge.nativeGeneratePassphraseAndCandidate(selectedFormat, selectedDomain, 4)
+                )
+                res.optJSONObject("data")?.optJSONObject("alias_candidate")
+            }.getOrNull()
+        } else {
+            null
+        }
+    }
 
     val matchingCustomDomain = remember(selectedDomain, customDomains) {
         customDomains.find { it.name.equals(selectedDomain, ignoreCase = true) }
@@ -206,6 +223,55 @@ fun AddAliasBottomSheet(
                                         formatDropdownExpanded = false
                                     }
                                 )
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(visible = rustCandidatePreview != null) {
+                    rustCandidatePreview?.let { cand ->
+                        val sampleAddress = cand.optString("address")
+                        val entropyBits = cand.optDouble("entropy_bits", 0.0)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MailxPalette.CryptoCyan.copy(alpha = 0.09f),
+                            border = BorderStroke(0.75.dp, MailxPalette.CryptoCyan.copy(alpha = 0.28f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "RUST FORMAT SAMPLE (${"%.1f".format(entropyBits)} BITS ENTROPY)",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 0.5.sp,
+                                        color = MailxPalette.CryptoCyan
+                                    )
+                                    Text(
+                                        text = sampleAddress,
+                                        fontSize = 12.5.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { previewSeed++ },
+                                    modifier = Modifier.size(30.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = MailxIcons.RefreshCw,
+                                        contentDescription = "Sample another candidate",
+                                        tint = MailxPalette.CryptoCyan,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }

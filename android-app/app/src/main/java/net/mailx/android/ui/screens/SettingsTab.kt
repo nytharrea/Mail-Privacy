@@ -58,6 +58,7 @@ fun SettingsTab(
     onToggleReducedMotion: (Boolean) -> Unit = {},
     onSyncDefaults: () -> Unit,
     onOpenReverseAliasTool: () -> Unit,
+    onOpenPrivacyLabSheet: () -> Unit = {},
     onOpenTrackersReportSheet: () -> Unit = {},
     onOpenDiagnosticsSheet: () -> Unit = {},
     onOpenAccountSheet: () -> Unit = {},
@@ -110,7 +111,7 @@ fun SettingsTab(
                     MailxGroupDivider()
                     MailxSectionRow(
                         title = "Material You Surface Harmonization",
-                        description = "Adapt surfaces to wallpaper while preserving Mailx Teal",
+                        description = "Adapt surfaces to wallpaper while preserving Mailx Indigo",
                         startIcon = MailxIcons.Palette,
                         iconTint = MailxPalette.ReplySky,
                         showSwitch = true,
@@ -170,6 +171,17 @@ fun SettingsTab(
         item(key = "group_privacy_tools") {
             MailxSettingsGroupCard {
                 MailxSectionRow(
+                    title = "Rust Privacy & Security Lab",
+                    description = "URL sanitizer, phishing guard, header/MIME & hygiene radar",
+                    startIcon = MailxIcons.Sparkles,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    trailingBadge = "5 Tools",
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenPrivacyLabSheet
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
                     title = "Send via Reverse Alias",
                     description = "Generate outbound relay addresses for any recipient",
                     startIcon = MailxIcons.Send,
@@ -181,7 +193,7 @@ fun SettingsTab(
                 MailxGroupDivider()
                 MailxSectionRow(
                     title = "Trackers Report Decoder",
-                    description = "Decode removed email tracker fragments offline in Rust",
+                    description = "Decode removed email tracker fragments & vendor intelligence in Rust",
                     startIcon = MailxIcons.ShieldCheck,
                     iconTint = MailxPalette.ForwardEmerald,
                     endIcon = MailxIcons.ChevronRight,

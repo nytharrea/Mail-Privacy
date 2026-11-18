@@ -1390,9 +1390,9 @@ pub fn format_tracker_reason_label(reason: &str) -> String {
 }
 
 pub fn lookup_tracker_vendor(domain: &str) -> TrackerVendorProfile {
-    let lower = domain.trim().to_ascii_lowercase();
+    let lower = domain.trim().trim_end_matches('.').to_ascii_lowercase();
     for (pat, vendor, cat, sev, desc) in KNOWN_TRACKER_VENDORS {
-        if lower == *pat || lower.ends_with(&format!(".{}", pat)) || lower.contains(pat) {
+        if lower == *pat || lower.ends_with(&format!(".{}", pat)) {
             return TrackerVendorProfile {
                 pattern: (*pat).to_string(),
                 vendor_name: (*vendor).to_string(),
@@ -1402,6 +1402,18 @@ pub fn lookup_tracker_vendor(domain: &str) -> TrackerVendorProfile {
             };
         }
     }
+    for (pat, vendor, cat, sev, desc) in KNOWN_TRACKER_VENDORS {
+        if pat.len() >= 6 && lower.contains(pat) {
+            return TrackerVendorProfile {
+                pattern: (*pat).to_string(),
+                vendor_name: (*vendor).to_string(),
+                category: (*cat).to_string(),
+                severity: (*sev).to_string(),
+                description: (*desc).to_string(),
+            };
+        }
+    }
+
 
     TrackerVendorProfile {
         pattern: lower.clone(),

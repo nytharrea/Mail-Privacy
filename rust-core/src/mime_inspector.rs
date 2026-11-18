@@ -65,7 +65,7 @@ pub const DANGEROUS_ATTACHMENT_CATALOG: &[AttachmentRiskEntry] = &[
 ];
 
 pub fn inspect_attachment_filename(filename: &str) -> Option<&'static AttachmentRiskEntry> {
-    let clean = filename.trim().trim_matches('"').trim_matches(''');
+    let clean = filename.trim().trim_matches('"').trim_matches('\'');
     let ext = clean.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase())?;
     DANGEROUS_ATTACHMENT_CATALOG
         .iter()
@@ -101,7 +101,7 @@ pub fn inspect_mime_message(raw_mime: &str) -> MimeStructureReport {
                 .unwrap_or(after)
                 .trim()
                 .trim_matches('"')
-                .trim_matches(''');
+                .trim_matches('\'');
             if !b_val.is_empty() {
                 boundary = Some(b_val.to_string());
             }
@@ -114,7 +114,7 @@ pub fn inspect_mime_message(raw_mime: &str) -> MimeStructureReport {
                 .unwrap_or(after)
                 .trim()
                 .trim_matches('"')
-                .trim_matches(''')
+                .trim_matches('\'')
                 .to_string();
             if !fname.is_empty() && !attachment_filenames.contains(&fname) {
                 if inspect_attachment_filename(&fname).is_some() {
@@ -150,13 +150,14 @@ mod tests {
 
     #[test]
     fn test_inspect_pgp_mime_and_attachments() {
-        let sample = "Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="pgp_bnd"
+        let sample = r#"Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="pgp_bnd"
 --pgp_bnd
 Content-Disposition: attachment; filename="invoice.scr"
 --pgp_bnd--
-";
+"#;
         let rep = inspect_mime_message(sample);
         assert!(rep.is_pgp_mime_encrypted);
         assert_eq!(rep.high_risk_attachments, vec!["invoice.scr".to_string()]);
     }
 }
+

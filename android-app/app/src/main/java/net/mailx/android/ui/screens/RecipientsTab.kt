@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxGroupDivider
 import net.mailx.android.ui.components.MailxModernDialog
@@ -36,6 +37,7 @@ import net.mailx.android.ui.components.mailxSwitchColors
 import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.MailxPalette
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -406,6 +408,21 @@ fun RecipientsTab(
                                 }
                             }
 
+                            val domainTrustInfo = remember(rec.email) {
+                                runCatching {
+                                    val res = JSONObject(MailxRustBridge.nativeEvaluatePhishingRisk(rec.email, "", ""))
+                                    res.optJSONObject("data")
+                                }.getOrNull()
+                            }
+                            val pgpInspectionInfo = remember(rec.pgpKey) {
+                                if (rec.hasPgpKey) {
+                                    runCatching {
+                                        val res = JSONObject(MailxRustBridge.nativeInspectOpenPgpKey(rec.pgpKey))
+                                        res.optJSONObject("data")
+                                    }.getOrNull()
+                                } else null
+                            }
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -435,6 +452,13 @@ fun RecipientsTab(
                                             color = if (rec.pgpEnabled) MailxPalette.SentIndigo else MaterialTheme.colorScheme.secondary
                                         )
                                     }
+                                    val trustScore = domainTrustInfo?.optInt("domain_trust_score", 0) ?: 0
+                                    if (trustScore > 0) {
+                                        StatusPillBadge(
+                                            text = "Trust $trustScore",
+                                            color = if (trustScore >= 85) MailxPalette.BrandAccentTeal else MailxPalette.ReplySky
+                                        )
+                                    }
                                 }
 
                                 Icon(
@@ -445,7 +469,7 @@ fun RecipientsTab(
                                 )
                             }
 
-                            // Calm, single-purpose expanded section (no 2x2 button grid clutter!)
+                            // Calm, single-purpose expanded section with Rust Domain Trust & PGP Inspector
                             AnimatedVisibility(visible = isExpanded) {
                                 Column(
                                     modifier = Modifier
@@ -457,6 +481,55 @@ fun RecipientsTab(
                                         thickness = 0.75.dp,
                                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
                                     )
+
+                                    domainTrustInfo?.let { dt ->
+                                        val domClass = dt.optString("domain_classification", "")
+                                        val domProvider = dt.optString("domain_provider", "")
+                                        val supportsDane = dt.optBoolean("supports_dane_or_mta_sts", false)
+                                        if (domClass.isNotBlank()) {
+                                            Surface(
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = buildString {
+                                                        append("Rust Domain Audit: $domClass")
+                                                        if (domProvider.isNotBlank()) append(" • $domProvider")
+                                                        if (supportsDane) append(" • DANE/MTA-STS")
+                                                    },
+                                                    fontSize = 11.5.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    pgpInspectionInfo?.let { pgpInfo ->
+                                        val summary = pgpInfo.optString("summary", "")
+                                        val crcOk = pgpInfo.optBoolean("crc24_verified", false)
+                                        if (summary.isNotBlank()) {
+                                            Surface(
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = if (crcOk) {
+                                                    MailxPalette.ForwardEmerald.copy(alpha = 0.12f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.surfaceContainer
+                                                },
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "RFC-4880 PGP Key: $summary",
+                                                    fontSize = 11.5.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (crcOk) MailxPalette.ForwardEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
+                                                )
+                                            }
+                                        }
+                                    }
 
                                     if (!rec.isActive) {
                                         Row(
@@ -906,6 +979,15 @@ fun RecipientsTab(
 
     pgpEditingRecipient?.let { rec ->
         var pgpText by remember(rec) { mutableStateOf(rec.pgpKey) }
+        val livePgpInspect = remember(pgpText) {
+            if (pgpText.isNotBlank()) {
+                runCatching {
+                    val res = JSONObject(MailxRustBridge.nativeInspectOpenPgpKey(pgpText))
+                    res.optJSONObject("data")
+                }.getOrNull()
+            } else null
+        }
+
         MailxModernDialog(
             title = "OpenPGP Public Key",
             subtitle = "Paste your public PGP key for ${rec.email} starting with '-----BEGIN PGP PUBLIC KEY BLOCK-----':",
@@ -948,6 +1030,43 @@ fun RecipientsTab(
                 colors = mailxTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            livePgpInspect?.let { info ->
+                val validArmor = info.optBoolean("valid_armor", false)
+                val crcOk = info.optBoolean("crc24_verified", false)
+                val summary = info.optString("summary", "")
+                val statusColor = when {
+                    validArmor && crcOk -> MailxPalette.ForwardEmerald
+                    validArmor -> MailxPalette.PausedAmber
+                    else -> MailxPalette.BlockedRose
+                }
+                Surface(
+                    shape = RoundedCornerShape(11.dp),
+                    color = statusColor.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = if (validArmor) "Rust RFC-4880 Inspector: Valid Armor" else "Invalid OpenPGP Armor Block",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = statusColor
+                        )
+                        if (summary.isNotBlank()) {
+                            Text(
+                                text = summary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

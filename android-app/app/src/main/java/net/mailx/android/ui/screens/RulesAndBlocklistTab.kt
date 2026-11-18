@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxModernDialog
 import net.mailx.android.ui.components.MailxOptionPickerDialog
@@ -28,6 +29,8 @@ import net.mailx.android.ui.components.mailxSwitchColors
 import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.theme.MailxPalette
+import org.json.JSONArray
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,7 @@ fun RulesAndBlocklistTab(
 ) {
     var selectedSection by remember { mutableIntStateOf(0) }
     var editingRule by remember { mutableStateOf<UiRule?>(null) }
+    var simulatingRule by remember { mutableStateOf<UiRule?>(null) }
     var isDuplicatingRule by remember { mutableStateOf(false) }
     var showCreateRuleSheet by remember { mutableStateOf(false) }
     var showAddBlockDialog by remember { mutableStateOf(false) }
@@ -198,6 +202,21 @@ fun RulesAndBlocklistTab(
                                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                         ) {
                                             DropdownMenuItem(
+                                                text = { Text("Simulate Rule in Rust", fontSize = 13.5.sp) },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        Icons.Outlined.PlayArrow,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.secondary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                },
+                                                onClick = {
+                                                    showRuleMenu = false
+                                                    simulatingRule = rule
+                                                }
+                                            )
+                                            DropdownMenuItem(
                                                 text = { Text("Edit Rule", fontSize = 13.5.sp) },
                                                 leadingIcon = {
                                                     Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -327,6 +346,40 @@ fun RulesAndBlocklistTab(
                                     )
                                 }
                             }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Surface(
+                                    onClick = { simulatingRule = rule },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
+                                    border = BorderStroke(
+                                        width = 0.75.dp,
+                                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.32f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Science,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = "Test Rule in Rust",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -425,6 +478,19 @@ fun RulesAndBlocklistTab(
     if (showAddBlockDialog) {
         var blockType by remember { mutableStateOf("email") }
         var blockValue by remember { mutableStateOf("") }
+        val liveDomainRisk = remember(blockValue, blockType) {
+            if (blockValue.trim().length >= 4) {
+                runCatching {
+                    val probe = if (blockType == "domain" && !blockValue.contains("@")) {
+                        "sender@${blockValue.trim()}"
+                    } else {
+                        blockValue.trim()
+                    }
+                    val res = JSONObject(MailxRustBridge.nativeEvaluatePhishingRisk(probe, "", ""))
+                    res.optJSONObject("data")
+                }.getOrNull()
+            } else null
+        }
 
         MailxModernDialog(
             title = "Block Email or Domain",
@@ -460,6 +526,169 @@ fun RulesAndBlocklistTab(
                 colors = mailxTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            liveDomainRisk?.let { risk ->
+                val domClass = risk.optString("domain_classification", "")
+                val trustScore = risk.optInt("domain_trust_score", 50)
+                val isThrowaway = risk.optBoolean("is_ephemeral_throwaway", false)
+                if (domClass.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isThrowaway) {
+                            MailxPalette.BlockedRose.copy(alpha = 0.12f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerLow
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Rust Domain Audit: $domClass • Trust $trustScore/100",
+                            fontSize = 11.5.sp,
+                            color = if (isThrowaway) MailxPalette.BlockedRose else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    simulatingRule?.let { rule ->
+        var simSender by remember(rule) { mutableStateOf("newsletter@promo.example.com") }
+        var simSubject by remember(rule) {
+            val firstSubVal = rule.conditions.firstOrNull { it.type == "subject" }?.values?.firstOrNull()
+            mutableStateOf(firstSubVal ?: "Weekly Promotional Offer")
+        }
+        var simAlias by remember(rule) { mutableStateOf("vault.alias@mailx.net") }
+        var simIsMailingList by remember(rule) { mutableStateOf(true) }
+        var simHasAttachments by remember(rule) { mutableStateOf(false) }
+
+        val simVerdict = remember(rule, simSender, simSubject, simAlias, simIsMailingList, simHasAttachments) {
+            runCatching {
+                val ruleJsonObj = JSONObject().apply {
+                    put("id", rule.id)
+                    put("name", rule.name)
+                    put("operator", rule.operator)
+                    put("forwards", rule.forwards)
+                    put("replies", rule.replies)
+                    put("sends", rule.sends)
+                    put("active", true)
+                    put("conditions", JSONArray().apply {
+                        rule.conditions.forEach { put(it.toJson()) }
+                    })
+                    put("actions", JSONArray().apply {
+                        rule.actions.forEach { put(it.toJson()) }
+                    })
+                }
+                val ctxJsonObj = JSONObject().apply {
+                    put("sender", simSender)
+                    put("sender_name", "Simulated Sender")
+                    put("subject", simSubject)
+                    put("alias", simAlias)
+                    put("alias_description", "")
+                    put("destination", availableRecipients.firstOrNull().orEmpty())
+                    put("is_mailing_list", simIsMailingList)
+                    put("has_attachments", simHasAttachments)
+                    put("alias_is_wildcard", simAlias.startsWith("*"))
+                    put("relay_type", "forwards")
+                }
+                val res = JSONObject(
+                    MailxRustBridge.nativeSimulateRule(
+                        ruleJsonObj.toString(),
+                        ctxJsonObj.toString()
+                    )
+                )
+                res.optJSONObject("data")
+            }.getOrNull()
+        }
+
+        MailxModernDialog(
+            title = "Rust Rule Simulator: ${rule.name}",
+            subtitle = "Test how this rule evaluates a sample incoming email offline in Rust:",
+            icon = Icons.Outlined.Science,
+            iconTint = MaterialTheme.colorScheme.secondary,
+            dismissText = "Close",
+            onDismiss = { simulatingRule = null }
+        ) {
+            OutlinedTextField(
+                value = simSender,
+                onValueChange = { simSender = it },
+                label = { Text("Sample Sender Email") },
+                singleLine = true,
+                shape = RoundedCornerShape(11.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = simSubject,
+                onValueChange = { simSubject = it },
+                label = { Text("Sample Subject Line") },
+                singleLine = true,
+                shape = RoundedCornerShape(11.dp),
+                colors = mailxTextFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = simIsMailingList,
+                    onClick = { simIsMailingList = !simIsMailingList },
+                    shape = RoundedCornerShape(9.dp),
+                    label = { Text("Mailing List", fontSize = 11.5.sp) }
+                )
+                FilterChip(
+                    selected = simHasAttachments,
+                    onClick = { simHasAttachments = !simHasAttachments },
+                    shape = RoundedCornerShape(9.dp),
+                    label = { Text("Has Attachments", fontSize = 11.5.sp) }
+                )
+            }
+
+            simVerdict?.let { v ->
+                val matched = v.optBoolean("matched", false)
+                val shouldBlock = v.optBoolean("should_block", false)
+                val removeAtt = v.optBoolean("remove_attachments", false)
+                val verdictColor = if (matched) MailxPalette.ForwardEmerald else MailxPalette.PausedAmber
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = verdictColor.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, verdictColor.copy(alpha = 0.40f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (matched) "✓ RULE MATCHED IN RUST" else "✕ NO MATCH",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = verdictColor
+                        )
+                        if (matched) {
+                            Text(
+                                text = buildString {
+                                    append("Executed Actions: ")
+                                    val list = mutableListOf<String>()
+                                    if (shouldBlock) list.add("Block Email")
+                                    if (removeAtt) list.add("Strip Attachments")
+                                    val repSub = v.optString("replacement_subject", "")
+                                    if (repSub.isNotBlank() && repSub != "null") {
+                                        list.add("Subject → \"$repSub\"")
+                                    }
+                                    if (list.isEmpty()) list.add("${rule.actions.size} rule action(s)")
+                                    append(list.joinToString(" • "))
+                                },
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

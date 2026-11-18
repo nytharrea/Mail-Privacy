@@ -43,15 +43,23 @@ pub struct MailxRuleSpec {
     pub active: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimulatedEmailContext {
+    #[serde(default, alias = "sender")]
     pub sender_email: String,
+    #[serde(default)]
     pub sender_name: String,
+    #[serde(default)]
     pub subject: String,
+    #[serde(default, alias = "alias")]
     pub alias_email: String,
+    #[serde(default)]
     pub alias_description: String,
+    #[serde(default)]
     pub is_mailing_list: bool,
+    #[serde(default)]
     pub has_attachments: bool,
+    #[serde(default)]
     pub alias_is_wildcard: bool,
 }
 

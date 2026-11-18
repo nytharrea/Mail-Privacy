@@ -207,6 +207,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 title = currentTab.label,
                 defaultDomain = defaultsState.defaultDomain,
                 userInitials = userInitials,
+                onPrivacyLabClick = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
                 onSendMailClick = {
                     val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
                         ?: "example.alias@${defaultsState.defaultDomain}"
@@ -303,6 +304,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onOpenDiagnostics = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
                         onOpenTrackersReport = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
+                        onOpenPrivacyLab = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
                         onSelectAlias = { vm.openSheet(ActiveSheet.ManageAlias(it.id)) },
                         onCopyOrWildcard = { alias ->
                             if (alias.wildcard) {
@@ -407,6 +409,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                                 ?: "example.alias@${defaultsState.defaultDomain}"
                             vm.openSheet(ActiveSheet.ReverseSend(firstActive))
                         },
+                        onOpenPrivacyLabSheet = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
                         onOpenTrackersReportSheet = { vm.openSheet(ActiveSheet.TrackersReportSheet) },
                         onOpenDiagnosticsSheet = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
@@ -445,6 +448,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 vm.closeSheet()
                 vm.selectTab(MainNavTab.SETTINGS)
             },
+            onOpenPrivacyLab = { vm.openSheet(ActiveSheet.PrivacyLabSheet) },
             onOpenDiagnostics = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
             onOpenAccount = { vm.openSheet(ActiveSheet.AccountSheet) },
             onOpenAnnouncements = { vm.openSheet(ActiveSheet.AnnouncementsSheet) },
@@ -455,6 +459,12 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 vm.openSheet(ActiveSheet.ReverseSend(firstActive))
             },
             onRequestLogout = { vm.openSheet(ActiveSheet.ConfirmLogout) }
+        )
+
+        ActiveSheet.PrivacyLabSheet -> PrivacyLabBottomSheet(
+            aliases = aliases,
+            defaultDomain = defaultsState.defaultDomain,
+            onDismiss = vm::closeSheet
         )
 
         ActiveSheet.AccountSheet -> AccountBottomSheet(
@@ -693,6 +703,7 @@ private fun MailxCleanTopBar(
     title: String,
     defaultDomain: String,
     userInitials: String,
+    onPrivacyLabClick: () -> Unit,
     onSendMailClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onProfileClick: () -> Unit
@@ -712,13 +723,13 @@ private fun MailxCleanTopBar(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -735,7 +746,7 @@ private fun MailxCleanTopBar(
                     Text(
                         text = "@$defaultDomain",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
@@ -743,9 +754,25 @@ private fun MailxCleanTopBar(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                FilledTonalIconButton(
+                    onClick = onPrivacyLabClick,
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f),
+                        contentColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(
+                        imageVector = MailxIcons.Sparkles,
+                        contentDescription = "Rust Privacy Lab",
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+
                 FilledTonalIconButton(
                     onClick = onSendMailClick,
                     modifier = Modifier.size(36.dp),
@@ -815,6 +842,7 @@ private fun MailxCommandBottomSheet(
     onNavigateToRecipients: () -> Unit,
     onNavigateToRules: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onOpenPrivacyLab: () -> Unit,
     onOpenDiagnostics: () -> Unit,
     onOpenAccount: () -> Unit,
     onOpenAnnouncements: () -> Unit,
@@ -905,6 +933,14 @@ private fun MailxCommandBottomSheet(
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     CompactMenuItemRow(
+                        icon = MailxIcons.Sparkles,
+                        title = "Rust Privacy & Security Lab",
+                        subtitle = "URL sanitizer, phishing guard, header/MIME & hygiene radar",
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        onClick = onOpenPrivacyLab
+                    )
+                    MailxGroupDivider()
+                    CompactMenuItemRow(
                         icon = MailxIcons.Send,
                         title = "Send via Reverse Alias",
                         subtitle = "Compose outgoing email from any alias",
@@ -915,7 +951,7 @@ private fun MailxCommandBottomSheet(
                     CompactMenuItemRow(
                         icon = MailxIcons.ShieldCheck,
                         title = "Trackers Report Decoder",
-                        subtitle = "Inspect removed email trackers offline in Rust",
+                        subtitle = "Inspect removed email trackers & vendor intelligence in Rust",
                         iconTint = MailxPalette.ForwardEmerald,
                         onClick = onOpenTrackersReport
                     )
@@ -923,7 +959,7 @@ private fun MailxCommandBottomSheet(
                     CompactMenuItemRow(
                         icon = MailxIcons.Bug,
                         title = "Delivery & Bounce Logs",
-                        subtitle = "Server health check & raw MTA bounce viewer",
+                        subtitle = "Server health check & RFC-3463 MTA bounce analyzer",
                         iconTint = MailxPalette.PausedAmber,
                         onClick = onOpenDiagnostics
                     )
@@ -956,7 +992,7 @@ private fun MailxCommandBottomSheet(
             }
 
             Text(
-                text = "$baseUrl • Rust Core v0.5.0",
+                text = "$baseUrl • Rust Core v0.5.0 • Material 3 Expressive",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center,

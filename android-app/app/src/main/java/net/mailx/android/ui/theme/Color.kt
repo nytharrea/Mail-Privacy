@@ -3,106 +3,63 @@ package net.mailx.android.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object MailxPalette {
-    val BrandHeroBg = Color(0xFF0B0E11)
-    val BrandHeroSurface = Color(0xFF13181D)
-    val BrandAccentTeal = Color(0xFF14B8A6)
+    // Primary Brand — Electric Indigo & Violet-Blue (Material 3 Expressive)
+    val BrandPrimary = Color(0xFF4F46E5)
+    val BrandPrimaryDark = Color(0xFF818CF8)
+    val BrandPrimaryContainerDark = Color(0xFF282469)
+    val BrandOnPrimaryContainerDark = Color(0xFFE0E7FF)
+    val BrandPrimaryContainerLight = Color(0xFFE0E7FF)
+    val BrandOnPrimaryContainerLight = Color(0xFF1E1B4B)
 
-    // Desaturated, calm telemetry hues — only critical states (Blocked, Paused) stay vibrant
-    val ForwardEmerald = Color(0xFF2E9E83)
-    val ReplySky = Color(0xFF5689B5)
-    val SentIndigo = Color(0xFF6E78A8)
-    val VerifiedGreen = Color(0xFF349B76)
+    // Secondary Accent — Cyber Cyan & Teal
+    val BrandAccentTeal = Color(0xFF06B6D4)
+    val BrandAccentTealDark = Color(0xFF22D3EE)
+    val BrandSecondaryContainerDark = Color(0xFF113847)
+    val BrandOnSecondaryContainerDark = Color(0xFFCFFAFE)
+    val BrandSecondaryContainerLight = Color(0xFFCFFAFE)
+    val BrandOnSecondaryContainerLight = Color(0xFF083344)
+
+    // Tertiary Accent — Royal Violet
+    val BrandTertiaryViolet = Color(0xFF9333EA)
+    val BrandTertiaryVioletDark = Color(0xFFC084FC)
+    val BrandTertiaryContainerDark = Color(0xFF3B195E)
+    val BrandOnTertiaryContainerDark = Color(0xFFF3E8FF)
+    val BrandTertiaryContainerLight = Color(0xFFF3E8FF)
+    val BrandOnTertiaryContainerLight = Color(0xFF3B0764)
+
+    // Semantic Telemetry & Status Colors
+    val ForwardEmerald = Color(0xFF10B981)
+    val ForwardEmeraldSoft = Color(0xFF34D399)
+    val ReplySky = Color(0xFF0EA5E9)
+    val SentIndigo = Color(0xFF8B5CF6)
     val BlockedRose = Color(0xFFF43F5E)
     val PausedAmber = Color(0xFFF59E0B)
 
+    // Dark Tonal Surface Hierarchy (Deep Obsidian with subtle Indigo undertone)
+    val Obsidian950 = Color(0xFF070910)
+    val Obsidian925 = Color(0xFF0B0E17)
+    val Obsidian900 = Color(0xFF101420)
+    val Obsidian850 = Color(0xFF151B2B)
+    val Obsidian800 = Color(0xFF1B2336)
+    val Obsidian750 = Color(0xFF232D45)
+    val ObsidianBorder = Color(0xFF2A3652)
+
+    // Light Tonal Surface Hierarchy (Crisp Alabaster & Cool Slate)
+    val Pearl50 = Color(0xFFF8FAFC)
+    val Pearl100 = Color(0xFFFFFFFF)
+    val Pearl150 = Color(0xFFF1F5F9)
+    val Pearl200 = Color(0xFFE2E8F0)
+    val Pearl300 = Color(0xFFCBD5E1)
+
+    // Neutral Typography & Iconography
+    val Slate50 = Color(0xFFF8FAFC)
+    val Slate100 = Color(0xFFF1F5F9)
+    val Slate200 = Color(0xFFE2E8F0)
+    val Slate300 = Color(0xFFCBD5E1)
     val Slate400 = Color(0xFF94A3B8)
     val Slate500 = Color(0xFF64748B)
     val Slate600 = Color(0xFF475569)
     val Slate700 = Color(0xFF334155)
-
-    // Refined, high-contrast Dark Tonal Palette (Sophisticated Teal #14B8A6 on clean neutral slate)
-    val PrimaryDark = Color(0xFF14B8A6)
-    val OnPrimaryDark = Color(0xFF002C26)
-    val PrimaryContainerDark = Color(0xFF0F4C45)
-    val OnPrimaryContainerDark = Color(0xFFB2F5EA)
-
-    val SecondaryDark = Color(0xFF94A3B8)
-    val OnSecondaryDark = Color(0xFF1E293B)
-    val SecondaryContainerDark = Color(0xFF263241)
-    val OnSecondaryContainerDark = Color(0xFFE2E8F0)
-
-    val TertiaryDark = Color(0xFF7FA6D6)
-    val OnTertiaryDark = Color(0xFF0F2942)
-    val TertiaryContainerDark = Color(0xFF1E3A5F)
-    val OnTertiaryContainerDark = Color(0xFFD6E6FF)
-
-    val ErrorDark = Color(0xFFFFB4AB)
-    val OnErrorDark = Color(0xFF690005)
-    val ErrorContainerDark = Color(0xFF93000A)
-    val OnErrorContainerDark = Color(0xFFFFDAD6)
-
-    val DarkBackground = Color(0xFF0B0E11)
-    val DarkOnBackground = Color(0xFFE6EDF3)
-    val DarkSurface = Color(0xFF0B0E11)
-    val DarkOnSurface = Color(0xFFE6EDF3)
-    val DarkSurfaceVariant = Color(0xFF26303A)
-    val DarkOnSurfaceVariant = Color(0xFF9BA7B4)
-    val DarkOutline = Color(0xFF6E7B88)
-    val DarkOutlineVariant = Color(0xFF28323C)
-
-    // Distinct tonal surface hierarchy: Lowest -> Low -> Container -> High -> Highest
-    val DarkSurfaceLowest = Color(0xFF07090B)
-    val DarkSurfaceLow = Color(0xFF13181D)
-    val DarkSurfaceContainer = Color(0xFF1A2128)
-    val DarkSurfaceHigh = Color(0xFF232C35)
-    val DarkSurfaceHighest = Color(0xFF2D3843)
-
-    // AMOLED Pure Black with WCAG AA/AAA text & clear container separation
-    val AmoledBackground = Color(0xFF000000)
-    val AmoledSurface = Color(0xFF000000)
-    val AmoledOnSurface = Color(0xFFF1F5F9)
-    val AmoledOnSurfaceVariant = Color(0xFFBEC8D2)
-    val AmoledSurfaceLowest = Color(0xFF000000)
-    val AmoledSurfaceLow = Color(0xFF0D1115)
-    val AmoledSurfaceContainer = Color(0xFF151B21)
-    val AmoledSurfaceHigh = Color(0xFF1E262E)
-    val AmoledSurfaceHighest = Color(0xFF27313B)
-    val AmoledOutline = Color(0xFF7B8794)
-    val AmoledOutlineVariant = Color(0xFF242E38)
-
-    // Clean, trustworthy Light Tonal Palette
-    val PrimaryLight = Color(0xFF0D9488)
-    val OnPrimaryLight = Color(0xFFFFFFFF)
-    val PrimaryContainerLight = Color(0xFFCCFBF1)
-    val OnPrimaryContainerLight = Color(0xFF042F2E)
-
-    val SecondaryLight = Color(0xFF475569)
-    val OnSecondaryLight = Color(0xFFFFFFFF)
-    val SecondaryContainerLight = Color(0xFFE2E8F0)
-    val OnSecondaryContainerLight = Color(0xFF0F172A)
-
-    val TertiaryLight = Color(0xFF3B6698)
-    val OnTertiaryLight = Color(0xFFFFFFFF)
-    val TertiaryContainerLight = Color(0xFFDbeafe)
-    val OnTertiaryContainerLight = Color(0xFF0F2942)
-
-    val ErrorLight = Color(0xFFDC2626)
-    val OnErrorLight = Color(0xFFFFFFFF)
-    val ErrorContainerLight = Color(0xFFFEE2E2)
-    val OnErrorContainerLight = Color(0xFF450A0A)
-
-    val LightBackground = Color(0xFFF8FAFC)
-    val LightOnBackground = Color(0xFF0F172A)
-    val LightSurface = Color(0xFFF8FAFC)
-    val LightOnSurface = Color(0xFF0F172A)
-    val LightSurfaceVariant = Color(0xFFE2E8F0)
-    val LightOnSurfaceVariant = Color(0xFF475569)
-    val LightOutline = Color(0xFF64748B)
-    val LightOutlineVariant = Color(0xFFCBD5E1)
-
-    val LightSurfaceLowest = Color(0xFFFFFFFF)
-    val LightSurfaceLow = Color(0xFFF1F5F9)
-    val LightSurfaceContainer = Color(0xFFE8EEF5)
-    val LightSurfaceHigh = Color(0xFFDEE6EF)
-    val LightSurfaceHighest = Color(0xFFD3DFEB)
+    val Slate800 = Color(0xFF1E293B)
+    val Slate900 = Color(0xFF0F172A)
 }

@@ -89,6 +89,44 @@ object MailxRustBridge {
     external fun nativeAuditAliasHygiene(aliasesJson: String): String
 
     @JvmStatic
+    external fun nativeInspectOpenPgpKey(armoredKey: String): String
+
+    @JvmStatic
+    external fun nativeEvaluatePhishingRisk(
+        fromHeader: String,
+        replyToHeader: String,
+        returnPathHeader: String
+    ): String
+
+    @JvmStatic
+    external fun nativeSimulateRule(
+        ruleJson: String,
+        emailContextJson: String
+    ): String
+
+    @JvmStatic
+    external fun nativeAnalyzeMtaBounce(
+        logType: String,
+        statusText: String,
+        messageText: String,
+        remoteMta: String,
+        rawBounce: String
+    ): String
+
+    @JvmStatic
+    external fun nativeGenerateTotpToken(
+        base32Secret: String,
+        unixSeconds: Long
+    ): String
+
+    @JvmStatic
+    external fun nativeGeneratePassphraseAndCandidate(
+        format: String,
+        domain: String,
+        wordCount: Int
+    ): String
+
+    @JvmStatic
     external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
 
     @JvmStatic

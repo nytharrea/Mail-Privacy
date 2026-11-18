@@ -527,7 +527,11 @@ data class UiPasskeyCredential(
 data class UiRemovedTracker(
     val domain: String,
     val element: String,
-    val reason: String
+    val reason: String,
+    val vendorName: String = "",
+    val category: String = "",
+    val severity: String = "",
+    val description: String = ""
 ) {
     val elementLabel: String
         get() = when (element) {
@@ -551,14 +555,34 @@ data class UiRemovedTracker(
 @Immutable
 data class UiTrackersReport(
     val total: Int,
-    val trackers: List<UiRemovedTracker>
+    val trackers: List<UiRemovedTracker>,
+    val highSeverityCount: Int = 0,
+    val pixelBeaconCount: Int = 0,
+    val linkRedirectCount: Int = 0,
+    val uniqueDomains: Int = 0
 ) {
     companion object {
         fun fromJson(obj: JSONObject?): UiTrackersReport? {
             if (obj == null) return null
+            val enrichedArr = obj.optJSONArray("enriched_findings")
             val arr = obj.optJSONArray("trackers")
             val list = buildList {
-                if (arr != null) {
+                if (enrichedArr != null && enrichedArr.length() > 0) {
+                    for (i in 0 until enrichedArr.length()) {
+                        val item = enrichedArr.optJSONObject(i) ?: continue
+                        add(
+                            UiRemovedTracker(
+                                domain = item.optString("domain", "Unknown").ifBlank { "Unknown" },
+                                element = item.optString("element", ""),
+                                reason = item.optString("reason", ""),
+                                vendorName = item.optString("vendor_name", ""),
+                                category = item.optString("category", ""),
+                                severity = item.optString("severity", ""),
+                                description = item.optString("description", "")
+                            )
+                        )
+                    }
+                } else if (arr != null) {
                     for (i in 0 until arr.length()) {
                         val item = arr.optJSONObject(i) ?: continue
                         add(
@@ -572,7 +596,14 @@ data class UiTrackersReport(
                 }
             }
             val total = maxOf(obj.optInt("total", list.size), list.size)
-            return UiTrackersReport(total = total, trackers = list)
+            return UiTrackersReport(
+                total = total,
+                trackers = list,
+                highSeverityCount = obj.optInt("high_severity_count", 0),
+                pixelBeaconCount = obj.optInt("pixel_beacon_count", 0),
+                linkRedirectCount = obj.optInt("link_redirect_count", 0),
+                uniqueDomains = obj.optInt("unique_domains", list.map { it.domain }.distinct().size)
+            )
         }
     }
 }
@@ -708,6 +739,7 @@ sealed interface ActiveSheet {
     data object AccountSheet : ActiveSheet
     data object AnnouncementsSheet : ActiveSheet
     data object TrackersReportSheet : ActiveSheet
+    data object PrivacyLabSheet : ActiveSheet
     data class ManageAlias(val aliasId: String) : ActiveSheet
     data class WildcardGen(val alias: UiAlias) : ActiveSheet
     data class ReverseSend(val initialAlias: String) : ActiveSheet

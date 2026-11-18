@@ -513,6 +513,57 @@ fun AccountBottomSheet(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Open in Authenticator App", fontSize = 12.sp)
                         }
+                        val rustTotpPreview = remember(userAccount.totpSetupSecret) {
+                            runCatching {
+                                val res = JSONObject(
+                                    MailxRustBridge.nativeGenerateTotpToken(userAccount.totpSetupSecret, 0L)
+                                )
+                                res.optJSONObject("data")?.takeIf { it.optBoolean("valid", false) }
+                            }.getOrNull()
+                        }
+                        if (rustTotpPreview != null) {
+                            val liveCode = rustTotpPreview.optString("code")
+                            val remSecs = rustTotpPreview.optInt("remaining_seconds", 30)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MailxPalette.ForwardedGreen.copy(alpha = 0.10f),
+                                border = BorderStroke(0.75.dp, MailxPalette.ForwardedGreen.copy(alpha = 0.28f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "RUST RFC-6238 LIVE CODE (${remSecs}s)",
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MailxPalette.ForwardedGreen
+                                        )
+                                        Text(
+                                            text = liveCode,
+                                            fontSize = 15.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 2.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    FilledTonalButton(
+                                        onClick = { totpConfirmInput = liveCode },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(30.dp),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("Fill Code", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1339,6 +1390,20 @@ fun DiagnosticsBottomSheet(
                 )
             } else {
                 logs.forEach { log ->
+                    val bounceReport = remember(log.id, log.logType, log.status, log.message, log.remoteMta) {
+                        runCatching {
+                            val res = JSONObject(
+                                MailxRustBridge.nativeAnalyzeMtaBounce(
+                                    log.logType,
+                                    log.status,
+                                    log.message,
+                                    log.remoteMta,
+                                    ""
+                                )
+                            )
+                            res.optJSONObject("data")
+                        }.getOrNull()
+                    }
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1354,18 +1419,40 @@ fun DiagnosticsBottomSheet(
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = log.logType.uppercase(),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MailxPalette.PausedAmber
-                                )
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = log.logType.uppercase(),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MailxPalette.PausedAmber
+                                    )
+                                    bounceReport?.let { rep ->
+                                        val isPerm = rep.optBoolean("is_permanent_failure", false)
+                                        val catColor = if (isPerm) MailxPalette.BlockedRose else MailxPalette.CryptoCyan
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = catColor.copy(alpha = 0.14f)
+                                        ) {
+                                            Text(
+                                                text = rep.optString("category", "Diagnostic"),
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = catColor,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
                                     text = formatIsoDateShort(log.attemptedAt.ifBlank { log.createdAt }),
                                     fontSize = 11.sp,
@@ -1394,6 +1481,27 @@ fun DiagnosticsBottomSheet(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                            bounceReport?.let { rep ->
+                                val recAction = rep.optString("recommended_action")
+                                val enhCode = rep.optString("enhanced_code")
+                                if (recAction.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = buildString {
+                                                if (enhCode.isNotBlank()) append("RFC-3463 [$enhCode]: ")
+                                                append(recAction)
+                                            },
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1402,26 +1510,59 @@ fun DiagnosticsBottomSheet(
     }
 
     viewingRawBounceText?.let { raw ->
+        val rawAudit = remember(raw) {
+            runCatching {
+                JSONObject(MailxRustBridge.nativeAnalyzeMtaBounce("bounced", "", "", "", raw))
+                    .optJSONObject("data")
+            }.getOrNull()
+        }
         MailxModernDialog(
-            title = "Raw Bounce Log",
+            title = "Raw Bounce Log (Rust RFC-3463)",
             icon = Icons.Outlined.ReceiptLong,
             dismissText = "Close",
             onDismiss = { viewingRawBounceText = null }
         ) {
-            Surface(
-                shape = RoundedCornerShape(11.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 280.dp)
-            ) {
-                Column(
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                rawAudit?.let { rep ->
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MailxPalette.CryptoCyan.copy(alpha = 0.11f),
+                        border = BorderStroke(0.75.dp, MailxPalette.CryptoCyan.copy(alpha = 0.30f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(
+                                text = "${rep.optString("category")} • ${rep.optString("enhanced_code").ifBlank { "SMTP" }}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MailxPalette.CryptoCyan
+                            )
+                            Text(
+                                text = rep.optString("recommended_action"),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(12.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = 260.dp)
                 ) {
-                    SelectionContainer {
-                        Text(raw, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                    Column(
+                        modifier = Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(12.dp)
+                    ) {
+                        SelectionContainer {
+                            Text(raw, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                        }
                     }
                 }
             }
@@ -1604,16 +1745,65 @@ fun TrackersReportBottomSheet(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Mailx removed ${report.total} ${if (report.total == 1) "tracker" else "trackers"} from this email before forwarding it.",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(14.dp)
-                    )
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Mailx removed ${report.total} ${if (report.total == 1) "tracker" else "trackers"} from this email before forwarding it.",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MailxPalette.BlockedRose.copy(alpha = 0.16f)
+                            ) {
+                                Text(
+                                    text = "${report.highSeverityCount} High Severity",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MailxPalette.BlockedRose,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MailxPalette.PausedAmber.copy(alpha = 0.16f)
+                            ) {
+                                Text(
+                                    text = "${report.pixelBeaconCount} Pixel Beacons",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MailxPalette.PausedAmber,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MailxPalette.CryptoCyan.copy(alpha = 0.16f)
+                            ) {
+                                Text(
+                                    text = "${report.linkRedirectCount} Redirects",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MailxPalette.CryptoCyan,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
                 report.trackers.forEachIndexed { idx, tracker ->
+                    val sevColor = when (tracker.severity.lowercase()) {
+                        "high" -> MailxPalette.BlockedRose
+                        "medium" -> MailxPalette.PausedAmber
+                        else -> MailxPalette.CryptoCyan
+                    }
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1622,20 +1812,47 @@ fun TrackersReportBottomSheet(
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${idx + 1}. ${tracker.domain}",
+                                    fontSize = 13.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = sevColor.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "${tracker.severity.uppercase()} • ${tracker.vendorName}",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = sevColor,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                             Text(
-                                text = "${idx + 1}. ${tracker.domain}",
-                                fontSize = 13.5.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Element: ${tracker.elementLabel} • Reason: ${tracker.reasonLabel}",
-                                fontSize = 12.sp,
+                                text = "Element: ${tracker.elementLabel} • Reason: ${tracker.reasonLabel} • ${tracker.category}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (tracker.description.isNotBlank()) {
+                                Text(
+                                    text = tracker.description,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                                )
+                            }
                         }
                     }
                 }

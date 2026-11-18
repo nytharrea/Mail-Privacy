@@ -417,34 +417,8 @@ pub fn parse_aliases_csv_import(
     Ok(CsvImportPlan { requests, skipped })
 }
 
-/// Sanitizes tracking parameters (utm_*, fbclid, gclid, mc_eid, etc.) from URLs in text.
+/// Sanitizes tracking parameters (200+ known parameters: utm_*, fbclid, gclid, mc_eid, _hsenc, etc.) from URLs in text.
 pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
-    const TRACKING_PARAMS: &[&str] = &[
-        "utm_source",
-        "utm_medium",
-        "utm_campaign",
-        "utm_term",
-        "utm_content",
-        "utm_id",
-        "fbclid",
-        "gclid",
-        "dclid",
-        "msclkid",
-        "mc_cid",
-        "mc_eid",
-        "mkt_tok",
-        "yclid",
-        "twclid",
-        "igshid",
-        "si",
-        "_hsenc",
-        "_hsmi",
-        "vero_id",
-        "oly_enc_id",
-        "oly_anon_id",
-        "rb_clickid",
-    ];
-
     let mut removed_params: Vec<String> = Vec::new();
     let mut urls_cleaned = 0usize;
 
@@ -454,36 +428,12 @@ pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
             if (token.starts_with("http://") || token.starts_with("https://"))
                 && token.contains('?')
             {
-                if let Some((base, query_and_hash)) = token.split_once('?') {
-                    let (query, hash_opt) = match query_and_hash.split_once('#') {
-                        Some((q, h)) => (q, Some(h)),
-                        None => (query_and_hash, None),
-                    };
-                    let mut kept = Vec::new();
-                    let mut modified = false;
-                    for pair in query.split('&') {
-                        let key = pair.split('=').next().unwrap_or("").to_ascii_lowercase();
-                        if TRACKING_PARAMS.contains(&key.as_str()) || key.starts_with("utm_") {
-                            removed_params.push(key);
-                            modified = true;
-                        } else if !pair.is_empty() {
-                            kept.push(pair);
-                        }
-                    }
-                    if modified {
-                        urls_cleaned += 1;
-                    }
-                    let mut rebuilt = base.to_string();
-                    if !kept.is_empty() {
-                        rebuilt.push('?');
-                        rebuilt.push_str(&kept.join("&"));
-                    }
-                    if let Some(h) = hash_opt {
-                        rebuilt.push('#');
-                        rebuilt.push_str(h);
-                    }
-                    return rebuilt;
+                let res = crate::offline_audit::sanitize_tracking_url(token);
+                if res.was_modified {
+                    urls_cleaned += 1;
+                    removed_params.extend(res.removed_parameters);
                 }
+                return res.sanitized_url;
             }
             token.to_string()
         })
@@ -497,65 +447,177 @@ pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
     })
 }
 
-/// Analyzes raw RFC-5322 email headers for SPF, DKIM, DMARC, TLS, and relay hops in Rust.
+/// Analyzes raw RFC-5322 email headers and MIME structure for SPF, DKIM, DMARC, TLS, PGP/MIME, and dangerous attachments in Rust.
 pub fn analyze_email_headers(raw_headers: &str) -> serde_json::Value {
+    let rfc_report = crate::rfc_email::analyze_raw_email_headers(raw_headers);
+    let mime_report = crate::mime_inspector::inspect_mime_message(raw_headers);
+
     let lower = raw_headers.to_ascii_lowercase();
-    let spf_pass = lower.contains("spf=pass");
-    let dkim_pass = lower.contains("dkim=pass");
-    let dmarc_pass = lower.contains("dmarc=pass");
+    let spf_pass = rfc_report.spf_pass || lower.contains("spf=pass");
+    let dkim_pass = rfc_report.dkim_pass || lower.contains("dkim=pass");
+    let dmarc_pass = rfc_report.dmarc_pass || lower.contains("dmarc=pass");
     let tls_active = lower.contains("tls") || lower.contains("esmtps");
     let hop_count = raw_headers
         .lines()
         .filter(|l| l.trim_start().to_ascii_lowercase().starts_with("received:"))
         .count();
 
+    let return_path_mismatch = !rfc_report.from_address.is_empty()
+        && !rfc_report.return_path_address.is_empty()
+        && !rfc_report
+            .from_address
+            .eq_ignore_ascii_case(&rfc_report.return_path_address);
+
+    let mut security_score: u8 = 40;
+    if spf_pass {
+        security_score = security_score.saturating_add(20);
+    }
+    if dkim_pass {
+        security_score = security_score.saturating_add(20);
+    }
+    if dmarc_pass {
+        security_score = security_score.saturating_add(10);
+    }
+    if tls_active {
+        security_score = security_score.saturating_add(10);
+    }
+    if !mime_report.high_risk_attachments.is_empty() {
+        security_score = security_score.saturating_sub(45);
+    }
+
+    let verdict = if !mime_report.high_risk_attachments.is_empty() {
+        "High-Risk Attachment Detected"
+    } else if spf_pass && dkim_pass {
+        "Authenticated Relay"
+    } else if spf_pass || dkim_pass {
+        "Partially Authenticated Relay"
+    } else {
+        "Unverified / Partial Headers"
+    };
+
     serde_json::json!({
+        "from_address": rfc_report.from_address,
+        "reply_to_address": rfc_report.reply_to_address,
+        "return_path_address": rfc_report.return_path_address,
+        "subject": rfc_report.subject,
         "spf_status": if spf_pass { "PASS" } else { "MISSING/WARN" },
         "dkim_status": if dkim_pass { "PASS" } else { "MISSING/WARN" },
         "dmarc_status": if dmarc_pass { "PASS" } else { "MISSING/WARN" },
         "tls_encrypted": tls_active,
         "hop_count": hop_count,
-        "verdict": if spf_pass && dkim_pass { "Authenticated Relay" } else { "Unverified / Partial Headers" }
+        "security_score": security_score,
+        "has_list_unsubscribe": rfc_report.has_list_unsubscribe,
+        "has_one_click_unsubscribe": rfc_report.one_click_unsubscribe,
+        "return_path_mismatch": return_path_mismatch,
+        "mailx_banner_present": rfc_report.mailx_banner_present,
+        "content_type": mime_report.content_type,
+        "is_pgp_mime_encrypted": mime_report.is_pgp_mime_encrypted,
+        "is_pgp_mime_signed": mime_report.is_pgp_mime_signed,
+        "has_inline_pgp_block": mime_report.has_inline_pgp_block,
+        "attachment_filenames": mime_report.attachment_filenames,
+        "high_risk_attachments": mime_report.high_risk_attachments,
+        "verdict": verdict
     })
 }
 
-/// Generates contextual service-specific alias candidates in Rust.
+fn classify_service_category(service: &str) -> (&'static str, &'static str) {
+    match service {
+        "github" | "gitlab" | "cloudflare" | "aws" | "vercel" | "digitalocean" | "docker"
+        | "npm" | "crates" | "openai" | "anthropic" => {
+            ("Developer & Cloud", "Dev / Infrastructure Account")
+        }
+        "stripe" | "paypal" | "wise" | "revolut" | "binance" | "coinbase" | "kraken" | "bank" => {
+            ("Finance & Payments", "Financial & Billing Relay")
+        }
+        "netflix" | "spotify" | "youtube" | "twitch" | "disney" | "hulu" | "plex" | "apple" => {
+            ("Streaming & Media", "Media Subscription")
+        }
+        "amazon" | "ebay" | "aliexpress" | "etsy" | "shopify" | "ikea" | "walmart" | "trendyol"
+        | "hepsiburada" => ("Shopping & E-Commerce", "Online Retail & Orders"),
+        "steam" | "epic" | "playstation" | "xbox" | "nintendo" | "riot" | "discord" => {
+            ("Gaming & Community", "Gaming Account")
+        }
+        "x" | "twitter" | "reddit" | "instagram" | "linkedin" | "mastodon" | "bluesky"
+        | "telegram" | "signal" => ("Social & Messaging", "Social Platform"),
+        _ => ("General Service", "Isolated Service Alias"),
+    }
+}
+
+fn extract_clean_service_slug(raw_input: &str) -> String {
+    let trimmed = raw_input.trim().to_ascii_lowercase();
+    let without_scheme = trimmed
+        .strip_prefix("https://")
+        .or_else(|| trimmed.strip_prefix("http://"))
+        .unwrap_or(&trimmed);
+    let host_part = without_scheme
+        .split('/')
+        .next()
+        .unwrap_or(without_scheme)
+        .trim_start_matches("www.")
+        .trim_start_matches("app.")
+        .trim_start_matches("auth.")
+        .trim_start_matches("login.")
+        .trim_start_matches("checkout.");
+    let primary_label = host_part.split('.').next().unwrap_or(host_part);
+    let clean: String = primary_label
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .take(18)
+        .collect();
+    let clean = clean.trim_matches('-').to_string();
+    if clean.is_empty() {
+        "vault".to_string()
+    } else {
+        clean
+    }
+}
+
+/// Generates contextual service-specific alias candidates + cryptographic passphrase in Rust.
 pub fn generate_contextual_aliases(
     service_input: &str,
     domain: &str,
     count: usize,
 ) -> serde_json::Value {
-    let clean_service: String = service_input
-        .trim()
-        .to_ascii_lowercase()
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .take(16)
-        .collect();
-    let prefix = if clean_service.is_empty() {
-        "vault".to_string()
-    } else {
-        clean_service
-    };
+    let prefix = extract_clean_service_slug(service_input);
     let clean_domain = if domain.trim().is_empty() {
         "mailx.net"
     } else {
-        domain.trim()
+        domain.trim().trim_start_matches('@')
     };
+    let (category, desc_suffix) = classify_service_category(&prefix);
     let total = count.clamp(1, 8);
     let mut candidates = Vec::with_capacity(total);
-    for _ in 0..total {
-        let token = generate_random_suffix(6);
-        candidates.push(format!("{}.{}@{}", prefix, token, clean_domain));
+    for idx in 0..total {
+        if idx % 2 == 0 {
+            let token = generate_random_suffix(6);
+            candidates.push(format!("{}.{}@{}", prefix, token, clean_domain));
+        } else {
+            let word_part = crate::wordlist::generate_words_local_part();
+            let first_word = word_part.split('.').next().unwrap_or("shield");
+            let num_suffix = &word_part[word_part.len().saturating_sub(2)..];
+            candidates.push(format!("{}.{}{}@{}", prefix, first_word, num_suffix, clean_domain));
+        }
     }
+    let passphrase = crate::wordlist::generate_passphrase(4, "-");
+    let recommended_description = format!(
+        "{}{} — {}",
+        prefix[..1].to_ascii_uppercase(),
+        &prefix[1..],
+        desc_suffix
+    );
+
     serde_json::json!({
         "service": prefix,
+        "category": category,
+        "recommended_description": recommended_description,
         "domain": clean_domain,
-        "candidates": candidates
+        "candidates": candidates,
+        "suggested_passphrase": passphrase.phrase,
+        "passphrase_entropy_bits": passphrase.entropy_bits
     })
 }
 
-/// Audits alias hygiene (high-spam aliases, inactive aliases, missing descriptions) in Rust.
+/// Audits alias hygiene, spam/breach exposure radar, and portfolio security in Rust.
 pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
     let aliases: Vec<Alias> = serde_json::from_str(aliases_json).unwrap_or_default();
     let total = aliases.len();
@@ -572,13 +634,209 @@ pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
         .filter(|a| !a.is_deleted() && a.enabled && a.total_activity() == 0)
         .count();
 
+    let compromised_aliases: Vec<serde_json::Value> = aliases
+        .iter()
+        .filter(|a| !a.is_deleted() && (a.stats.blocks >= 3 && a.stats.blocks >= a.stats.forwards))
+        .take(6)
+        .map(|a| {
+            serde_json::json!({
+                "id": a.id,
+                "name": a.name,
+                "description": a.description,
+                "forwards": a.stats.forwards,
+                "blocks": a.stats.blocks,
+                "recommendation": "High block-to-forward ratio detected. Consider pausing or rotating this alias."
+            })
+        })
+        .collect();
+
+    let portfolio = crate::offline_audit::audit_alias_portfolio(&aliases, &[], true, true, true);
+    let grade = match portfolio.hygiene_score {
+        90..=100 => "A+",
+        80..=89 => "A",
+        70..=79 => "B",
+        60..=69 => "C",
+        _ => "D",
+    };
+
     serde_json::json!({
         "total_audited": total,
         "missing_description_count": missing_desc,
         "high_block_ratio_count": high_block,
-        "dormant_active_count": dormant
+        "dormant_active_count": dormant,
+        "overall_score": portfolio.hygiene_score,
+        "grade": grade,
+        "compromised_aliases": compromised_aliases,
+        "findings": portfolio.findings
     })
 }
+
+/// Decodes a Mailx Trackers Report link or fragment and enriches every tracker with vendor intelligence in Rust.
+pub fn decode_and_audit_trackers(url_or_fragment: &str) -> Result<serde_json::Value, String> {
+    let report = crate::utils::decode_trackers_report(url_or_fragment)
+        .map_err(|e| e.to_string())?;
+    let audit = crate::tracker_db::audit_trackers_report(&report);
+    Ok(serde_json::json!({
+        "total": report.total,
+        "trackers": report.trackers,
+        "high_severity_count": audit.high_severity_count,
+        "pixel_beacon_count": audit.pixel_beacon_count,
+        "link_redirect_count": audit.link_redirect_count,
+        "unique_domains": audit.unique_domains,
+        "enriched_findings": audit.findings
+    }))
+}
+
+/// Inspects an ASCII-armored OpenPGP public key in Rust (RFC-4880 packet parser + CRC24 verifier).
+pub fn inspect_openpgp_key_armor(armored_key: &str) -> serde_json::Value {
+    let armor_summary = crate::dns_security::inspect_pgp_public_key_armor(armored_key);
+    match crate::pgp_inspector::parse_openpgp_armored_public_key(armored_key) {
+        Ok(packet_meta) => serde_json::json!({
+            "valid_armor": packet_meta.valid_armor && armor_summary.is_valid_armor,
+            "crc24_verified": packet_meta.crc24_verified,
+            "algorithm_id": packet_meta.primary_algorithm_id,
+            "algorithm_name": packet_meta.primary_algorithm_name,
+            "created_timestamp": packet_meta.creation_timestamp_unix,
+            "user_ids": packet_meta.user_ids,
+            "subkey_count": packet_meta.subkey_count,
+            "signature_count": packet_meta.signature_count,
+            "packet_count": packet_meta.packets.len(),
+            "base64_body_bytes": armor_summary.base64_body_bytes,
+            "crc24_checksum": armor_summary.crc24_checksum,
+            "summary": format!(
+                "{} • {} packet(s) • CRC24 {}",
+                packet_meta.primary_algorithm_name,
+                packet_meta.packets.len(),
+                if packet_meta.crc24_verified { "Verified" } else { "Unverified" }
+            )
+        }),
+        Err(err) => serde_json::json!({
+            "valid_armor": armor_summary.is_valid_armor,
+            "crc24_verified": false,
+            "algorithm_id": 0,
+            "algorithm_name": armor_summary.key_type_hint,
+            "created_timestamp": 0,
+            "user_ids": Vec::<String>::new(),
+            "subkey_count": 0,
+            "signature_count": 0,
+            "packet_count": 0,
+            "base64_body_bytes": armor_summary.base64_body_bytes,
+            "crc24_checksum": armor_summary.crc24_checksum,
+            "summary": err
+        }),
+    }
+}
+
+/// Evaluates sender phishing risk (homoglyphs, brand lookalikes, Reply-To mismatch) and domain trust in Rust.
+pub fn evaluate_phishing_and_domain_risk(
+    from_header: &str,
+    reply_to_header: &str,
+    return_path_header: &str,
+) -> serde_json::Value {
+    let decomposed_from = crate::rfc_email::decompose_email_address(from_header);
+    let spf_dkim_ok = return_path_header.is_empty()
+        || return_path_header
+            .to_ascii_lowercase()
+            .contains(&decomposed_from.domain.to_ascii_lowercase());
+    let phishing = crate::phishing_guard::evaluate_sender_phishing_risk(
+        from_header,
+        reply_to_header,
+        spf_dkim_ok,
+        spf_dkim_ok,
+    );
+    let domain_trust = crate::disposable_domains::assess_domain_trust(&phishing.sender_domain);
+    serde_json::json!({
+        "from_address": decomposed_from.raw,
+        "display_name": decomposed_from.display_name,
+        "sender_domain": phishing.sender_domain,
+        "risk_score": phishing.risk_score,
+        "risk_level": phishing.risk_level,
+        "is_punycode_idn": phishing.is_punycode_idn,
+        "reply_to_mismatch": phishing.reply_to_mismatch,
+        "impersonated_brand": phishing.lookalike_brand_target.unwrap_or_default(),
+        "triggers": phishing.warnings,
+        "domain_classification": domain_trust.classification,
+        "domain_provider": domain_trust.provider_name,
+        "domain_trust_score": domain_trust.trust_score,
+        "is_privacy_relay": domain_trust.is_privacy_relay,
+        "is_ephemeral_throwaway": domain_trust.is_ephemeral_throwaway,
+        "supports_dane_or_mta_sts": domain_trust.supports_dane_or_mta_sts,
+        "security_notes": domain_trust.security_notes
+    })
+}
+
+/// Simulates a Mailx processing rule against a sample email context in Rust.
+pub fn simulate_rule_evaluation(
+    rule_json: &str,
+    email_context_json: &str,
+) -> Result<serde_json::Value, String> {
+    let rule: crate::rules_engine::MailxRuleSpec = serde_json::from_str(rule_json)
+        .map_err(|e| format!("Invalid rule JSON: {}", e))?;
+    let ctx: crate::rules_engine::SimulatedEmailContext =
+        serde_json::from_str(email_context_json)
+            .map_err(|e| format!("Invalid simulated email context JSON: {}", e))?;
+    let res = crate::rules_engine::evaluate_rule(&rule, &ctx);
+    serde_json::to_value(res).map_err(|e| e.to_string())
+}
+
+/// Analyzes an SMTP / MTA diagnostic bounce log entry in Rust using RFC-3463 enhanced status codes.
+pub fn analyze_mta_bounce_log(
+    _log_type: &str,
+    status_text: &str,
+    message_text: &str,
+    remote_mta: &str,
+    raw_bounce: &str,
+) -> serde_json::Value {
+    let combined_msg = if raw_bounce.trim().is_empty() {
+        message_text.to_string()
+    } else {
+        format!("{} {}", message_text, raw_bounce)
+    };
+    let analysis = crate::mta_diagnostics::analyze_mta_diagnostic_log(
+        status_text,
+        &combined_msg,
+        remote_mta,
+    );
+    serde_json::to_value(analysis).unwrap_or_else(|_| serde_json::json!({}))
+}
+
+/// Generates a 6-digit RFC-6238 TOTP code in Rust for a given Base32 secret.
+pub fn generate_totp_token(
+    base32_secret: &str,
+    unix_seconds: u64,
+) -> Result<serde_json::Value, String> {
+    let ts = if unix_seconds > 0 {
+        unix_seconds
+    } else {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    };
+    let snap = crate::totp_engine::generate_totp_code_at(base32_secret, ts, 30, 6)?;
+    serde_json::to_value(snap).map_err(|e| e.to_string())
+}
+
+/// Generates an instant alias preview candidate and a high-entropy passphrase in Rust.
+pub fn generate_passphrase_and_candidate(
+    format: &str,
+    domain: &str,
+    word_count: usize,
+) -> serde_json::Value {
+    let candidate = crate::wordlist::generate_alias_preview_candidate(format, domain);
+    let passphrase = crate::wordlist::generate_passphrase(word_count.clamp(3, 10), "-");
+    serde_json::json!({
+        "full_address": candidate.full_address,
+        "local_part": candidate.local_part,
+        "domain": candidate.domain,
+        "format": candidate.format,
+        "alias_entropy_bits": candidate.entropy_bits,
+        "passphrase": passphrase.phrase,
+        "passphrase_words": passphrase.word_count,
+        "passphrase_entropy_bits": passphrase.entropy_bits
+    })
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -640,4 +898,27 @@ mod tests {
         assert_eq!(res["sanitized_text"], "https://example.com/item?id=42");
         assert_eq!(res["removed_params_count"], 2);
     }
+
+    #[test]
+    fn test_contextual_service_and_phishing_and_rule_sim() {
+        let ctx_gen = generate_contextual_aliases("https://checkout.stripe.com/pay", "mailx.net", 4);
+        assert_eq!(ctx_gen["service"], "stripe");
+        assert_eq!(ctx_gen["category"], "Finance & Payments");
+        assert_eq!(ctx_gen["candidates"].as_array().unwrap().len(), 4);
+
+        let risk = evaluate_phishing_and_domain_risk(
+            "\"PayPal Security\" <support@paypa1.com>",
+            "hacker@mailinator.com",
+            "bounce@paypa1.com",
+        );
+        assert!(risk["risk_score"].as_u64().unwrap() >= 55);
+        assert_eq!(risk["impersonated_brand"], "PayPal");
+
+        let rule_json = r#"{"id":"r1","name":"Block Spam","operator":"AND","forwards":true,"replies":false,"sends":false,"active":true,"conditions":[{"type":"subject","match":"contains","values":["crypto"]}],"actions":[{"type":"block","value":""}]}"#;
+        let email_ctx = r#"{"sender":"promo@spam.io","sender_name":"Spam","subject":"Free Crypto Giveaway","alias":"a@mailx.net","alias_description":"","destination":"me@proton.me","is_mailing_list":true,"has_attachments":false,"alias_is_wildcard":false,"relay_type":"forwards"}"#;
+        let sim = simulate_rule_evaluation(rule_json, email_ctx).unwrap();
+        assert_eq!(sim["matched"], true);
+        assert_eq!(sim["should_block"], true);
+    }
 }
+

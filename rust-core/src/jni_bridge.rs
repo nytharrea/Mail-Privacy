@@ -1,16 +1,19 @@
 #[cfg(feature = "network")]
 use crate::models::{AliasFilter, AliasRequest};
 use crate::skeleton::{
-    analyze_email_headers, audit_alias_hygiene, compute_seven_day_telemetry,
+    analyze_email_headers, analyze_mta_bounce_log, audit_alias_hygiene,
+    compute_seven_day_telemetry, decode_and_audit_trackers, evaluate_phishing_and_domain_risk,
     filter_and_sort_aliases, format_aliases_csv_export, generate_contextual_aliases,
-    get_skeleton_info, parse_aliases_csv_import, sanitize_tracking_urls,
+    generate_passphrase_and_candidate, generate_totp_token, get_skeleton_info,
+    inspect_openpgp_key_armor, parse_aliases_csv_import, sanitize_tracking_urls,
+    simulate_rule_evaluation,
 };
 use crate::utils::{
-    compute_privacy_posture, decode_trackers_report, encode_nato_phonetic, encode_qr_matrix,
-    generate_random_suffix, generate_reverse_alias, generate_wildcard_on_the_fly,
-    validate_access_key,
+    compute_privacy_posture, encode_nato_phonetic, encode_qr_matrix, generate_random_suffix,
+    generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key,
 };
 use serde::Serialize;
+
 
 #[derive(Serialize)]
 pub struct JniEnvelope<T: Serialize> {
@@ -89,7 +92,7 @@ pub fn handle_generate_wildcard(wildcard_alias: &str, prefix: &str) -> String {
 }
 
 pub fn handle_decode_trackers_report(raw_input: &str) -> String {
-    match decode_trackers_report(raw_input) {
+    match decode_and_audit_trackers(raw_input) {
         Ok(report) => JniEnvelope::success(report),
         Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
     }
@@ -205,6 +208,61 @@ pub fn handle_generate_contextual_aliases(
 pub fn handle_audit_alias_hygiene(aliases_json: &str) -> String {
     JniEnvelope::success(audit_alias_hygiene(aliases_json))
 }
+
+pub fn handle_inspect_openpgp_key(armored_key: &str) -> String {
+    JniEnvelope::success(inspect_openpgp_key_armor(armored_key))
+}
+
+pub fn handle_evaluate_phishing_risk(
+    from_header: &str,
+    reply_to_header: &str,
+    return_path_header: &str,
+) -> String {
+    JniEnvelope::success(evaluate_phishing_and_domain_risk(
+        from_header,
+        reply_to_header,
+        return_path_header,
+    ))
+}
+
+pub fn handle_simulate_rule(rule_json: &str, email_context_json: &str) -> String {
+    match simulate_rule_evaluation(rule_json, email_context_json) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
+}
+
+pub fn handle_analyze_mta_bounce(
+    log_type: &str,
+    status_text: &str,
+    message_text: &str,
+    remote_mta: &str,
+    raw_bounce: &str,
+) -> String {
+    JniEnvelope::success(analyze_mta_bounce_log(
+        log_type,
+        status_text,
+        message_text,
+        remote_mta,
+        raw_bounce,
+    ))
+}
+
+pub fn handle_generate_totp_token(base32_secret: &str, unix_seconds: u64) -> String {
+    match generate_totp_token(base32_secret, unix_seconds) {
+        Ok(res) => JniEnvelope::success(res),
+        Err(e) => JniEnvelope::<serde_json::Value>::failure(e),
+    }
+}
+
+pub fn handle_generate_passphrase_and_candidate(
+    format: &str,
+    domain: &str,
+    word_count: usize,
+) -> String {
+    JniEnvelope::success(generate_passphrase_and_candidate(format, domain, word_count))
+}
+
 
 #[cfg(feature = "network")]
 pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {
@@ -764,6 +822,96 @@ mod android_exports {
         run_jni_safely(env, |env| {
             let aliases = jstring_to_rust(env, aliases_json);
             handle_audit_alias_hygiene(&aliases)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeInspectOpenPgpKey(
+        env: JNIEnv,
+        _class: JClass,
+        armored_key: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let key = jstring_to_rust(env, armored_key);
+            handle_inspect_openpgp_key(&key)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeEvaluatePhishingRisk(
+        env: JNIEnv,
+        _class: JClass,
+        from_header: JString,
+        reply_to_header: JString,
+        return_path_header: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let from_h = jstring_to_rust(env, from_header);
+            let reply_h = jstring_to_rust(env, reply_to_header);
+            let ret_h = jstring_to_rust(env, return_path_header);
+            handle_evaluate_phishing_risk(&from_h, &reply_h, &ret_h)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeSimulateRule(
+        env: JNIEnv,
+        _class: JClass,
+        rule_json: JString,
+        email_context_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let rule = jstring_to_rust(env, rule_json);
+            let ctx = jstring_to_rust(env, email_context_json);
+            handle_simulate_rule(&rule, &ctx)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeAnalyzeMtaBounce(
+        env: JNIEnv,
+        _class: JClass,
+        log_type: JString,
+        status_text: JString,
+        message_text: JString,
+        remote_mta: JString,
+        raw_bounce: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let lt = jstring_to_rust(env, log_type);
+            let st = jstring_to_rust(env, status_text);
+            let msg = jstring_to_rust(env, message_text);
+            let mta = jstring_to_rust(env, remote_mta);
+            let raw = jstring_to_rust(env, raw_bounce);
+            handle_analyze_mta_bounce(&lt, &st, &msg, &mta, &raw)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGenerateTotpToken(
+        env: JNIEnv,
+        _class: JClass,
+        base32_secret: JString,
+        unix_seconds: jlong,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let sec = jstring_to_rust(env, base32_secret);
+            handle_generate_totp_token(&sec, unix_seconds.max(0) as u64)
+        })
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeGeneratePassphraseAndCandidate(
+        env: JNIEnv,
+        _class: JClass,
+        format: JString,
+        domain: JString,
+        word_count: jint,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let fmt = jstring_to_rust(env, format);
+            let dom = jstring_to_rust(env, domain);
+            handle_generate_passphrase_and_candidate(&fmt, &dom, word_count.clamp(3, 10) as usize)
         })
     }
 
