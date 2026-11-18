@@ -2,18 +2,21 @@ package net.mailx.android.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+
+val LocalReducedMotion = compositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
     primary = MailxPalette.BrandPrimaryDark,
@@ -79,14 +82,6 @@ private val LightColorScheme = lightColorScheme(
     onErrorContainer = Color(0xFF881337)
 )
 
-val MailxShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(30.dp)
-)
-
 private fun ColorScheme.withAmoledPitchBlack(): ColorScheme = copy(
     background = Color.Black,
     surface = Color.Black,
@@ -97,36 +92,42 @@ private fun ColorScheme.withAmoledPitchBlack(): ColorScheme = copy(
     surfaceContainerHighest = Color(0xFF1E263B)
 )
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MailxTheme(
-    darkModeMode: Int = 1, // 0 = System, 1 = Dark, 2 = Light
-    dynamicColorEnabled: Boolean = false,
-    amoledDarkEnabled: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
+    amoledDark: Boolean = false,
+    expressiveMotion: Boolean = false,
+    reducedMotion: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val isDark = when (darkModeMode) {
-        1 -> true
-        2 -> false
-        else -> isSystemInDarkTheme()
-    }
-
     val context = LocalContext.current
-    val baseScheme = if (dynamicColorEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    val baseScheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else {
-        if (isDark) DarkColorScheme else LightColorScheme
+        if (darkTheme) DarkColorScheme else LightColorScheme
     }
 
-    val finalScheme = if (isDark && amoledDarkEnabled) {
+    val finalScheme = if (darkTheme && amoledDark) {
         baseScheme.withAmoledPitchBlack()
     } else {
         baseScheme
     }
 
-    MaterialTheme(
-        colorScheme = finalScheme,
-        typography = MailxTypography,
-        shapes = MailxShapes,
-        content = content
-    )
+    val motionScheme = if (expressiveMotion && !reducedMotion) {
+        MotionScheme.expressive()
+    } else {
+        MotionScheme.standard()
+    }
+
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
+        MaterialExpressiveTheme(
+            colorScheme = finalScheme,
+            typography = MailxTypography,
+            shapes = MailxShapes,
+            motionScheme = motionScheme,
+            content = content
+        )
+    }
 }

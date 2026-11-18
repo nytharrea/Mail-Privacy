@@ -30,6 +30,8 @@ object MailxPalette {
     // Semantic Telemetry & Status Colors
     val ForwardEmerald = Color(0xFF10B981)
     val ForwardEmeraldSoft = Color(0xFF34D399)
+    val ForwardedGreen = Color(0xFF10B981)
+    val CryptoCyan = Color(0xFF06B6D4)
     val ReplySky = Color(0xFF0EA5E9)
     val SentIndigo = Color(0xFF8B5CF6)
     val BlockedRose = Color(0xFFF43F5E)
