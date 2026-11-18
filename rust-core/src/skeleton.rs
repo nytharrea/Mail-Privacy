@@ -831,6 +831,13 @@ pub fn generate_passphrase_and_candidate(
         "domain": candidate.domain,
         "format": candidate.format,
         "alias_entropy_bits": candidate.entropy_bits,
+        "alias_candidate": {
+            "address": candidate.full_address,
+            "local_part": candidate.local_part,
+            "domain": candidate.domain,
+            "format": candidate.format,
+            "entropy_bits": candidate.entropy_bits
+        },
         "passphrase": passphrase.phrase,
         "passphrase_words": passphrase.word_count,
         "passphrase_entropy_bits": passphrase.entropy_bits

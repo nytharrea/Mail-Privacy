@@ -51,23 +51,23 @@ fun mailxSwitchColors() = SwitchDefaults.colors(
     checkedTrackColor = MaterialTheme.colorScheme.primary,
     checkedBorderColor = MaterialTheme.colorScheme.primary,
     uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-    uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainer,
+    uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.85f)
 )
 
 @Composable
 fun mailxTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.5f),
-    focusedBorderColor = MaterialTheme.colorScheme.primary,
-    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    focusedBorderColor = MaterialTheme.colorScheme.outline,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+    focusedLabelColor = MaterialTheme.colorScheme.onSurface,
     unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
 )
 
 /**
- * Sleek, spring-animated segmented tab switcher.
+ * Sleek, spring-animated segmented tab switcher with calm neutral Zinc elevation (zero neon borders).
  */
 @Composable
 fun MailxSegmentedControl(
@@ -79,23 +79,23 @@ fun MailxSegmentedControl(
     badges: List<Int?> = emptyList()
 ) {
     val reducedMotion = LocalReducedMotion.current
-    val outerShape = RoundedCornerShape(if (compact) 11.dp else 14.dp)
-    val itemShape = RoundedCornerShape(if (compact) 8.dp else 11.dp)
+    val outerShape = RoundedCornerShape(if (compact) 11.dp else 13.dp)
+    val itemShape = RoundedCornerShape(if (compact) 8.dp else 10.dp)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = outerShape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
         ),
         tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp),
+                .padding(3.5.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -103,33 +103,33 @@ fun MailxSegmentedControl(
                 val isSelected = idx == selectedIndex
                 val bgColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
+                        MaterialTheme.colorScheme.surfaceContainerHighest
                     } else {
                         Color.Transparent
                     },
-                    animationSpec = if (reducedMotion) snap() else tween(180),
+                    animationSpec = if (reducedMotion) snap() else tween(170),
                     label = "seg_bg_$idx"
                 )
                 val borderColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
                     } else {
                         Color.Transparent
                     },
-                    animationSpec = if (reducedMotion) snap() else tween(180),
+                    animationSpec = if (reducedMotion) snap() else tween(170),
                     label = "seg_border_$idx"
                 )
                 val textColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.onSurface
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    animationSpec = if (reducedMotion) snap() else tween(180),
+                    animationSpec = if (reducedMotion) snap() else tween(170),
                     label = "seg_fg_$idx"
                 )
                 val scale by animateFloatAsState(
-                    targetValue = if (isSelected && !reducedMotion) 1.0f else 0.98f,
+                    targetValue = if (isSelected && !reducedMotion) 1.0f else 0.985f,
                     animationSpec = if (reducedMotion) snap() else spring(
                         dampingRatio = Spring.DampingRatioNoBouncy,
                         stiffness = Spring.StiffnessMedium
@@ -148,7 +148,7 @@ fun MailxSegmentedControl(
                         }
                         .clip(itemShape)
                         .background(bgColor)
-                        .border(width = 1.dp, color = borderColor, shape = itemShape)
+                        .border(width = 0.75.dp, color = borderColor, shape = itemShape)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -156,7 +156,7 @@ fun MailxSegmentedControl(
                         )
                         .padding(
                             horizontal = if (compact) 8.dp else 12.dp,
-                            vertical = if (compact) 6.dp else 8.5.dp
+                            vertical = if (compact) 6.5.dp else 8.5.dp
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -166,7 +166,7 @@ fun MailxSegmentedControl(
                     ) {
                         Text(
                             text = label,
-                            fontSize = if (compact) 11.5.sp else 12.5.sp,
+                            fontSize = if (compact) 12.sp else 12.5.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                             color = textColor,
                             maxLines = 1,
@@ -176,9 +176,9 @@ fun MailxSegmentedControl(
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                                    MaterialTheme.colorScheme.surfaceContainerLow
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                    MaterialTheme.colorScheme.surfaceContainerHigh
                                 }
                             ) {
                                 Text(
@@ -186,7 +186,7 @@ fun MailxSegmentedControl(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = if (isSelected) {
-                                        MaterialTheme.colorScheme.primary
+                                        MaterialTheme.colorScheme.onSurface
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -339,17 +339,16 @@ fun MailxSectionRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    // Cohesive, unified icon palette: avoid rainbow clashing across settings rows
+    // Calm, uniform neutral icon containers across all rows (zero patchy colored boxes)
     val isDestructive = isAlert || accentColor == MailxPalette.BlockedRose
     val resolvedIconTint = when {
         isDestructive -> MailxPalette.BlockedRose
-        showSwitch && !switchChecked -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> MaterialTheme.colorScheme.primary
+        showSwitch && switchChecked -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val resolvedIconBg = when {
         isDestructive -> MailxPalette.BlockedRose.copy(alpha = 0.14f)
-        showSwitch && !switchChecked -> MaterialTheme.colorScheme.surfaceContainerHigh
-        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val resolvedTitleColor = when {
         isDestructive -> MailxPalette.BlockedRose

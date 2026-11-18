@@ -654,20 +654,20 @@ private fun MailxModernBottomBar(
                     )
                     val pillColor by animateColorAsState(
                         targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                            MaterialTheme.colorScheme.surfaceContainerHigh
                         } else {
                             Color.Transparent
                         },
-                        animationSpec = if (reducedMotion) snap() else tween(180),
+                        animationSpec = if (reducedMotion) snap() else tween(170),
                         label = "nav_item_pill_${tab.name}"
                     )
                     val contentColor by animateColorAsState(
                         targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primary
+                            MaterialTheme.colorScheme.onSurface
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = if (reducedMotion) snap() else tween(180),
+                        animationSpec = if (reducedMotion) snap() else tween(170),
                         label = "nav_item_fg_${tab.name}"
                     )
                     val interactionSource = remember { MutableInteractionSource() }
@@ -675,7 +675,7 @@ private fun MailxModernBottomBar(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(15.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(pillColor)
                             .clickable(
                                 interactionSource = interactionSource,
@@ -703,7 +703,7 @@ private fun MailxModernBottomBar(
                             Text(
                                 text = tab.label,
                                 fontSize = 11.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                 color = contentColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -758,7 +758,7 @@ private fun MailxCleanTopBar(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -770,13 +770,13 @@ private fun MailxCleanTopBar(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
                     )
                 ) {
                     Text(
                         text = "@$defaultDomain",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
                     )
@@ -787,14 +787,13 @@ private fun MailxCleanTopBar(
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Unified architectural topbar action buttons
                 Surface(
                     onClick = onPrivacyLabClick,
                     shape = RoundedCornerShape(11.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
                     ),
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -802,7 +801,7 @@ private fun MailxCleanTopBar(
                         Icon(
                             imageVector = MailxIcons.Sparkles,
                             contentDescription = "Rust Privacy Lab",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -814,7 +813,7 @@ private fun MailxCleanTopBar(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
                     ),
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -837,7 +836,7 @@ private fun MailxCleanTopBar(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
                     ),
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -856,19 +855,19 @@ private fun MailxCleanTopBar(
                 Surface(
                     onClick = onProfileClick,
                     shape = RoundedCornerShape(11.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                    contentColor = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.80f)
                     ),
                     modifier = Modifier.size(36.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = userInitials,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }

@@ -66,7 +66,7 @@ fun AliasCard(
         alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose
         isHighSpamRisk -> MailxPalette.BlockedRose
         alias.isPaused -> MailxPalette.PausedAmber
-        alias.enabled -> MaterialTheme.colorScheme.primary
+        alias.enabled -> MailxPalette.ForwardEmerald
         else -> MailxPalette.Slate500
     }
 
@@ -89,7 +89,7 @@ fun AliasCard(
     )
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            MaterialTheme.colorScheme.surfaceContainerHigh
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
@@ -117,9 +117,9 @@ fun AliasCard(
         border = BorderStroke(
             width = 1.dp,
             color = when {
-                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                isSelected -> MaterialTheme.colorScheme.outline
                 isHighSpamRisk -> MailxPalette.BlockedRose.copy(alpha = 0.38f)
-                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
             }
         ),
         tonalElevation = 0.dp
@@ -150,7 +150,7 @@ fun AliasCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
+                            .size(6.5.dp)
                             .clip(CircleShape)
                             .background(statusColor)
                     )
@@ -167,10 +167,10 @@ fun AliasCard(
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
                         border = BorderStroke(
                             width = 0.75.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                         )
                     ) {
                         Text(
@@ -189,7 +189,7 @@ fun AliasCard(
                         Icon(
                             imageVector = MailxIcons.Pin,
                             contentDescription = "Pinned",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(13.5.dp)
                         )
                     }
@@ -197,7 +197,7 @@ fun AliasCard(
                         Icon(
                             imageVector = MailxIcons.Sparkles,
                             contentDescription = "Wildcard",
-                            tint = MaterialTheme.colorScheme.secondary,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(13.5.dp)
                         )
                     }
@@ -231,9 +231,9 @@ fun AliasCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = if (alias.forwards > 0) {
-                            MaterialTheme.colorScheme.primary
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                         }
                     )
 
