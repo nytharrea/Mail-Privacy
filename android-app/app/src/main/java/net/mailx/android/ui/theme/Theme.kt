@@ -3,7 +3,9 @@
 package net.mailx.android.ui.theme
 
 import android.app.Activity
+import android.content.Context
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.text.LocalAutofillHighlightColor
 import androidx.compose.material3.ColorScheme
@@ -17,11 +19,31 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+
+val LocalReducedMotion = compositionLocalOf { false }
+
+fun isSystemReducedMotionEnabled(context: Context): Boolean {
+    return runCatching {
+        val animScale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f
+        )
+        val transitionScale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.TRANSITION_ANIMATION_SCALE,
+            1f
+        )
+        animScale == 0f || transitionScale == 0f
+    }.getOrDefault(false)
+}
 
 private val MailxDarkColorScheme = darkColorScheme(
     primary = MailxPalette.PrimaryDark,
@@ -53,8 +75,8 @@ private val MailxDarkColorScheme = darkColorScheme(
     surfaceContainerHighest = MailxPalette.DarkSurfaceHighest,
     outline = MailxPalette.DarkOutline,
     outlineVariant = MailxPalette.DarkOutlineVariant,
-    inverseSurface = Color(0xFFDEE4E3),
-    inverseOnSurface = Color(0xFF2B3233),
+    inverseSurface = Color(0xFFE6EDF3),
+    inverseOnSurface = Color(0xFF1A2128),
     inversePrimary = MailxPalette.PrimaryLight
 )
 
@@ -88,14 +110,17 @@ private val MailxLightColorScheme = lightColorScheme(
     surfaceContainerHighest = MailxPalette.LightSurfaceHighest,
     outline = MailxPalette.LightOutline,
     outlineVariant = MailxPalette.LightOutlineVariant,
-    inverseSurface = Color(0xFF2B3233),
-    inverseOnSurface = Color(0xFFECF2F0),
+    inverseSurface = Color(0xFF1E293B),
+    inverseOnSurface = Color(0xFFF1F5F9),
     inversePrimary = MailxPalette.PrimaryDark
 )
 
 private fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
     background = MailxPalette.AmoledBackground,
+    onBackground = MailxPalette.AmoledOnSurface,
     surface = MailxPalette.AmoledSurface,
+    onSurface = MailxPalette.AmoledOnSurface,
+    onSurfaceVariant = MailxPalette.AmoledOnSurfaceVariant,
     surfaceContainerLowest = MailxPalette.AmoledSurfaceLowest,
     surfaceContainerLow = MailxPalette.AmoledSurfaceLow,
     surfaceContainer = MailxPalette.AmoledSurfaceContainer,
@@ -109,12 +134,16 @@ private fun ColorScheme.withAmoledSurfaces(): ColorScheme = copy(
 @Composable
 fun MailxTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     amoledDark: Boolean = false,
-    expressiveMotion: Boolean = true,
+    expressiveMotion: Boolean = false,
+    reducedMotion: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val systemReducedMotion = remember(context) { isSystemReducedMotionEnabled(context) }
+    val effectiveReducedMotion = reducedMotion || systemReducedMotion
+
     val baseScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -144,13 +173,13 @@ fun MailxTheme(
         }
     }
 
-    // Override Jetpack Compose's default yellow autofill highlight (0x4dffeb3b) with Transparent
     CompositionLocalProvider(
-        LocalAutofillHighlightColor provides Color.Transparent
+        LocalAutofillHighlightColor provides Color.Transparent,
+        LocalReducedMotion provides effectiveReducedMotion
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
-            motionScheme = if (expressiveMotion) {
+            motionScheme = if (expressiveMotion && !effectiveReducedMotion) {
                 MotionScheme.expressive()
             } else {
                 MotionScheme.standard()

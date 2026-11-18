@@ -2,16 +2,16 @@ package net.mailx.android.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.outlined.CheckBox
+import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
+import net.mailx.android.ui.components.MailxAliasSkeletonList
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.model.FilterUiState
 import net.mailx.android.ui.model.UiAlias
@@ -66,11 +67,11 @@ fun AliasesTab(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(6.dp))
 
-        TextField(
+        OutlinedTextField(
             value = filterState.searchQuery,
             onValueChange = onSearchQueryChange,
             leadingIcon = {
@@ -91,6 +92,7 @@ fun AliasesTab(
                             Icon(
                                 imageVector = MailxIcons.X,
                                 contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(17.dp)
                             )
                         }
@@ -103,7 +105,7 @@ fun AliasesTab(
                         modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckBox,
+                            imageVector = Icons.Outlined.CheckBox,
                             contentDescription = "Bulk Select",
                             tint = if (selectionMode) {
                                 MaterialTheme.colorScheme.primary
@@ -138,14 +140,13 @@ fun AliasesTab(
                 )
             },
             singleLine = true,
-            shape = RoundedCornerShape(18.dp),
-            colors = TextFieldDefaults.colors(
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent
+                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -172,6 +173,7 @@ fun AliasesTab(
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectFilterChip(key) },
+                    shape = RoundedCornerShape(10.dp),
                     label = { Text(label, fontSize = 12.sp) }
                 )
             }
@@ -179,6 +181,7 @@ fun AliasesTab(
             FilterChip(
                 selected = filterState.isCustomFilterActive,
                 onClick = onOpenFilterSheet,
+                shape = RoundedCornerShape(10.dp),
                 leadingIcon = {
                     Icon(
                         imageVector = MailxIcons.ArrowUpDown,
@@ -192,8 +195,12 @@ fun AliasesTab(
 
         AnimatedVisibility(visible = selectionMode) {
             Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp)
@@ -210,7 +217,7 @@ fun AliasesTab(
                         Text(
                             text = "${selectedIds.size} selected",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -224,7 +231,12 @@ fun AliasesTab(
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Icon(
+                                    Icons.Outlined.DoneAll,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(15.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = if (selectedIds.size == aliases.size) "Clear" else "Select All",
@@ -238,7 +250,12 @@ fun AliasesTab(
                                 },
                                 modifier = Modifier.size(26.dp)
                             ) {
-                                Icon(MailxIcons.X, contentDescription = "Close Selection", modifier = Modifier.size(15.dp))
+                                Icon(
+                                    MailxIcons.X,
+                                    contentDescription = "Close Selection",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(15.dp)
+                                )
                             }
                         }
                     }
@@ -259,7 +276,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -272,7 +289,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -285,7 +302,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -300,7 +317,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -313,7 +330,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MailxPalette.BlockedRose.copy(alpha = 0.16f),
                                     contentColor = MailxPalette.BlockedRose
@@ -333,7 +350,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -348,7 +365,7 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MailxPalette.BlockedRose.copy(alpha = 0.16f),
                                     contentColor = MailxPalette.BlockedRose
@@ -368,14 +385,14 @@ fun AliasesTab(
 
         MailxSectionHeader(
             title = if (filterState.isCustomFilterActive || filterState.searchQuery.isNotEmpty()) {
-                "Filtered Aliases (Rust Sorted)"
+                "Filtered Aliases"
             } else {
                 "Aliases"
             },
             countBadge = aliases.size,
             actionText = "+ New Alias",
             onActionClick = onOpenCreateSheet,
-            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp)
         )
 
         PullToRefreshBox(
@@ -383,7 +400,12 @@ fun AliasesTab(
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize()
         ) {
-            if (aliases.isEmpty() && !isLoading) {
+            if (isLoading && aliases.isEmpty()) {
+                MailxAliasSkeletonList(
+                    count = 6,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            } else if (aliases.isEmpty()) {
                 EmptyStateBox(
                     icon = MailxIcons.AtSign,
                     title = if (filterState.searchQuery.isNotEmpty()) {
@@ -405,7 +427,6 @@ fun AliasesTab(
                         val isSelected = selectedIds.contains(alias.id)
                         AliasCard(
                             alias = alias,
-                            modifier = Modifier.animateItem(),
                             selectionMode = selectionMode,
                             isSelected = isSelected,
                             onClick = { onSelectAlias(alias) },

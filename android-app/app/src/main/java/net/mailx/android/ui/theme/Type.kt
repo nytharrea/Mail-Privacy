@@ -9,72 +9,73 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Material 3 Expressive Shape Scale:
- * Uses higher-tension rounded radii (8dp -> 32dp) that pair with spring-based shape morphing.
+ * Clean, balanced shape scale (10dp -> 20dp) inspired by privacy-focused apps
+ * (Proton, Bitwarden, SimpleLogin).
  */
 val MailxShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(24.dp)
 )
 
 /**
- * Material 3 Expressive Emphasized Type Scale:
- * Elevates display/headline/title weights (ExtraBold & Bold) and tightens tracking for focal hierarchy.
+ * Clean & modern typography hierarchy:
+ * ExtraBold is reserved strictly for top-level display focal points;
+ * section titles and labels use SemiBold / Medium for calm readability.
  */
 val MailxTypography = Typography(
     displayLarge = TextStyle(
         fontWeight = FontWeight.ExtraBold,
-        fontSize = 36.sp,
-        lineHeight = 42.sp,
-        letterSpacing = (-0.5).sp
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.4).sp
     ),
     displayMedium = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 30.sp,
-        lineHeight = 36.sp,
-        letterSpacing = (-0.35).sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
+        letterSpacing = (-0.3).sp
     ),
     displaySmall = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 26.sp,
-        lineHeight = 32.sp,
-        letterSpacing = (-0.25).sp
-    ),
-    headlineLarge = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
         lineHeight = 30.sp,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.2).sp
+    ),
+    headlineLarge = TextStyle(
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.2).sp
     ),
     headlineMedium = TextStyle(
-        fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 19.sp,
+        lineHeight = 25.sp,
         letterSpacing = (-0.15).sp
     ),
     headlineSmall = TextStyle(
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+        lineHeight = 23.sp,
         letterSpacing = (-0.1).sp
     ),
     titleLarge = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 17.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
         lineHeight = 22.sp,
-        letterSpacing = (-0.05).sp
+        letterSpacing = 0.sp
     ),
     titleMedium = TextStyle(
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
-        lineHeight = 19.sp,
+        lineHeight = 20.sp,
         letterSpacing = 0.05.sp
     ),
     titleSmall = TextStyle(
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.05.sp
@@ -93,24 +94,24 @@ val MailxTypography = Typography(
     ),
     bodySmall = TextStyle(
         fontWeight = FontWeight.Normal,
-        fontSize = 11.sp,
-        lineHeight = 15.sp,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
         letterSpacing = 0.15.sp
     ),
     labelLarge = TextStyle(
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp
     ),
     labelMedium = TextStyle(
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 15.sp,
         letterSpacing = 0.2.sp
     ),
     labelSmall = TextStyle(
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 10.sp,
         lineHeight = 14.sp,
         letterSpacing = 0.25.sp

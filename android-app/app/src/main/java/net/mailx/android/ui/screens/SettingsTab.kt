@@ -8,11 +8,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Contrast
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Unsubscribe
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.outlined.MailOutline
+import androidx.compose.material.icons.outlined.MotionPhotosOff
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Unsubscribe
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ fun SettingsTab(
     onToggleDynamicColor: (Boolean) -> Unit,
     onToggleAmoledDark: (Boolean) -> Unit,
     onToggleExpressiveMotion: (Boolean) -> Unit = {},
+    onToggleReducedMotion: (Boolean) -> Unit = {},
     onSyncDefaults: () -> Unit,
     onOpenReverseAliasTool: () -> Unit,
     onOpenTrackersReportSheet: () -> Unit = {},
@@ -65,37 +67,33 @@ fun SettingsTab(
     var showUnsubscribeDialog by remember { mutableStateOf(false) }
 
     val darkModeLabel = when (themeState.darkModeMode) {
-        1 -> "Dark Mode: On"
-        0 -> "Dark Mode: Off"
-        else -> "Dark Mode: System"
+        1 -> "Dark"
+        0 -> "Light"
+        else -> "System"
+    }
+
+    val motionModeLabel = when {
+        themeState.reducedMotionEnabled -> "Reduced Motion"
+        themeState.expressiveMotionEnabled -> "Expressive Motion"
+        else -> "Standard Motion"
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 36.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "header_general") {
-            MailxSectionHeader(title = "Material 3 Expressive & Privacy Tools")
+            MailxSectionHeader(title = "Appearance & Privacy Tools")
         }
 
         item(key = "section_uiux_interface") {
             MailxSectionRow(
-                title = "Theme, Motion & Icon System",
-                description = "$darkModeLabel • Material 3 Expressive • Lucide Icons",
+                title = "Theme & Motion Preferences",
+                description = "Theme: $darkModeLabel • $motionModeLabel",
                 startIcon = MailxIcons.MoonStar,
+                endIcon = MailxIcons.ChevronRight,
                 onClick = { showInterfaceSheet = true }
-            )
-        }
-
-        item(key = "section_expressive_motion") {
-            MailxSectionRow(
-                title = "Material 3 Expressive Motion Physics",
-                description = "Use spring-based spatial & effects animations (MotionScheme.expressive())",
-                startIcon = MailxIcons.Sparkles,
-                showSwitch = true,
-                switchChecked = themeState.expressiveMotionEnabled,
-                onSwitchChange = onToggleExpressiveMotion
             )
         }
 
@@ -103,7 +101,7 @@ fun SettingsTab(
             item(key = "section_dynamic_colors") {
                 MailxSectionRow(
                     title = "Material You Dynamic Color",
-                    description = "Derive surface and accent tones from system wallpaper",
+                    description = "Adapt palette tones to your system wallpaper (enabled by default)",
                     startIcon = MailxIcons.Palette,
                     showSwitch = true,
                     switchChecked = themeState.dynamicColorEnabled,
@@ -115,11 +113,34 @@ fun SettingsTab(
         item(key = "section_amoled_dark") {
             MailxSectionRow(
                 title = "Pure Black Surface (AMOLED)",
-                description = "True #000000 background in dark theme",
-                startIcon = Icons.Default.Contrast,
+                description = "True #000000 background with WCAG AA high-contrast text",
+                startIcon = Icons.Outlined.Contrast,
                 showSwitch = true,
                 switchChecked = themeState.amoledDarkEnabled,
                 onSwitchChange = onToggleAmoledDark
+            )
+        }
+
+        item(key = "section_reduced_motion") {
+            MailxSectionRow(
+                title = "Reduced Motion",
+                description = "Minimize transitions and disable pulsing animations",
+                startIcon = Icons.Outlined.MotionPhotosOff,
+                showSwitch = true,
+                switchChecked = themeState.reducedMotionEnabled,
+                onSwitchChange = onToggleReducedMotion
+            )
+        }
+
+        item(key = "section_expressive_motion") {
+            MailxSectionRow(
+                title = "Expressive Spring Motion",
+                description = "Optional spring physics (default uses calm MotionScheme.standard())",
+                startIcon = MailxIcons.Sparkles,
+                showSwitch = true,
+                enabled = !themeState.reducedMotionEnabled,
+                switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
+                onSwitchChange = onToggleExpressiveMotion
             )
         }
 
@@ -128,6 +149,7 @@ fun SettingsTab(
                 title = "Send via Reverse Alias",
                 description = "Generate outbound relay addresses for any recipient",
                 startIcon = MailxIcons.Send,
+                endIcon = MailxIcons.ChevronRight,
                 onClick = onOpenReverseAliasTool
             )
         }
@@ -137,6 +159,7 @@ fun SettingsTab(
                 title = "Trackers Report Decoder",
                 description = "Decode removed email tracker fragments offline in Rust",
                 startIcon = MailxIcons.ShieldCheck,
+                endIcon = MailxIcons.ChevronRight,
                 onClick = onOpenTrackersReportSheet
             )
         }
@@ -186,7 +209,7 @@ fun SettingsTab(
                 description = defaultsState.defaultFromName.ifBlank {
                     "Uses the alias address when left blank"
                 },
-                startIcon = Icons.Default.Badge,
+                startIcon = Icons.Outlined.Badge,
                 endIcon = MailxIcons.Edit3,
                 onClick = { showFromNameDialog = true }
             )
@@ -197,7 +220,7 @@ fun SettingsTab(
             MailxSectionRow(
                 title = "Include Relay Banner Header",
                 description = "Show 'Sent to <alias> from <sender>' header in forwarded emails",
-                startIcon = Icons.Default.MailOutline,
+                startIcon = Icons.Outlined.MailOutline,
                 showSwitch = true,
                 switchChecked = includeHeader,
                 onSwitchChange = onUpdateIncludeMailxHeader
@@ -219,7 +242,7 @@ fun SettingsTab(
             MailxSectionRow(
                 title = "List-Unsubscribe Action",
                 description = MailxRuleCatalog.unsubscribeLabel(defaultsState.unsubscribeBehaviour),
-                startIcon = Icons.Default.Unsubscribe,
+                startIcon = Icons.Outlined.Unsubscribe,
                 endIcon = MailxIcons.Edit3,
                 onClick = { showUnsubscribeDialog = true }
             )
@@ -240,7 +263,8 @@ fun SettingsTab(
             MailxSectionRow(
                 title = "Inspect Delivery & Bounce Logs",
                 description = "View MTA delivery logs, raw bounce files & server health",
-                startIcon = Icons.Default.ReceiptLong,
+                startIcon = Icons.Outlined.ReceiptLong,
+                endIcon = MailxIcons.ChevronRight,
                 onClick = onOpenDiagnosticsSheet
             )
         }
@@ -257,6 +281,7 @@ fun SettingsTab(
                 title = "Account, 2FA, Passkeys & CSV",
                 description = "Manage TOTP, passkeys, API access keys, and CSV import/export",
                 startIcon = MailxIcons.UserCog,
+                endIcon = MailxIcons.ChevronRight,
                 onClick = onOpenAccountSheet
             )
         }
@@ -266,6 +291,7 @@ fun SettingsTab(
                 title = "Service Announcements",
                 description = "Instance updates and operational notices",
                 startIcon = MailxIcons.Megaphone,
+                endIcon = MailxIcons.ChevronRight,
                 onClick = onOpenAnnouncementsSheet
             )
         }
@@ -289,14 +315,14 @@ fun SettingsTab(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "Mailx Privacy • Rust Native Skeleton (16 KB Aligned)",
+                    text = "Mailx Privacy • Rust Native Core (16 KB Aligned)",
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "v0.5.0 • Material 3 Expressive (1.5.0-rc01) • Lucide Icons • $baseUrl",
+                    text = "v0.5.0 • Material 3 • $baseUrl",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center
@@ -310,7 +336,7 @@ fun SettingsTab(
         ModalBottomSheet(
             onDismissRequest = { showInterfaceSheet = false },
             sheetState = sheetState,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
@@ -320,9 +346,9 @@ fun SettingsTab(
                     .padding(bottom = 24.dp)
             ) {
                 Text(
-                    text = "Material 3 Expressive & Display",
+                    text = "Theme & Motion",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -338,44 +364,14 @@ fun SettingsTab(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    MailxSectionRow(
-                        title = "Expressive Motion Physics",
-                        description = "Spring-based spatial overshoot & shape morphing (MotionScheme.expressive())",
-                        startIcon = MailxIcons.Sparkles,
-                        showSwitch = true,
-                        switchChecked = themeState.expressiveMotionEnabled,
-                        onSwitchChange = onToggleExpressiveMotion
-                    )
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        MailxSectionRow(
-                            title = "Material You Dynamic Color",
-                            description = "Adapt colors to your device wallpaper",
-                            startIcon = MailxIcons.Palette,
-                            showSwitch = true,
-                            switchChecked = themeState.dynamicColorEnabled,
-                            onSwitchChange = onToggleDynamicColor
-                        )
-                    }
-
-                    MailxSectionRow(
-                        title = "Pure Black Surface (AMOLED)",
-                        description = "True black background in dark mode",
-                        startIcon = Icons.Default.Contrast,
-                        showSwitch = true,
-                        switchChecked = themeState.amoledDarkEnabled,
-                        onSwitchChange = onToggleAmoledDark
-                    )
-
                     Text(
                         text = "Color Mode",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 4.dp)
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -398,6 +394,45 @@ fun SettingsTab(
                             label = { Text("Light") }
                         )
                     }
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        MailxSectionRow(
+                            title = "Material You Dynamic Color",
+                            description = "Adapt colors to your device wallpaper",
+                            startIcon = MailxIcons.Palette,
+                            showSwitch = true,
+                            switchChecked = themeState.dynamicColorEnabled,
+                            onSwitchChange = onToggleDynamicColor
+                        )
+                    }
+
+                    MailxSectionRow(
+                        title = "Pure Black Surface (AMOLED)",
+                        description = "True black background with WCAG AA contrast",
+                        startIcon = Icons.Outlined.Contrast,
+                        showSwitch = true,
+                        switchChecked = themeState.amoledDarkEnabled,
+                        onSwitchChange = onToggleAmoledDark
+                    )
+
+                    MailxSectionRow(
+                        title = "Reduced Motion",
+                        description = "Disable non-essential animations",
+                        startIcon = Icons.Outlined.MotionPhotosOff,
+                        showSwitch = true,
+                        switchChecked = themeState.reducedMotionEnabled,
+                        onSwitchChange = onToggleReducedMotion
+                    )
+
+                    MailxSectionRow(
+                        title = "Expressive Motion Physics",
+                        description = "Optional spring overshoot (default is MotionScheme.standard())",
+                        startIcon = MailxIcons.Sparkles,
+                        showSwitch = true,
+                        enabled = !themeState.reducedMotionEnabled,
+                        switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,
+                        onSwitchChange = onToggleExpressiveMotion
+                    )
                 }
             }
         }

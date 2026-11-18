@@ -64,7 +64,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             darkModeMode = prefs.darkModeMode,
             dynamicColorEnabled = prefs.dynamicColorEnabled,
             amoledDarkEnabled = prefs.amoledDarkEnabled,
-            expressiveMotionEnabled = prefs.expressiveMotionEnabled
+            expressiveMotionEnabled = prefs.expressiveMotionEnabled,
+            reducedMotionEnabled = prefs.reducedMotionEnabled
         )
     )
     val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
@@ -857,6 +858,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun toggleExpressiveMotion(enabled: Boolean) {
         prefs.expressiveMotionEnabled = enabled
         _themeState.update { it.copy(expressiveMotionEnabled = enabled) }
+    }
+
+    fun toggleReducedMotion(enabled: Boolean) {
+        prefs.reducedMotionEnabled = enabled
+        _themeState.update { it.copy(reducedMotionEnabled = enabled) }
     }
 
     fun fetchWildcardDomainInfo(domainParam: String) {

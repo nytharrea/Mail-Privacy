@@ -59,7 +59,7 @@ fun PrivacyLabBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -74,7 +74,7 @@ fun PrivacyLabBottomSheet(
             Text(
                 text = "Rust Privacy Lab",
                 fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )

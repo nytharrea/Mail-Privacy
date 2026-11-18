@@ -3,6 +3,9 @@
 package net.mailx.android.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,10 +27,10 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.formatIsoDateShort
+import net.mailx.android.ui.theme.LocalReducedMotion
 import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AliasCard(
     alias: UiAlias,
@@ -39,11 +42,12 @@ fun AliasCard(
     onCopyOrWildcard: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit = {}
 ) {
+    val reducedMotion = LocalReducedMotion.current
     var justCopied by remember { mutableStateOf(false) }
 
     LaunchedEffect(justCopied) {
         if (justCopied) {
-            delay(1300)
+            delay(1200)
             justCopied = false
         }
     }
@@ -64,47 +68,51 @@ fun AliasCard(
         }
     }
 
-    // Material 3 Expressive Shape Morphing on selection/copy state
+    // Shape morph is reserved strictly for selected state (no per-click / copy shape bounce)
     val cardCorner by animateDpAsState(
-        targetValue = if (isSelected || justCopied) 24.dp else 18.dp,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "alias_card_corner_morph"
+        targetValue = if (isSelected) 18.dp else 14.dp,
+        animationSpec = if (reducedMotion) snap() else tween(durationMillis = 160),
+        label = "alias_card_selected_corner"
     )
 
-    val actionBtnCorner by animateDpAsState(
-        targetValue = if (justCopied) 18.dp else 12.dp,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "action_btn_corner_morph"
-    )
+    val cardShape = RoundedCornerShape(cardCorner)
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(cardCorner))
+            .clip(cardShape)
             .clickable(onClick = if (selectionMode) onToggleSelect else onClick),
-        shape = RoundedCornerShape(cardCorner),
+        shape = cardShape,
         color = if (isSelected) {
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f)
+            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
-        tonalElevation = 1.dp
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isSelected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            }
+        ),
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(IntrinsicSize.Min)
-                .padding(end = 10.dp),
+                .padding(end = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
+                    .width(3.dp)
                     .fillMaxHeight()
                     .background(statusColor)
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             if (selectionMode) {
                 Checkbox(
@@ -119,28 +127,28 @@ fun AliasCard(
                     sends = alias.sends,
                     blocks = alias.blocks,
                     enabled = alias.enabled,
-                    size = 38.dp,
-                    strokeWidth = 4.dp
+                    size = 36.dp,
+                    strokeWidth = 3.5.dp
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
             }
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 11.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = buildAnnotatedString {
                             withStyle(
                                 SpanStyle(
-                                    fontWeight = FontWeight.ExtraBold,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             ) {
@@ -148,8 +156,8 @@ fun AliasCard(
                             }
                             withStyle(
                                 SpanStyle(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    fontWeight = FontWeight.Normal,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             ) {
                                 append("@${alias.domainPart}")
@@ -165,7 +173,7 @@ fun AliasCard(
                         Icon(
                             imageVector = MailxIcons.Pin,
                             contentDescription = "Pinned",
-                            tint = MailxPalette.PausedAmber,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -190,72 +198,73 @@ fun AliasCard(
                 Text(
                     text = subtitleText,
                     fontSize = 12.sp,
-                    lineHeight = 15.sp,
+                    lineHeight = 16.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Calm, low-noise telemetry badges; only critical states (Blocked, Paused) stay vibrant
                     MiniMetricBadge(
-                        label = "↑${alias.forwards}",
-                        color = MailxPalette.ForwardEmerald
+                        label = "↑ ${alias.forwards}",
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (alias.blocks > 0) {
                         MiniMetricBadge(
-                            label = "⊘${alias.blocks}",
-                            color = MailxPalette.BlockedRose
+                            label = "⊘ ${alias.blocks}",
+                            containerColor = MailxPalette.BlockedRose.copy(alpha = 0.14f),
+                            contentColor = MailxPalette.BlockedRose
                         )
                     }
                     if (alias.replies > 0 || alias.sends > 0) {
                         MiniMetricBadge(
-                            label = "⇄${alias.replies + alias.sends}",
-                            color = MailxPalette.ReplySky
+                            label = "⇄ ${alias.replies + alias.sends}",
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     if (!alias.enabled) {
                         MiniMetricBadge(
-                            label = "Off",
-                            color = MailxPalette.Slate500
+                            label = "Disabled",
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else if (alias.isPaused) {
                         MiniMetricBadge(
                             label = "Paused",
-                            color = MailxPalette.PausedAmber
+                            containerColor = MailxPalette.PausedAmber.copy(alpha = 0.16f),
+                            contentColor = MailxPalette.PausedAmber
                         )
                     }
                     if (alias.wildcard) {
                         MiniMetricBadge(
                             label = "Wildcard",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    if (alias.isCustomDomain) {
-                        MiniMetricBadge(
-                            label = "Custom",
-                            color = MailxPalette.SentIndigo
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             FilledTonalIconButton(
                 onClick = {
                     if (!alias.wildcard) justCopied = true
                     onCopyOrWildcard()
                 },
-                modifier = Modifier.size(36.dp),
-                shape = RoundedCornerShape(actionBtnCorner),
+                modifier = Modifier.size(34.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = if (justCopied) {
-                        MailxPalette.ForwardEmerald.copy(alpha = 0.22f)
+                        MailxPalette.ForwardEmerald.copy(alpha = 0.18f)
                     } else {
-                        MaterialTheme.colorScheme.surfaceContainerHighest
+                        MaterialTheme.colorScheme.surfaceContainerHigh
                     },
                     contentColor = if (justCopied) {
                         MailxPalette.ForwardEmerald
@@ -281,18 +290,19 @@ fun AliasCard(
 @Composable
 private fun MiniMetricBadge(
     label: String,
-    color: Color
+    containerColor: Color,
+    contentColor: Color
 ) {
     Surface(
-        shape = CircleShape,
-        color = color.copy(alpha = 0.14f)
+        shape = RoundedCornerShape(6.dp),
+        color = containerColor
     ) {
         Text(
             text = label,
             fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = color,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+            fontWeight = FontWeight.Medium,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }

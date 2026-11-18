@@ -7,7 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -77,13 +76,17 @@ fun SetupScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -94,16 +97,16 @@ fun SetupScreen(
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(52.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = MailxIcons.ShieldCheck,
                                     contentDescription = "Mailx Privacy",
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -119,24 +122,24 @@ fun SetupScreen(
                                 Text(
                                     text = "Mailx Privacy",
                                     style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.ExtraBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.secondaryContainer
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh
                                 ) {
                                     Text(
-                                        text = "Rust Skeleton",
+                                        text = "Rust Core",
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                     )
                                 }
                             }
                             Text(
-                                text = "Material 3 Expressive • Audited alias management, PGP forwarding & local tracker inspection",
+                                text = "Audited alias management, PGP forwarding & local tracker inspection",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -145,8 +148,12 @@ fun SetupScreen(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -163,7 +170,7 @@ fun SetupScreen(
                             Text(
                                 text = "Instance & Authentication",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             FilledTonalButton(
@@ -175,7 +182,7 @@ fun SetupScreen(
                                     }
                                     onLoginModeChange("access_key")
                                 },
-                                shape = CircleShape,
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
@@ -185,7 +192,7 @@ fun SetupScreen(
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Paste Key", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Paste Key", fontSize = 11.sp, fontWeight = FontWeight.Medium)
                             }
                         }
 
@@ -230,7 +237,7 @@ fun SetupScreen(
                                 label = { Text("Self-Hosted Server URL") },
                                 leadingIcon = { Icon(MailxIcons.Server, contentDescription = null) },
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = cleanFieldColors,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Uri,
@@ -247,7 +254,7 @@ fun SetupScreen(
                                 label = { Text("Account Email") },
                                 leadingIcon = { Icon(MailxIcons.Mail, contentDescription = null) },
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = cleanFieldColors,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Email,
@@ -271,7 +278,7 @@ fun SetupScreen(
                                 },
                                 visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = cleanFieldColors,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Password,
@@ -314,7 +321,7 @@ fun SetupScreen(
                                 },
                                 visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = cleanFieldColors,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -323,7 +330,7 @@ fun SetupScreen(
                         if (!authState.totpRequired) {
                             authState.errorMessage?.let { err ->
                                 Surface(
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = RoundedCornerShape(12.dp),
                                     color = MaterialTheme.colorScheme.errorContainer,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -354,8 +361,8 @@ fun SetupScreen(
                                 ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp),
-                            shape = CircleShape
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             if (authState.isLoading && !authState.totpRequired) {
                                 CircularProgressIndicator(
@@ -364,9 +371,9 @@ fun SetupScreen(
                                     color = MaterialTheme.colorScheme.onPrimary
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Signing in...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("Signing in...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             } else {
-                                Text("Login", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("Sign In", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
 
@@ -377,8 +384,8 @@ fun SetupScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(46.dp),
-                                shape = CircleShape,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
                                 Icon(
                                     imageVector = MailxIcons.Passkey,
@@ -389,7 +396,7 @@ fun SetupScreen(
                                 Text(
                                     text = "Sign in with Passkey",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -397,8 +404,12 @@ fun SetupScreen(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -427,7 +438,7 @@ fun SetupScreen(
                         Text(
                             text = "Zero-knowledge memory drop",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -458,7 +469,7 @@ fun SetupScreen(
             title = {
                 Text(
                     text = "2FA Verification",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 )
             },
             text = {
@@ -509,7 +520,7 @@ fun SetupScreen(
                             }
                         ),
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = cleanFieldColors,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -518,7 +529,7 @@ fun SetupScreen(
 
                     authState.errorMessage?.let { err ->
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.errorContainer,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -597,7 +608,7 @@ fun SetupScreen(
                             onValueChange = { resetEmail = it },
                             label = { Text("Email Address") },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = cleanFieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -611,7 +622,7 @@ fun SetupScreen(
                             onValueChange = { resetToken = it.trim() },
                             label = { Text("Reset Token (32 chars)") },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = cleanFieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -621,7 +632,7 @@ fun SetupScreen(
                             label = { Text("New Password") },
                             visualTransformation = PasswordVisualTransformation(),
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = cleanFieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )

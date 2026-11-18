@@ -1,6 +1,6 @@
-# Mailx Privacy Android (Rust Native Skeleton + Compose Material 3 Expressive)
+# Mailx Privacy Android (Rust Native Core + Clean Material 3 UI)
 
-[IVPN Mailx](https://github.com/ivpn/mailx) ([mailx.net](https://mailx.net/)) altyapısı için geliştirilmiş, çekirdeği ve uygulama iskeleti tamamen **Rust (`mailx-core` v0.5.0)** tabanlı olan, arayüz katmanında ise **[Jetpack Compose Material 3 Expressive (`1.5.0-rc01`)](https://developer.android.com/jetpack/androidx/releases/compose-material3)** ([Material 3 Expressive Motion Theming](https://m3.material.io/blog/m3-expressive-motion-theming)) ve **[Lucide Icons](https://lucide.dev/) + Material Symbols Rounded** vektör ikon sistemini kullanan modern Android e-posta gizlilik istemcisidir.
+[IVPN Mailx](https://github.com/ivpn/mailx) ([mailx.net](https://mailx.net/)) altyapısı için geliştirilmiş, çekirdeği ve uygulama iskeleti tamamen **Rust (`mailx-core` v0.5.0)** tabanlı olan, arayüz katmanında ise **Jetpack Compose Material 3** ve her temada renklendirilebilir (**tintable**) vektör ikon sistemini kullanan modern, sade ve gizlilik odaklı Android e-posta gizlilik istemcisidir.
 
 ## Mimari: Rust Tabanlı Uygulama İskeleti (`rust-core` / `libmailx_core.so`)
 
@@ -14,14 +14,19 @@ Uygulamanın yalnızca ağ katmanı değil, **tüm uygulama iskeleti, durum filt
 | `rust-core/src/utils.rs` | Ters takma ad (`alias+hedef=alanadi.com@mailx.net`) üretimi, Wildcard (`*+` ve `*.`) anlık adres üretimi, çevrimdışı Base64URL `#fragment` **İzleyici Raporu Çözücü**, **NATO Fonetik Alfabe Kodlayıcı (`encode_nato_phonetic`)**, xorshift64 tabanlı **Rastgele Sonek Üretici (`generate_random_suffix`)** ve **Gizlilik Duruşu Hesaplayıcı (`compute_privacy_posture`)**. |
 | `rust-core/src/jni_bridge.rs` | `catch_unwind` ile panik-korumalı JNI köprüsü (`JniEnvelope<T>`), tüm yerel Rust iskelet ve ağ işlevlerini JSON zarfı ile Android Kotlin katmanına (`MailxRustBridge.kt`) güvenli şekilde aktarır. |
 
-## Arayüz: Compose Material 3 Expressive & Lucide Icons
+## Arayüz: Sakin, Güven Veren ve Modern Material 3 Tasarımı
 
-- **Material 3 Expressive (`androidx.compose.material3:material3:1.5.0-rc01` & Compose BOM `2026.09.00`)**:
-  - `MaterialExpressiveTheme` ve `MotionScheme.expressive()` ile yay fiziği (spring physics) tabanlı uzamsal (`defaultSpatialSpec`, `fastSpatialSpec`) ve efekt (`defaultEffectsSpec`) animasyonları.
-  - Seçim ve kopyalama durumlarında dinamik köşe yarıçapı dönüşümü (**Shape Morphing**: `18.dp` ↔ `24.dp`) ve vurgulu tipografi (`MailxTypography` — `ExtraBold` / `Bold` başlık hiyerarşisi).
-  - Ayarlar ekranından çalışma zamanında **Material 3 Expressive Motion Physics (`MotionScheme.expressive()`)** ile `MotionScheme.standard()` arasında geçiş imkanı.
-- **Lucide Icons (`com.composables:icons-lucide-android:2.2.1`) & Material Symbols Rounded (`MailxIcons.kt`)**:
-  - Tüm alt navigasyon sekmeleri, üst çubuk eylemleri, durum rozetleri, arama/filtre çubukları ve hızlı araçlarda 24x24 `2dp` yuvarlatılmış konturlu **Lucide Icons v1.70** ve **Material Symbols** vektör ikonları.
+- **Renk Paleti & Tonal Hiyerarşi (`Color.kt`, `Theme.kt`)**:
+  - Koyu temada temiz nötr arduvaz arka plan (`#0B0E11`) ve sofistike teal primary (`#14B8A6`); açık temada yüksek kontrastlı `#0D9488` primary.
+  - Desatüre edilmiş durum renkleri (`ForwardEmerald`, `ReplySky`, `SentIndigo`); yalnızca kritik uyarı durumları (`BlockedRose`, `PausedAmber`) canlı vurgulanır.
+  - Net tonal yüzey hiyerarşisi (`surfaceContainerLow` → `surfaceContainer` → `surfaceContainerHigh`), ince `BorderStroke` kullanımı ve sıfır gereksiz gölge/elevation.
+  - **Material You (Dynamic Color)** varsayılan olarak açıktır; **Saf Siyah (AMOLED)** modunda WCAG AA/AAA metin kontrastı korunur.
+- **Sakin Hareket & Azaltılmış Hareket Desteği (`Theme.kt`, `MainActivity.kt`, `AliasCard.kt`)**:
+  - Varsayılan hareket şeması **`MotionScheme.standard()`** olarak ayarlanmıştır (isteğe bağlı Expressive Motion ayarlardan açılabilir).
+  - Sistem ve uygulama içi **Reduced Motion (`LocalReducedMotion`)** desteği mevcuttur.
+  - Köşe yarıçapları `10.dp`–`20.dp` (`medium = 14.dp`, `large = 20.dp`) aralığında dengelenmiş, tipografide `SemiBold` / `Medium` ağırlıkları tercih edilmiştir.
+- **Optik Dengeli, Tint Edilebilir İkon Sistemi (`MailxIcons.kt`)**:
+  - Hardcoded beyaz stroke kaldırılarak açık ve koyu temada `%100` uyumlu, `24.dp` / `1.75f` tutarlı ağırlıklı vektör ikon sistemi kullanılmıştır.
 
 ## Derleme ve Test
 

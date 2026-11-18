@@ -692,9 +692,10 @@ data class DefaultsUiState(
 @Immutable
 data class ThemeUiState(
     val darkModeMode: Int = 1,
-    val dynamicColorEnabled: Boolean = false,
+    val dynamicColorEnabled: Boolean = true,
     val amoledDarkEnabled: Boolean = false,
-    val expressiveMotionEnabled: Boolean = true
+    val expressiveMotionEnabled: Boolean = false,
+    val reducedMotionEnabled: Boolean = false
 )
 
 sealed interface ActiveSheet {

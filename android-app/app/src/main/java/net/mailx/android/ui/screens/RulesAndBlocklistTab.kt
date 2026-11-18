@@ -1,5 +1,6 @@
 package net.mailx.android.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -123,7 +124,8 @@ fun RulesAndBlocklistTab(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -321,7 +323,8 @@ fun RulesAndBlocklistTab(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -547,7 +550,7 @@ private fun RuleEditorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {

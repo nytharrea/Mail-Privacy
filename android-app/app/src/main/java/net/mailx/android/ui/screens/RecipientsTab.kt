@@ -1,6 +1,7 @@
 package net.mailx.android.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -199,7 +200,8 @@ fun RecipientsTab(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
                     ) {
                         Column(
                             modifier = Modifier
@@ -461,7 +463,8 @@ fun RecipientsTab(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(

@@ -119,17 +119,23 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, value).apply()
 
+    // Dynamic Color (Material You) enabled by default
     var dynamicColorEnabled: Boolean
-        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, false)
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
 
     var amoledDarkEnabled: Boolean
         get() = prefs.getBoolean(KEY_AMOLED_DARK_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_AMOLED_DARK_ENABLED, value).apply()
 
+    // MotionScheme.standard() is default (expressiveMotionEnabled = false)
     var expressiveMotionEnabled: Boolean
-        get() = prefs.getBoolean(KEY_EXPRESSIVE_MOTION_ENABLED, true)
+        get() = prefs.getBoolean(KEY_EXPRESSIVE_MOTION_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_EXPRESSIVE_MOTION_ENABLED, value).apply()
+
+    var reducedMotionEnabled: Boolean
+        get() = prefs.getBoolean(KEY_REDUCED_MOTION_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_REDUCED_MOTION_ENABLED, value).apply()
 
     var darkModeMode: Int
         get() = prefs.getInt(KEY_DARK_MODE_MODE, 1)
@@ -303,9 +309,10 @@ class EncryptedPrefsManager(context: Context) {
         private const val KEY_UNSUBSCRIBE_BEHAVIOUR = "unsubscribe_behaviour"
         private const val KEY_CACHED_ALIASES = "cached_aliases"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
-        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v3_enabled"
+        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v4_enabled"
         private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v3_enabled"
-        private const val KEY_EXPRESSIVE_MOTION_ENABLED = "expressive_motion_v5_enabled"
+        private const val KEY_EXPRESSIVE_MOTION_ENABLED = "expressive_motion_v6_enabled"
+        private const val KEY_REDUCED_MOTION_ENABLED = "reduced_motion_v1_enabled"
         private const val KEY_DARK_MODE_MODE = "dark_mode_v3_mode"
     }
 }

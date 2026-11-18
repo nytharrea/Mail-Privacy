@@ -8,8 +8,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -45,6 +49,7 @@ import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.model.*
 import net.mailx.android.ui.screens.*
 import net.mailx.android.ui.sheets.*
+import net.mailx.android.ui.theme.LocalReducedMotion
 import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 import net.mailx.android.ui.theme.MailxTheme
@@ -74,7 +79,8 @@ class MainActivity : ComponentActivity() {
                 darkTheme = useDarkTheme,
                 dynamicColor = themeState.dynamicColorEnabled,
                 amoledDark = themeState.amoledDarkEnabled,
-                expressiveMotion = themeState.expressiveMotionEnabled
+                expressiveMotion = themeState.expressiveMotionEnabled,
+                reducedMotion = themeState.reducedMotionEnabled
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -91,6 +97,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MailxAppScreen(vm: MailxViewModel) {
     val context = LocalContext.current
+    val reducedMotion = LocalReducedMotion.current
 
     val authState by vm.authState.collectAsStateWithLifecycle()
     val currentTab by vm.currentTab.collectAsStateWithLifecycle()
@@ -142,7 +149,6 @@ fun MailxAppScreen(vm: MailxViewModel) {
         }
     }
 
-    // Rust Skeleton handles alias filtering, search matching, and multi-column sorting natively via JNI
     val displayedAliases = remember(aliases, filterState) {
         runCatching {
             val rawArray = JSONArray().apply { aliases.forEach { put(it.rawJson) } }.toString()
@@ -190,13 +196,13 @@ fun MailxAppScreen(vm: MailxViewModel) {
         src.take(2).uppercase()
     }
 
-    val spatialSpring = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-    val effectsSpring = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val spatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val effectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            MailxExpressiveTopBar(
+            MailxCleanTopBar(
                 title = currentTab.label,
                 defaultDomain = defaultsState.defaultDomain,
                 userInitials = userInitials,
@@ -213,7 +219,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     containerColor = MaterialTheme.colorScheme.inverseSurface,
                     contentColor = MaterialTheme.colorScheme.inverseOnSurface
                 )
@@ -229,20 +235,20 @@ fun MailxAppScreen(vm: MailxViewModel) {
             if (currentTab == MainNavTab.ALIASES) {
                 ExtendedFloatingActionButton(
                     onClick = { vm.openSheet(ActiveSheet.CreateAlias) },
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(16.dp),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     icon = {
                         Icon(
                             imageVector = MailxIcons.Plus,
                             contentDescription = "New Alias",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     },
                     text = {
                         Text(
                             text = "New Alias",
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp
                         )
                     }
@@ -258,10 +264,19 @@ fun MailxAppScreen(vm: MailxViewModel) {
             AnimatedContent(
                 targetState = currentTab,
                 transitionSpec = {
-                    (fadeIn(animationSpec = effectsSpring) + scaleIn(initialScale = 0.96f, animationSpec = spatialSpring))
-                        .togetherWith(fadeOut(animationSpec = effectsSpring))
+                    when {
+                        reducedMotion -> EnterTransition.None togetherWith ExitTransition.None
+                        themeState.expressiveMotionEnabled -> {
+                            (fadeIn(animationSpec = effectsSpec) + scaleIn(initialScale = 0.97f, animationSpec = spatialSpec))
+                                .togetherWith(fadeOut(animationSpec = effectsSpec))
+                        }
+                        else -> {
+                            (fadeIn(animationSpec = tween(170)) + scaleIn(initialScale = 0.985f, animationSpec = tween(170)))
+                                .togetherWith(fadeOut(animationSpec = tween(130)))
+                        }
+                    }
                 },
-                label = "expressive_main_tab_transition"
+                label = "main_tab_transition"
             ) { targetTab ->
                 when (targetTab) {
                     MainNavTab.HOME -> HomeDashboardTab(
@@ -384,6 +399,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onToggleDynamicColor = vm::toggleDynamicColor,
                         onToggleAmoledDark = vm::toggleAmoledDark,
                         onToggleExpressiveMotion = vm::toggleExpressiveMotion,
+                        onToggleReducedMotion = vm::toggleReducedMotion,
                         onSyncDefaults = { vm.syncServerDefaults(silent = false) },
                         onOpenReverseAliasTool = {
                             val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name
@@ -567,7 +583,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     ),
                     onClick = { vm.deleteAliasConfirmed(sheet.alias) }
                 ) {
-                    Text("Delete", fontWeight = FontWeight.SemiBold)
+                    Text("Delete", fontWeight = FontWeight.Medium)
                 }
             },
             dismissButton = {
@@ -598,7 +614,7 @@ fun MailxAppScreen(vm: MailxViewModel) {
                     ),
                     onClick = vm::logoutConfirmed
                 ) {
-                    Text("Sign Out", fontWeight = FontWeight.SemiBold)
+                    Text("Sign Out", fontWeight = FontWeight.Medium)
                 }
             },
             dismissButton = {
@@ -610,31 +626,29 @@ fun MailxAppScreen(vm: MailxViewModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MailxModernBottomBar(
     currentTab: MainNavTab,
     onSelectTab: (MainNavTab) -> Unit
 ) {
-    val spatialSpring = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-    val effectsSpring = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
+    val reducedMotion = LocalReducedMotion.current
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Transparent)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(26.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
-            tonalElevation = 4.dp,
-            shadowElevation = 8.dp,
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -648,26 +662,26 @@ private fun MailxModernBottomBar(
                 MainNavTab.entries.forEach { tab ->
                     val selected = currentTab == tab
                     val scale by animateFloatAsState(
-                        targetValue = if (selected) 1.05f else 1f,
-                        animationSpec = spatialSpring,
+                        targetValue = if (selected && !reducedMotion) 1.02f else 1f,
+                        animationSpec = if (reducedMotion) snap() else tween(160),
                         label = "nav_item_scale_${tab.name}"
                     )
                     val pillColor by animateColorAsState(
                         targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
                         } else {
                             Color.Transparent
                         },
-                        animationSpec = effectsSpring,
+                        animationSpec = if (reducedMotion) snap() else tween(160),
                         label = "nav_item_pill_${tab.name}"
                     )
                     val contentColor by animateColorAsState(
                         targetValue = if (selected) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = effectsSpring,
+                        animationSpec = if (reducedMotion) snap() else tween(160),
                         label = "nav_item_fg_${tab.name}"
                     )
                     val interactionSource = remember { MutableInteractionSource() }
@@ -675,7 +689,7 @@ private fun MailxModernBottomBar(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(pillColor)
                             .clickable(
                                 interactionSource = interactionSource,
@@ -687,31 +701,22 @@ private fun MailxModernBottomBar(
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                             modifier = Modifier.graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
                             }
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(16.dp)
-                                    .height(2.5.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
-                                    )
-                            )
                             Icon(
                                 imageVector = if (selected) tab.selectedIcon else tab.icon,
                                 contentDescription = tab.label,
                                 tint = contentColor,
-                                modifier = Modifier.size(21.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = tab.label,
-                                fontSize = 10.5.sp,
-                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                 color = contentColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -725,7 +730,7 @@ private fun MailxModernBottomBar(
 }
 
 @Composable
-private fun MailxExpressiveTopBar(
+private fun MailxCleanTopBar(
     title: String,
     defaultDomain: String,
     userInitials: String,
@@ -753,23 +758,27 @@ private fun MailxExpressiveTopBar(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f)
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                    )
                 ) {
                     Text(
                         text = "@$defaultDomain",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
             }
@@ -780,48 +789,48 @@ private fun MailxExpressiveTopBar(
             ) {
                 FilledTonalIconButton(
                     onClick = onSendMailClick,
-                    modifier = Modifier.size(38.dp),
-                    shape = RoundedCornerShape(13.dp),
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
                         imageVector = MailxIcons.Send,
                         contentDescription = "Send from Alias",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
                 FilledTonalIconButton(
                     onClick = onRefreshClick,
-                    modifier = Modifier.size(38.dp),
-                    shape = RoundedCornerShape(13.dp),
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
                         imageVector = MailxIcons.RefreshCw,
                         contentDescription = "Refresh",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
                 Surface(
                     onClick = onProfileClick,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = userInitials,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -855,7 +864,7 @@ private fun MailxCommandBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -868,8 +877,12 @@ private fun MailxCommandBottomSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -880,16 +893,16 @@ private fun MailxCommandBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(46.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = userInitials,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -900,7 +913,7 @@ private fun MailxCommandBottomSheet(
                                 defaultsState.defaultRecipient.ifBlank { "@${defaultsState.defaultDomain}" }
                             },
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -915,8 +928,12 @@ private fun MailxCommandBottomSheet(
             }
 
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -962,7 +979,7 @@ private fun MailxCommandBottomSheet(
             }
 
             Text(
-                text = "$baseUrl • Rust Skeleton v0.5.0 • Material 3 Expressive",
+                text = "$baseUrl • Rust Core v0.5.0",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -989,9 +1006,9 @@ private fun CompactMenuItemRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = iconTint.copy(alpha = 0.14f),
-            modifier = Modifier.size(36.dp)
+            shape = RoundedCornerShape(10.dp),
+            color = iconTint.copy(alpha = 0.12f),
+            modifier = Modifier.size(34.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -1007,7 +1024,7 @@ private fun CompactMenuItemRow(
             Text(
                 text = title,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 color = titleColor
             )
             Text(
