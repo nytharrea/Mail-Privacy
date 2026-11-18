@@ -30,7 +30,6 @@ pub fn get_skeleton_info() -> SkeletonInfo {
     }
 }
 
-/// Filters and sorts an alias JSON array natively in Rust so the UI layer stays a pure declarative view.
 pub fn filter_and_sort_aliases(
     aliases_json: &str,
     search_query: &str,
@@ -139,7 +138,6 @@ pub fn filter_and_sort_aliases(
     Ok(filtered.into_iter().map(|(_, v)| v).collect())
 }
 
-/// Converts days since 1970-01-01 to (year, month, day) using Howard Hinnant's civil calendar algorithm.
 fn civil_from_days(days_since_epoch: i64) -> (i32, u32, u32) {
     let z = days_since_epoch + 719468;
     let era = if z >= 0 { z } else { z - 146096 } / 146097;
@@ -162,7 +160,6 @@ fn format_iso_date(days_since_epoch: i64) -> (String, String) {
     )
 }
 
-/// Computes 7-day telemetry buckets and aggregate counts natively in Rust.
 pub fn compute_seven_day_telemetry(
     raw_stats_json: &str,
     aliases_json: &str,
@@ -293,7 +290,6 @@ pub fn compute_seven_day_telemetry(
     })
 }
 
-/// Formats an alias JSON list into a clean CSV document in Rust.
 pub fn format_aliases_csv_export(aliases_json: &str) -> Result<String, String> {
     let aliases: Vec<Alias> = if aliases_json.trim().is_empty() {
         Vec::new()
@@ -316,7 +312,6 @@ pub fn format_aliases_csv_export(aliases_json: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// Parses CSV text for bulk alias import and maps custom domain names to domain IDs in Rust.
 pub fn parse_aliases_csv_import(
     csv_text: &str,
     custom_domains_json: &str,
@@ -417,7 +412,6 @@ pub fn parse_aliases_csv_import(
     Ok(CsvImportPlan { requests, skipped })
 }
 
-/// Sanitizes tracking parameters (200+ known parameters: utm_*, fbclid, gclid, mc_eid, _hsenc, etc.) from URLs in text.
 pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
     let mut removed_params: Vec<String> = Vec::new();
     let mut urls_cleaned = 0usize;
@@ -447,7 +441,6 @@ pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
     })
 }
 
-/// Analyzes raw RFC-5322 email headers and MIME structure for SPF, DKIM, DMARC, TLS, PGP/MIME, and dangerous attachments in Rust.
 pub fn analyze_email_headers(raw_headers: &str) -> serde_json::Value {
     let rfc_report = crate::rfc_email::analyze_raw_email_headers(raw_headers);
     let mime_report = crate::mime_inspector::inspect_mime_message(raw_headers);
@@ -572,7 +565,6 @@ fn extract_clean_service_slug(raw_input: &str) -> String {
     }
 }
 
-/// Generates contextual service-specific alias candidates + cryptographic passphrase in Rust.
 pub fn generate_contextual_aliases(
     service_input: &str,
     domain: &str,
@@ -617,7 +609,6 @@ pub fn generate_contextual_aliases(
     })
 }
 
-/// Audits alias hygiene, spam/breach exposure radar, and portfolio security in Rust.
 pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
     let aliases: Vec<Alias> = serde_json::from_str(aliases_json).unwrap_or_default();
     let total = aliases.len();
@@ -671,7 +662,6 @@ pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
     })
 }
 
-/// Decodes a Mailx Trackers Report link or fragment and enriches every tracker with vendor intelligence in Rust.
 pub fn decode_and_audit_trackers(url_or_fragment: &str) -> Result<serde_json::Value, String> {
     let report = crate::utils::decode_trackers_report(url_or_fragment)
         .map_err(|e| e.to_string())?;
@@ -687,7 +677,6 @@ pub fn decode_and_audit_trackers(url_or_fragment: &str) -> Result<serde_json::Va
     }))
 }
 
-/// Inspects an ASCII-armored OpenPGP public key in Rust (RFC-4880 packet parser + CRC24 verifier).
 pub fn inspect_openpgp_key_armor(armored_key: &str) -> serde_json::Value {
     let armor_summary = crate::dns_security::inspect_pgp_public_key_armor(armored_key);
     match crate::pgp_inspector::parse_openpgp_armored_public_key(armored_key) {
@@ -727,7 +716,6 @@ pub fn inspect_openpgp_key_armor(armored_key: &str) -> serde_json::Value {
     }
 }
 
-/// Evaluates sender phishing risk (homoglyphs, brand lookalikes, Reply-To mismatch) and domain trust in Rust.
 pub fn evaluate_phishing_and_domain_risk(
     from_header: &str,
     reply_to_header: &str,
@@ -765,7 +753,6 @@ pub fn evaluate_phishing_and_domain_risk(
     })
 }
 
-/// Simulates a Mailx processing rule against a sample email context in Rust.
 pub fn simulate_rule_evaluation(
     rule_json: &str,
     email_context_json: &str,
@@ -779,7 +766,6 @@ pub fn simulate_rule_evaluation(
     serde_json::to_value(res).map_err(|e| e.to_string())
 }
 
-/// Analyzes an SMTP / MTA diagnostic bounce log entry in Rust using RFC-3463 enhanced status codes.
 pub fn analyze_mta_bounce_log(
     _log_type: &str,
     status_text: &str,
@@ -800,7 +786,6 @@ pub fn analyze_mta_bounce_log(
     serde_json::to_value(analysis).unwrap_or_else(|_| serde_json::json!({}))
 }
 
-/// Generates a 6-digit RFC-6238 TOTP code in Rust for a given Base32 secret.
 pub fn generate_totp_token(
     base32_secret: &str,
     unix_seconds: u64,
@@ -817,7 +802,6 @@ pub fn generate_totp_token(
     serde_json::to_value(snap).map_err(|e| e.to_string())
 }
 
-/// Generates an instant alias preview candidate and a high-entropy passphrase in Rust.
 pub fn generate_passphrase_and_candidate(
     format: &str,
     domain: &str,
@@ -843,7 +827,6 @@ pub fn generate_passphrase_and_candidate(
         "passphrase_entropy_bits": passphrase.entropy_bits
     })
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -928,4 +911,3 @@ mod tests {
         assert_eq!(sim["should_block"], true);
     }
 }
-

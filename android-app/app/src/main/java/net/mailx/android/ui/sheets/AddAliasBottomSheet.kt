@@ -17,6 +17,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.ui.components.MailxPrimaryButton
 import net.mailx.android.ui.components.MailxSegmentedControl
 import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.DefaultsUiState
@@ -37,6 +39,7 @@ import net.mailx.android.ui.model.UiCustomDomain
 import net.mailx.android.ui.model.UiWildcardDomainInfo
 import net.mailx.android.ui.theme.LocalReducedMotion
 import net.mailx.android.ui.theme.MailxIcons
+import net.mailx.android.ui.theme.MailxPalette
 import org.json.JSONObject
 import kotlin.random.Random
 
@@ -139,7 +142,7 @@ fun AddAliasBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -165,7 +168,6 @@ fun AddAliasBottomSheet(
                 )
             }
 
-            // 1. Tactile Domain Pill Selector (Replaces clunky ExposedDropdownMenu)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "DOMAIN",
@@ -185,7 +187,7 @@ fun AddAliasBottomSheet(
                         val isSelected = selectedDomain.equals(dom, ignoreCase = true)
                         val pillBg by animateColorAsState(
                             targetValue = if (isSelected) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                MailxPalette.ReplySky.copy(alpha = 0.18f)
                             } else {
                                 MaterialTheme.colorScheme.surfaceContainerLow
                             },
@@ -194,19 +196,19 @@ fun AddAliasBottomSheet(
                         )
                         Surface(
                             onClick = { selectedDomain = dom },
-                            shape = RoundedCornerShape(11.dp),
+                            shape = RoundedCornerShape(50),
                             color = pillBg,
                             border = BorderStroke(
                                 width = 1.dp,
                                 color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                                    MailxPalette.ReplySky.copy(alpha = 0.65f)
                                 } else {
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
                                 }
                             )
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
@@ -216,7 +218,7 @@ fun AddAliasBottomSheet(
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) {
-                                        MaterialTheme.colorScheme.primary
+                                        MailxPalette.ReplySky
                                     } else {
                                         MaterialTheme.colorScheme.onSurface
                                     }
@@ -225,7 +227,7 @@ fun AddAliasBottomSheet(
                                     Icon(
                                         imageVector = MailxIcons.Check,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = MailxPalette.ReplySky,
                                         modifier = Modifier.size(13.dp)
                                     )
                                 }
@@ -235,7 +237,6 @@ fun AddAliasBottomSheet(
                 }
             }
 
-            // 2. Tactile Format Selector (Replaces clunky ExposedDropdownMenu)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "GENERATION FORMAT",
@@ -254,7 +255,7 @@ fun AddAliasBottomSheet(
                         val isSelected = selectedFormat == fmtKey
                         val chipBg by animateColorAsState(
                             targetValue = if (isSelected) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.surfaceContainerLow
                             },
@@ -263,14 +264,14 @@ fun AddAliasBottomSheet(
                         )
                         Surface(
                             onClick = { selectedFormat = fmtKey },
-                            shape = RoundedCornerShape(11.dp),
+                            shape = RoundedCornerShape(50),
                             color = chipBg,
                             border = BorderStroke(
                                 width = 1.dp,
                                 color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                                    MaterialTheme.colorScheme.primary
                                 } else {
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
                                 }
                             )
                         ) {
@@ -279,35 +280,34 @@ fun AddAliasBottomSheet(
                                 fontSize = 12.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
+                                    Color.White
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
                                 },
-                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                             )
                         }
                     }
                 }
             }
 
-            // 3. Live Rust Format Preview Banner
             AnimatedVisibility(visible = rustCandidatePreview != null) {
                 rustCandidatePreview?.let { cand ->
                     val sampleAddress = cand.optString("address")
                     val entropyBits = cand.optDouble("entropy_bits", 0.0)
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(18.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         border = BorderStroke(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -339,22 +339,23 @@ fun AddAliasBottomSheet(
                                     )
                                 }
                             }
-                            FilledTonalIconButton(
+                            Surface(
                                 onClick = { previewSeed++ },
-                                modifier = Modifier.size(32.dp),
-                                shape = RoundedCornerShape(9.dp),
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                )
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)),
+                                modifier = Modifier.size(34.dp)
                             ) {
-                                Icon(
-                                    imageVector = MailxIcons.RefreshCw,
-                                    contentDescription = "Sample another candidate",
-                                    modifier = Modifier
-                                        .size(15.dp)
-                                        .graphicsLayer { rotationZ = spinAngle }
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = MailxIcons.RefreshCw,
+                                        contentDescription = "Sample another candidate",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                            .graphicsLayer { rotationZ = spinAngle }
+                                    )
+                                }
                             }
                         }
                     }
@@ -369,7 +370,7 @@ fun AddAliasBottomSheet(
                         label = { Text("Custom Local Part (1-64 chars)") },
                         suffix = { Text("@$selectedDomain") },
                         singleLine = true,
-                        shape = RoundedCornerShape(13.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = fieldColors,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -413,7 +414,7 @@ fun AddAliasBottomSheet(
                                 }
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(13.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = fieldColors,
                             modifier = Modifier.weight(1f)
                         )
@@ -435,7 +436,7 @@ fun AddAliasBottomSheet(
                 onValueChange = { description = it },
                 label = { Text("Description / Service Note (Optional)") },
                 singleLine = true,
-                shape = RoundedCornerShape(13.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -445,7 +446,7 @@ fun AddAliasBottomSheet(
                 onValueChange = { fromName = it },
                 label = { Text("Sender Display Name (Optional)") },
                 singleLine = true,
-                shape = RoundedCornerShape(13.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -477,23 +478,23 @@ fun AddAliasBottomSheet(
                                     }
                                     selectedRecipients = next
                                 },
-                                shape = RoundedCornerShape(11.dp),
+                                shape = RoundedCornerShape(50),
                                 color = if (isChecked) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
                                 } else {
                                     MaterialTheme.colorScheme.surfaceContainerLow
                                 },
                                 border = BorderStroke(
                                     width = 1.dp,
                                     color = if (isChecked) {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.60f)
                                     } else {
-                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
                                     }
                                 )
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
@@ -508,7 +509,7 @@ fun AddAliasBottomSheet(
                                     Text(
                                         text = rec,
                                         fontSize = 12.sp,
-                                        fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Medium,
+                                        fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isChecked) {
                                             MaterialTheme.colorScheme.primary
                                         } else {
@@ -522,7 +523,12 @@ fun AddAliasBottomSheet(
                 }
             }
 
-            Button(
+            MailxPrimaryButton(
+                text = if (isSubmitting) "Creating..." else "Create & Copy Alias",
+                icon = MailxIcons.Plus,
+                enabled = !isSubmitting &&
+                    (selectedFormat != "custom" || customLocalPart.isNotBlank()) &&
+                    (selectedFormat != "wildcard" || wildcardSuffixValid),
                 onClick = {
                     isSubmitting = true
                     val recipientsStr = selectedRecipients.joinToString(",")
@@ -546,30 +552,9 @@ fun AddAliasBottomSheet(
                     }
                     onCreateAlias(reqObj.toString())
                 },
-                enabled = !isSubmitting &&
-                    (selectedFormat != "custom" || customLocalPart.isNotBlank()) &&
-                    (selectedFormat != "wildcard" || wildcardSuffixValid),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                if (isSubmitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Creating...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                } else {
-                    Text("Create & Copy Alias", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+                modifier = Modifier.fillMaxWidth(),
+                height = 50.dp
+            )
         }
     }
 }

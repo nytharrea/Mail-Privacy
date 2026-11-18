@@ -284,7 +284,6 @@ fun AccountBottomSheet(
                 )
             }
 
-            // Compact, single-line 2FA Card
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -657,7 +656,6 @@ fun AccountBottomSheet(
                 }
             }
 
-            // Passkeys Section
             MailxSectionHeader(
                 title = "Passkeys (WebAuthn)",
                 countBadge = passkeys.size,
@@ -1036,7 +1034,6 @@ fun AccountBottomSheet(
                     )
                 }
 
-                // Inline quick-select chips + sleek dropdown trigger
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

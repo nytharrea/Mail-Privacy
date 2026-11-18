@@ -1414,7 +1414,6 @@ pub fn lookup_tracker_vendor(domain: &str) -> TrackerVendorProfile {
         }
     }
 
-
     TrackerVendorProfile {
         pattern: lower.clone(),
         vendor_name: "Unclassified Tracking Endpoint".to_string(),

@@ -78,7 +78,7 @@ fun AliasesTab(
                 Icon(
                     imageVector = MailxIcons.Search,
                     contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
             },
@@ -140,13 +140,13 @@ fun AliasesTab(
                 )
             },
             singleLine = true,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(50),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -173,15 +173,40 @@ fun AliasesTab(
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectFilterChip(key) },
-                    shape = RoundedCornerShape(10.dp),
-                    label = { Text(label, fontSize = 12.sp) }
+                    shape = RoundedCornerShape(50),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                        selectedBorderColor = MaterialTheme.colorScheme.primary
+                    ),
+                    label = {
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
                 )
             }
 
             FilterChip(
                 selected = filterState.isCustomFilterActive,
                 onClick = onOpenFilterSheet,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(50),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White,
+                    selectedLeadingIconColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 leadingIcon = {
                     Icon(
                         imageVector = MailxIcons.ArrowUpDown,
@@ -189,17 +214,17 @@ fun AliasesTab(
                         modifier = Modifier.size(14.dp)
                     )
                 },
-                label = { Text("Sort", fontSize = 12.sp) }
+                label = { Text("Sort", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
             )
         }
 
         AnimatedVisibility(visible = selectionMode) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -217,7 +242,7 @@ fun AliasesTab(
                         Text(
                             text = "${selectedIds.size} selected",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -240,7 +265,8 @@ fun AliasesTab(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = if (selectedIds.size == aliases.size) "Clear" else "Select All",
-                                    fontSize = 11.sp
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                             IconButton(
@@ -276,11 +302,11 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("Enable", fontSize = 11.sp)
+                                Text("Enable", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -289,11 +315,11 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("Disable", fontSize = 11.sp)
+                                Text("Disable", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -302,13 +328,13 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Icon(MailxIcons.Pin, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
-                                Text("Pin", fontSize = 11.sp)
+                                Text("Pin", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -317,11 +343,11 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("Unpin", fontSize = 11.sp)
+                                Text("Unpin", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -330,17 +356,17 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MailxPalette.BlockedRose.copy(alpha = 0.16f),
                                     contentColor = MailxPalette.BlockedRose
                                 ),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Icon(MailxIcons.Trash2, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
-                                Text("Delete", fontSize = 11.sp)
+                                Text("Delete", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                         } else {
                             FilledTonalButton(
@@ -350,13 +376,13 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Icon(MailxIcons.RotateCcw, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
-                                Text("Restore", fontSize = 11.sp)
+                                Text("Restore", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             FilledTonalButton(
                                 enabled = idsList.isNotEmpty(),
@@ -365,17 +391,17 @@ fun AliasesTab(
                                     selectionMode = false
                                     selectedIds = emptySet()
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(50),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MailxPalette.BlockedRose.copy(alpha = 0.16f),
                                     contentColor = MailxPalette.BlockedRose
                                 ),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Icon(MailxIcons.Trash2, contentDescription = null, modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(3.dp))
-                                Text("Forget", fontSize = 11.sp)
+                                Text("Forget", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

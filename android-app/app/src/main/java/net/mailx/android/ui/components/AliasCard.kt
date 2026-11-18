@@ -26,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -66,7 +67,7 @@ fun AliasCard(
         alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose
         isHighSpamRisk -> MailxPalette.BlockedRose
         alias.isPaused -> MailxPalette.PausedAmber
-        alias.enabled -> MailxPalette.ForwardEmerald
+        alias.enabled -> MailxPalette.ForwardedGreen
         else -> MailxPalette.Slate500
     }
 
@@ -80,7 +81,7 @@ fun AliasCard(
     }
 
     val cardCorner by animateDpAsState(
-        targetValue = if (isSelected) 20.dp else 16.dp,
+        targetValue = if (isSelected) 24.dp else 20.dp,
         animationSpec = if (reducedMotion) snap() else spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium
@@ -97,7 +98,7 @@ fun AliasCard(
         label = "alias_card_bg"
     )
     val copyScale by animateFloatAsState(
-        targetValue = if (justCopied && !reducedMotion) 1.08f else 1f,
+        targetValue = if (justCopied && !reducedMotion) 1.10f else 1f,
         animationSpec = if (reducedMotion) snap() else spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -117,9 +118,9 @@ fun AliasCard(
         border = BorderStroke(
             width = 1.dp,
             color = when {
-                isSelected -> MaterialTheme.colorScheme.outline
-                isHighSpamRisk -> MailxPalette.BlockedRose.copy(alpha = 0.38f)
-                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+                isSelected -> MaterialTheme.colorScheme.primary
+                isHighSpamRisk -> MailxPalette.BlockedRose.copy(alpha = 0.45f)
+                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
             }
         ),
         tonalElevation = 0.dp
@@ -142,7 +143,6 @@ fun AliasCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                // Row 1: Subtle status indicator dot + Local part + @domain pill + feature icons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,7 +150,7 @@ fun AliasCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(6.5.dp)
+                            .size(7.5.dp)
                             .clip(CircleShape)
                             .background(statusColor)
                     )
@@ -158,7 +158,7 @@ fun AliasCard(
                     Text(
                         text = alias.localPart,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -166,22 +166,22 @@ fun AliasCard(
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = RoundedCornerShape(50),
+                        color = MailxPalette.ReplySky.copy(alpha = 0.13f),
                         border = BorderStroke(
                             width = 0.75.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+                            color = MailxPalette.ReplySky.copy(alpha = 0.34f)
                         )
                     ) {
                         Text(
                             text = "@${alias.domainPart}",
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MailxPalette.ReplySky,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                            modifier = Modifier.padding(horizontal = 7.5.dp, vertical = 2.dp)
                         )
                     }
 
@@ -189,7 +189,7 @@ fun AliasCard(
                         Icon(
                             imageVector = MailxIcons.Pin,
                             contentDescription = "Pinned",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MailxPalette.PausedAmber,
                             modifier = Modifier.size(13.5.dp)
                         )
                     }
@@ -197,7 +197,7 @@ fun AliasCard(
                         Icon(
                             imageVector = MailxIcons.Sparkles,
                             contentDescription = "Wildcard",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MailxPalette.BrandTertiaryVioletDark,
                             modifier = Modifier.size(13.5.dp)
                         )
                     }
@@ -211,7 +211,6 @@ fun AliasCard(
                     }
                 }
 
-                // Row 2: Description / routing subtitle
                 Text(
                     text = subtitleText,
                     fontSize = 12.2.sp,
@@ -221,51 +220,72 @@ fun AliasCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // Row 3: Clean compact telemetry tags
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${alias.forwards} forwarded",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                    Surface(
+                        shape = RoundedCornerShape(50),
                         color = if (alias.forwards > 0) {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                            MailxPalette.ForwardedGreen.copy(alpha = 0.14f)
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                            MaterialTheme.colorScheme.surfaceContainer
                         }
-                    )
-
-                    if (alias.blocks > 0) {
+                    ) {
                         Text(
-                            text = "• ${alias.blocks} blocked",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MailxPalette.BlockedRose
+                            text = "${alias.forwards} fwd",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (alias.forwards > 0) {
+                                MailxPalette.ForwardedGreen
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
                         )
                     }
 
+                    if (alias.blocks > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MailxPalette.BlockedRose.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "${alias.blocks} blocked",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MailxPalette.BlockedRose,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
+                            )
+                        }
+                    }
+
                     if (alias.replies > 0 || alias.sends > 0) {
-                        Text(
-                            text = "• ${alias.replies + alias.sends} sent",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MailxPalette.ReplySky.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "${alias.replies + alias.sends} sent",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MailxPalette.ReplySky,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
+                            )
+                        }
                     }
 
                     if (isHighSpamRisk) {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MailxPalette.BlockedRose.copy(alpha = 0.14f)
+                            shape = RoundedCornerShape(50),
+                            color = MailxPalette.BlockedRose.copy(alpha = 0.18f)
                         ) {
                             Text(
                                 text = "High Spam",
-                                fontSize = 9.5.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MailxPalette.BlockedRose,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
                             )
                         }
                     } else if (!alias.enabled) {
@@ -279,7 +299,7 @@ fun AliasCard(
                         Text(
                             text = "• Paused",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.SemiBold,
                             color = MailxPalette.PausedAmber
                         )
                     }
@@ -288,28 +308,25 @@ fun AliasCard(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Animated Copy / Wildcard Tonal Button
+            val btnAccent = when {
+                justCopied -> MailxPalette.ForwardedGreen
+                alias.wildcard -> MailxPalette.BrandTertiaryVioletDark
+                else -> MaterialTheme.colorScheme.primary
+            }
+
             Surface(
                 onClick = {
                     if (!alias.wildcard) justCopied = true
                     onCopyOrWildcard()
                 },
-                shape = RoundedCornerShape(11.dp),
-                color = if (justCopied) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
+                shape = CircleShape,
+                color = btnAccent.copy(alpha = 0.16f),
                 border = BorderStroke(
-                    width = 0.75.dp,
-                    color = if (justCopied) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                    }
+                    width = 1.dp,
+                    color = btnAccent.copy(alpha = 0.38f)
                 ),
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(38.dp)
                     .graphicsLayer {
                         scaleX = copyScale
                         scaleY = copyScale
@@ -331,11 +348,7 @@ fun AliasCard(
                                 else -> MailxIcons.Copy
                             },
                             contentDescription = "Copy alias",
-                            tint = when {
-                                copied -> MaterialTheme.colorScheme.primary
-                                alias.wildcard -> MaterialTheme.colorScheme.primary
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                            tint = btnAccent,
                             modifier = Modifier.size(16.dp)
                         )
                     }

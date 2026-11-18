@@ -1,6 +1,7 @@
 package net.mailx.android.ui.sheets
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,11 +28,13 @@ import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.components.MailxActivityRing
 import net.mailx.android.ui.components.MailxGroupDivider
 import net.mailx.android.ui.components.MailxModernDialog
+import net.mailx.android.ui.components.MailxPrimaryButton
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSectionRow
 import net.mailx.android.ui.components.MailxSegmentedControl
 import net.mailx.android.ui.components.MailxSettingsGroupCard
 import net.mailx.android.ui.components.MailxTelemetryBar
+import net.mailx.android.ui.components.MailxTonalButton
 import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.NatoPhoneticHelper
 import net.mailx.android.ui.model.UiAlias
@@ -66,7 +69,7 @@ fun ManageAliasBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
@@ -83,60 +86,70 @@ fun ManageAliasBottomSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                FilledTonalIconButton(
+                Surface(
                     onClick = { showNato = !showNato },
-                    modifier = Modifier.size(34.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = if (showNato) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                        }
-                    )
+                    shape = CircleShape,
+                    color = if (showNato) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    border = BorderStroke(
+                        0.75.dp,
+                        if (showNato) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+                    ),
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Spellcheck,
-                        contentDescription = "NATO Phonetic",
-                        tint = if (showNato) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(17.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Spellcheck,
+                            contentDescription = "NATO Phonetic",
+                            tint = if (showNato) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                 }
 
                 Text(
                     text = "Alias Inspector",
-                    fontSize = 16.5.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
-                FilledTonalIconButton(
+                Surface(
                     onClick = { onTogglePinned(!alias.pinned) },
-                    modifier = Modifier.size(34.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = if (alias.pinned) {
-                            MailxPalette.PausedAmber.copy(alpha = 0.18f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                        }
-                    )
+                    shape = CircleShape,
+                    color = if (alias.pinned) {
+                        MailxPalette.PausedAmber.copy(alpha = 0.18f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    border = BorderStroke(
+                        0.75.dp,
+                        if (alias.pinned) MailxPalette.PausedAmber.copy(alpha = 0.45f)
+                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+                    ),
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.PushPin,
-                        contentDescription = "Pin",
-                        tint = if (alias.pinned) {
-                            MailxPalette.PausedAmber
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(17.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.PushPin,
+                            contentDescription = "Pin",
+                            tint = if (alias.pinned) {
+                                MailxPalette.PausedAmber
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                 }
             }
 
@@ -144,24 +157,28 @@ fun ManageAliasBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(11.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(15.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         SelectionContainer {
                             Text(
                                 text = alias.name,
-                                fontSize = 15.sp,
+                                fontSize = 15.5.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MailxPalette.ReplySky,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -193,7 +210,7 @@ fun ManageAliasBottomSheet(
                             ) {
                                 pairs.forEachIndexed { idx, (ch, word) ->
                                     Surface(
-                                        shape = RoundedCornerShape(8.dp),
+                                        shape = RoundedCornerShape(10.dp),
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                                     ) {
                                         Column(
@@ -249,7 +266,7 @@ fun ManageAliasBottomSheet(
                                 ) {
                                     ManageAliasStatLegendRow(
                                         icon = Icons.Outlined.Inbox,
-                                        tint = MailxPalette.ForwardEmerald,
+                                        tint = MailxPalette.ForwardedGreen,
                                         text = "${alias.forwards} fwd"
                                     )
                                     ManageAliasStatLegendRow(
@@ -273,9 +290,12 @@ fun ManageAliasBottomSheet(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            FilledTonalButton(
+                            MailxTonalButton(
+                                text = if (alias.wildcard) "Wildcard" else "Copy",
+                                icon = if (alias.wildcard) Icons.Outlined.AutoAwesome else Icons.Outlined.ContentCopy,
+                                accentColor = MailxPalette.ReplySky,
                                 onClick = {
                                     if (alias.wildcard) {
                                         onOpenWildcardGenerator()
@@ -283,45 +303,17 @@ fun ManageAliasBottomSheet(
                                         copyToClipboard(context, "Mailx Alias", alias.name)
                                     }
                                 },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp),
-                                shape = RoundedCornerShape(11.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (alias.wildcard) Icons.Outlined.AutoAwesome else Icons.Outlined.ContentCopy,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (alias.wildcard) "Wildcard" else "Copy",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1
-                                )
-                            }
+                                modifier = Modifier.weight(1f),
+                                height = 46.dp
+                            )
 
-                            Button(
+                            MailxPrimaryButton(
+                                text = "Send Email",
+                                icon = Icons.AutoMirrored.Outlined.ForwardToInbox,
                                 onClick = onOpenSendFromAlias,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp),
-                                shape = RoundedCornerShape(11.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.ForwardToInbox,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Send Email",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1
-                                )
-                            }
+                                modifier = Modifier.weight(1f),
+                                height = 46.dp
+                            )
                         }
                     }
                 }
@@ -334,7 +326,7 @@ fun ManageAliasBottomSheet(
                             title = "Restore Deleted Alias",
                             description = "Restore from Trash and resume forwarding",
                             startIcon = Icons.Outlined.Restore,
-                            accentColor = MailxPalette.ForwardEmerald,
+                            accentColor = MailxPalette.ForwardedGreen,
                             grouped = true,
                             onClick = onRestoreAlias
                         )
@@ -354,7 +346,7 @@ fun ManageAliasBottomSheet(
                             title = if (alias.enabled) "Forwarding Active" else "Forwarding Disabled",
                             description = "Toggle incoming email forwarding for this alias",
                             startIcon = Icons.Outlined.CheckCircleOutline,
-                            iconTint = MailxPalette.ForwardEmerald,
+                            iconTint = MailxPalette.ForwardedGreen,
                             showSwitch = true,
                             switchChecked = alias.enabled,
                             onSwitchChange = onToggleEnabled,
@@ -386,7 +378,7 @@ fun ManageAliasBottomSheet(
                             title = "Pin to Top",
                             description = "Keep this alias in Quick Access and at the top of lists",
                             startIcon = Icons.Outlined.PushPin,
-                            iconTint = MailxPalette.BrandAccentTeal,
+                            iconTint = MailxPalette.PausedAmber,
                             showSwitch = true,
                             switchChecked = alias.pinned,
                             onSwitchChange = onTogglePinned,
@@ -413,7 +405,7 @@ fun ManageAliasBottomSheet(
                         title = "Target Recipients",
                         description = alias.recipients.ifBlank { "Default account recipient" },
                         startIcon = Icons.Outlined.Inbox,
-                        iconTint = MailxPalette.BrandAccentTeal,
+                        iconTint = MailxPalette.ForwardedGreen,
                         endIcon = Icons.Outlined.Edit,
                         grouped = true,
                         onClick = { editingField = "recipients" }
@@ -435,7 +427,7 @@ fun ManageAliasBottomSheet(
                         title = "Timestamps",
                         description = "Created ${formatIsoDateShort(alias.createdAt)} • Updated ${formatIsoDateShort(alias.updatedAt)}",
                         startIcon = Icons.Outlined.Schedule,
-                        iconTint = MailxPalette.Slate400,
+                        iconTint = MailxPalette.BrandTertiaryVioletDark,
                         grouped = true
                     )
                 }
@@ -562,7 +554,7 @@ fun ManageAliasBottomSheet(
                                 }
                                 textVal = m.joinToString(",")
                             },
-                            shape = RoundedCornerShape(9.dp),
+                            shape = RoundedCornerShape(50),
                             label = { Text(rec, fontSize = 12.sp) }
                         )
                     }
@@ -573,7 +565,7 @@ fun ManageAliasBottomSheet(
                 onValueChange = { textVal = it },
                 singleLine = field != "description",
                 minLines = if (field == "description") 3 else 1,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = mailxTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )

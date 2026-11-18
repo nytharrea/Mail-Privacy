@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_totp_rfc6238_vector() {
-        // JBSWY3DPEHPK3PXP is Base32 for "Hello!\xDE\xAD\xBE\xEF"
+
         let code = generate_totp_code_at("JBSWY3DPEHPK3PXP", 1700000000, 30, 6).unwrap();
         assert_eq!(code.len(), 6);
         assert!(code.chars().all(|c| c.is_ascii_digit()));

@@ -35,8 +35,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,8 +50,10 @@ import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.AliasCard
 import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxAliasSkeletonList
+import net.mailx.android.ui.components.MailxPrimaryButton
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.MailxTonalButton
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.UiUserStats
 import net.mailx.android.ui.theme.LocalReducedMotion
@@ -156,11 +160,10 @@ fun HomeDashboardTab(
     val privacyScore = posturePair.first
     val privacyGrade = posturePair.second
     val postureDotColor = when {
-        privacyScore >= 75 -> MailxPalette.ForwardEmerald
+        privacyScore >= 75 -> MailxPalette.ForwardedGreen
         else -> MailxPalette.PausedAmber
     }
 
-    // Animated counters
     val animatedScore by animateIntAsState(
         targetValue = if (entered) privacyScore else 0,
         animationSpec = if (reducedMotion) snap() else tween(durationMillis = 550, easing = FastOutSlowInEasing),
@@ -187,7 +190,6 @@ fun HomeDashboardTab(
         label = "anim_active"
     )
 
-    // Instant Rust Alias & Passphrase Studio State
     var studioFormatIndex by remember { mutableIntStateOf(0) }
     var studioSeed by remember { mutableIntStateOf(0) }
     var copiedAlias by remember { mutableStateOf(false) }
@@ -238,6 +240,11 @@ fun HomeDashboardTab(
             .take(5)
     }
 
+    val trafficTotal = (totalForwards + totalBlocks + totalOutbound).coerceAtLeast(1)
+    val fwdWeight = (totalForwards.toFloat() / trafficTotal.toFloat()).coerceAtLeast(0.15f)
+    val blkWeight = (totalBlocks.toFloat() / trafficTotal.toFloat()).coerceAtLeast(0.08f)
+    val outWeight = (totalOutbound.toFloat() / trafficTotal.toFloat()).coerceAtLeast(0.08f)
+
     PullToRefreshBox(
         isRefreshing = isLoading,
         onRefresh = onRefresh,
@@ -248,14 +255,13 @@ fun HomeDashboardTab(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 1. Unified Relay Overview & Telemetry Card (Calm Monochrome Zinc Hierarchy)
             item(key = "relay_overview_card") {
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
                     ),
                     tonalElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -263,171 +269,195 @@ fun HomeDashboardTab(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // Top Row: Relay Summary + Posture Badge
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(11.dp)
                             ) {
-                                Text(
-                                    text = "Relay Overview",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "$activeCount of ${aliases.size} active • $recipientCount recipient${if (recipientCount == 1) "" else "s"}",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)),
+                                    modifier = Modifier.size(42.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = MailxIcons.ShieldCheck,
+                                            contentDescription = null,
+                                            tint = MailxPalette.BrandPrimaryAccent,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "Relay Activity",
+                                        fontSize = 16.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "$activeCount of ${aliases.size} active • $recipientCount recipient${if (recipientCount == 1) "" else "s"}",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
 
                             Surface(
                                 onClick = { showPrivacyScoreSheet = true },
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = RoundedCornerShape(50),
+                                color = postureDotColor.copy(alpha = 0.14f),
                                 border = BorderStroke(
-                                    width = 0.75.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
+                                    width = 1.dp,
+                                    color = postureDotColor.copy(alpha = 0.38f)
                                 )
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(6.5.dp)
+                                            .size(7.dp)
                                             .clip(CircleShape)
                                             .background(postureDotColor)
                                     )
                                     Text(
-                                        text = "Score $animatedScore · $privacyGrade",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
+                                        text = "$animatedScore · $privacyGrade",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Icon(
                                         imageVector = MailxIcons.ChevronRight,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = postureDotColor,
                                         modifier = Modifier.size(13.dp)
                                     )
                                 }
                             }
                         }
 
-                        // Middle 4-Column Architectural Telemetry Strip
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(
-                                width = 0.75.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
-                            Row(
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 12.dp, horizontal = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .weight(fwdWeight)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MailxPalette.ForwardedGreen)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(blkWeight)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MailxPalette.BlockedRose)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(outWeight)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MailxPalette.ReplySky)
+                            )
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                CompactTelemetryColumn(
+                                ExpressiveMetricTile(
                                     value = animatedForwards.toString(),
                                     label = "Forwarded",
+                                    icon = MailxIcons.MailCheck,
+                                    accentColor = MailxPalette.ForwardedGreen,
                                     onClick = { onNavigateToFilter("active") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                VerticalMetricDivider()
-                                CompactTelemetryColumn(
+                                ExpressiveMetricTile(
                                     value = animatedBlocks.toString(),
                                     label = "Blocked",
+                                    icon = MailxIcons.Shield,
+                                    accentColor = MailxPalette.BlockedRose,
                                     onClick = onNavigateToRules,
                                     modifier = Modifier.weight(1f)
                                 )
-                                VerticalMetricDivider()
-                                CompactTelemetryColumn(
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ExpressiveMetricTile(
                                     value = animatedOutbound.toString(),
-                                    label = "Sent",
+                                    label = "Sent & Replied",
+                                    icon = MailxIcons.Send,
+                                    accentColor = MailxPalette.ReplySky,
                                     onClick = onOpenReverseAliasTool,
                                     modifier = Modifier.weight(1f)
                                 )
-                                VerticalMetricDivider()
-                                CompactTelemetryColumn(
+                                ExpressiveMetricTile(
                                     value = animatedActive.toString(),
-                                    label = "Active",
+                                    label = "Active Aliases",
+                                    icon = MailxIcons.AtSign,
+                                    accentColor = MailxPalette.SentIndigo,
                                     onClick = { onNavigateToFilter("active_inactive") },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
                         }
 
-                        // Dual Action Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Button(
+                            MailxPrimaryButton(
+                                text = "New Alias",
+                                icon = MailxIcons.Plus,
                                 onClick = onOpenCreateAlias,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.5.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = MailxIcons.Plus,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "New Alias",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                                modifier = Modifier.weight(1f),
+                                height = 46.dp
+                            )
 
-                            FilledTonalButton(
+                            MailxTonalButton(
+                                text = "Send Mail",
+                                icon = MailxIcons.Send,
+                                accentColor = MailxPalette.ReplySky,
                                 onClick = onOpenReverseAliasTool,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.5.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = MailxIcons.Send,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Send Mail",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                                modifier = Modifier.weight(1f),
+                                height = 46.dp
+                            )
                         }
                     }
                 }
             }
 
-            // 2. Compact 3-Column Defense Status Strip
             item(key = "defense_status_row") {
                 val highSpamCount = hygieneSummary?.optInt("high_block_ratio_count", 0) ?: 0
                 Row(
@@ -437,6 +467,8 @@ fun HomeDashboardTab(
                     DefensePillTile(
                         title = "OpenPGP",
                         status = if (pgpActive) "Encrypted" else "Off",
+                        icon = MailxIcons.Lock,
+                        accentColor = MailxPalette.ReplySky,
                         isActive = pgpActive,
                         onClick = onNavigateToRecipients,
                         modifier = Modifier.weight(1f)
@@ -444,6 +476,8 @@ fun HomeDashboardTab(
                     DefensePillTile(
                         title = "Trackers",
                         status = if (blockTrackers) "Shield On" else "Off",
+                        icon = MailxIcons.ShieldCheck,
+                        accentColor = MailxPalette.ForwardedGreen,
                         isActive = blockTrackers,
                         onClick = onOpenTrackersReport,
                         modifier = Modifier.weight(1f)
@@ -451,6 +485,8 @@ fun HomeDashboardTab(
                     DefensePillTile(
                         title = "Rules",
                         status = if (highSpamCount > 0) "$highSpamCount Spam" else "$ruleCount Active",
+                        icon = MailxIcons.SlidersHorizontal,
+                        accentColor = if (highSpamCount > 0) MailxPalette.BlockedRose else MailxPalette.BrandTertiaryVioletDark,
                         isActive = ruleCount > 0,
                         isWarning = highSpamCount > 0,
                         onClick = if (highSpamCount > 0) onOpenPrivacyLab else onNavigateToRules,
@@ -459,7 +495,6 @@ fun HomeDashboardTab(
                 }
             }
 
-            // 3. Offline Rust Quick Identity & Passphrase Studio
             item(key = "rust_instant_studio") {
                 val candObj = studioData?.optJSONObject("alias_candidate")
                 val candidateAddr = studioData?.optString("full_address", "")
@@ -473,7 +508,7 @@ fun HomeDashboardTab(
                 val passphraseEntropy = studioData?.optDouble("passphrase_entropy_bits", 0.0) ?: 0.0
 
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
@@ -486,7 +521,7 @@ fun HomeDashboardTab(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(11.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -499,50 +534,52 @@ fun HomeDashboardTab(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.size(36.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MailxPalette.BrandTertiaryVioletDark.copy(alpha = 0.16f),
+                                    border = BorderStroke(0.75.dp, MailxPalette.BrandTertiaryVioletDark.copy(alpha = 0.35f)),
+                                    modifier = Modifier.size(38.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = MailxIcons.Cpu,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(17.dp)
+                                            tint = MailxPalette.BrandTertiaryVioletDark,
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
                                 Column {
                                     Text(
                                         text = "Quick Identity & Passphrase",
-                                        fontSize = 14.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Offline Rust CSPRNG • ${"%.0f".format(candidateEntropy)}-bit alias",
+                                        text = "Offline Rust CSPRNG • ${"%.0f".format(candidateEntropy)}-bit entropy",
                                         fontSize = 11.5.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
 
-                            FilledTonalIconButton(
+                            Surface(
                                 onClick = { studioSeed++ },
-                                modifier = Modifier.size(34.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                )
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)),
+                                modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(
-                                    imageVector = MailxIcons.RefreshCw,
-                                    contentDescription = "Regenerate",
-                                    modifier = Modifier
-                                        .size(15.dp)
-                                        .graphicsLayer { rotationZ = spinAngle }
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = MailxIcons.RefreshCw,
+                                        contentDescription = "Regenerate",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                            .graphicsLayer { rotationZ = spinAngle }
+                                    )
+                                }
                             }
                         }
 
@@ -559,12 +596,12 @@ fun HomeDashboardTab(
                                     copiedAlias = true
                                     copyToClipboard(context, "Alias Candidate", candidateAddr, "Copied alias candidate")
                                 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainer,
                                 border = BorderStroke(
-                                    width = 0.75.dp,
+                                    width = 1.dp,
                                     color = if (copiedAlias) {
-                                        MaterialTheme.colorScheme.outline
+                                        MailxPalette.ForwardedGreen.copy(alpha = 0.65f)
                                     } else {
                                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                                     }
@@ -574,7 +611,7 @@ fun HomeDashboardTab(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 13.dp, vertical = 10.dp),
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -585,9 +622,9 @@ fun HomeDashboardTab(
                                         Text(
                                             text = if (copiedAlias) "COPIED TO CLIPBOARD" else "ALIAS CANDIDATE (${"%.0f".format(candidateEntropy)} BITS)",
                                             fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.SemiBold,
+                                            fontWeight = FontWeight.Bold,
                                             letterSpacing = 0.6.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = if (copiedAlias) MailxPalette.ForwardedGreen else MaterialTheme.colorScheme.primary
                                         )
                                         AnimatedContent(
                                             targetState = candidateAddr,
@@ -607,16 +644,28 @@ fun HomeDashboardTab(
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = if (copiedAlias) MailxIcons.Check else MailxIcons.Copy,
-                                        contentDescription = "Copy Candidate",
-                                        tint = if (copiedAlias) {
-                                            MaterialTheme.colorScheme.onSurface
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (copiedAlias) {
+                                            MailxPalette.ForwardedGreen.copy(alpha = 0.18f)
                                         } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
                                         },
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = if (copiedAlias) MailxIcons.Check else MailxIcons.Copy,
+                                                contentDescription = "Copy Candidate",
+                                                tint = if (copiedAlias) {
+                                                    MailxPalette.ForwardedGreen
+                                                } else {
+                                                    MaterialTheme.colorScheme.primary
+                                                },
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -627,12 +676,12 @@ fun HomeDashboardTab(
                                     copiedPassphrase = true
                                     copyToClipboard(context, "Passphrase", passphrase, "Passphrase copied to clipboard")
                                 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainer,
                                 border = BorderStroke(
-                                    width = 0.75.dp,
+                                    width = 1.dp,
                                     color = if (copiedPassphrase) {
-                                        MaterialTheme.colorScheme.outline
+                                        MailxPalette.ForwardedGreen.copy(alpha = 0.65f)
                                     } else {
                                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
                                     }
@@ -642,7 +691,7 @@ fun HomeDashboardTab(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 13.dp, vertical = 10.dp),
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -657,9 +706,9 @@ fun HomeDashboardTab(
                                                 "PASSPHRASE (${"%.0f".format(passphraseEntropy)} BITS)"
                                             },
                                             fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.SemiBold,
+                                            fontWeight = FontWeight.Bold,
                                             letterSpacing = 0.6.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = if (copiedPassphrase) MailxPalette.ForwardedGreen else MailxPalette.ReplySky
                                         )
                                         AnimatedContent(
                                             targetState = passphrase,
@@ -680,16 +729,28 @@ fun HomeDashboardTab(
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = if (copiedPassphrase) MailxIcons.Check else MailxIcons.Copy,
-                                        contentDescription = "Copy Passphrase",
-                                        tint = if (copiedPassphrase) {
-                                            MaterialTheme.colorScheme.onSurface
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (copiedPassphrase) {
+                                            MailxPalette.ForwardedGreen.copy(alpha = 0.18f)
                                         } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                            MailxPalette.ReplySky.copy(alpha = 0.16f)
                                         },
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = if (copiedPassphrase) MailxIcons.Check else MailxIcons.Copy,
+                                                contentDescription = "Copy Passphrase",
+                                                tint = if (copiedPassphrase) {
+                                                    MailxPalette.ForwardedGreen
+                                                } else {
+                                                    MailxPalette.ReplySky
+                                                },
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -697,14 +758,12 @@ fun HomeDashboardTab(
                 }
             }
 
-            // 4. 7-Day Activity Chart (when data is present)
             if (userStats.sevenDayForwards.sum() + userStats.sevenDayBlocks.sum() > 0) {
                 item(key = "seven_day_chart") {
                     MailxSevenDayChartCard(userStats = userStats)
                 }
             }
 
-            // 5. Pinned & Recent Aliases Section
             item(key = "spotlight_header") {
                 MailxSectionHeader(
                     title = if (pinnedCount > 0) "Pinned & Active Aliases" else "Recent Aliases",
@@ -741,13 +800,12 @@ fun HomeDashboardTab(
         }
     }
 
-    // Sleek Bottom Sheet for Privacy Posture & Rust Hygiene Audit
     if (showPrivacyScoreSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { showPrivacyScoreSheet = false },
             sheetState = sheetState,
-            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
@@ -778,16 +836,16 @@ fun HomeDashboardTab(
                         )
                     }
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        shape = RoundedCornerShape(50),
+                        color = postureDotColor.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, postureDotColor.copy(alpha = 0.40f))
                     ) {
                         Text(
                             text = "$privacyGrade • $privacyScore/100",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            color = postureDotColor,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -829,118 +887,70 @@ fun HomeDashboardTab(
                     passed = removeHeader
                 )
 
-                FilledTonalButton(
+                MailxPrimaryButton(
+                    text = "Open Rust Privacy & Security Lab",
+                    icon = MailxIcons.Sparkles,
                     onClick = {
                         showPrivacyScoreSheet = false
                         onOpenPrivacyLab()
                     },
-                    shape = RoundedCornerShape(13.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = MailxIcons.Sparkles,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open Rust Privacy & Security Lab", fontWeight = FontWeight.SemiBold)
-                }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CompactTelemetryColumn(
+private fun ExpressiveMetricTile(
     value: String,
     label: String,
+    icon: ImageVector,
+    accentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Text(
-            text = value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
-        )
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun VerticalMetricDivider() {
-    Box(
-        modifier = Modifier
-            .width(1.dp)
-            .height(26.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-    )
-}
-
-@Composable
-private fun DefensePillTile(
-    title: String,
-    status: String,
-    isActive: Boolean,
-    isWarning: Boolean = false,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val dotColor = when {
-        isWarning -> MailxPalette.BlockedRose
-        isActive -> MailxPalette.ForwardEmerald
-        else -> MailxPalette.Slate500
-    }
-
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+            color = accentColor.copy(alpha = 0.28f)
         ),
-        tonalElevation = 0.dp,
         modifier = modifier
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = accentColor.copy(alpha = 0.16f),
+                modifier = Modifier.size(34.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    text = value,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
                 )
                 Text(
-                    text = title,
+                    text = label,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -948,11 +958,76 @@ private fun DefensePillTile(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DefensePillTile(
+    title: String,
+    status: String,
+    icon: ImageVector,
+    accentColor: Color,
+    isActive: Boolean,
+    isWarning: Boolean = false,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeAccent = when {
+        isWarning -> MailxPalette.BlockedRose
+        isActive -> accentColor
+        else -> MailxPalette.Slate500
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(
+            width = 1.dp,
+            color = activeAccent.copy(alpha = if (isActive || isWarning) 0.35f else 0.20f)
+        ),
+        tonalElevation = 0.dp,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 11.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = activeAccent.copy(alpha = 0.16f),
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = activeAccent,
+                            modifier = Modifier.size(11.5.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = title,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Text(
                 text = status,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isActive || isWarning) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -966,13 +1041,13 @@ private fun PrivacyScoreCheckRow(
     subtitle: String,
     passed: Boolean
 ) {
-    val dotColor = if (passed) MailxPalette.ForwardEmerald else MailxPalette.PausedAmber
+    val dotColor = if (passed) MailxPalette.ForwardedGreen else MailxPalette.PausedAmber
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+            color = dotColor.copy(alpha = 0.30f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -983,8 +1058,8 @@ private fun PrivacyScoreCheckRow(
         ) {
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.size(28.dp)
+                color = dotColor.copy(alpha = 0.16f),
+                modifier = Modifier.size(30.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -1029,11 +1104,11 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
     }
 
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
         ),
         tonalElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
@@ -1051,15 +1126,15 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
             ) {
                 Text(
                     text = "7-Day Relay Activity",
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ChartLegendDot(color = MaterialTheme.colorScheme.primary, label = "Forwarded")
+                    ChartLegendDot(color = MailxPalette.ForwardedGreen, label = "Forwarded")
                     ChartLegendDot(color = MailxPalette.BlockedRose, label = "Blocked")
                 }
             }
@@ -1075,7 +1150,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                     val f = fwd.getOrElse(i) { 0 }
                     val b = blk.getOrElse(i) { 0 }
                     val dayTotal = f + b
-                    val heightFrac = (dayTotal.toFloat() / maxDay.toFloat()).coerceIn(0.08f, 1f)
+                    val heightFrac = (dayTotal.toFloat() / maxDay.toFloat()).coerceIn(0.10f, 1f)
                     val lbl = labels.getOrElse(i) { "" }.take(3)
 
                     Column(
@@ -1085,7 +1160,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(12.dp)
+                                .width(14.dp)
                                 .weight(1f),
                             contentAlignment = Alignment.BottomCenter
                         ) {
@@ -1093,11 +1168,11 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .fillMaxHeight(heightFrac)
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(50))
                                     .background(
                                         when {
                                             b > f -> MailxPalette.BlockedRose
-                                            dayTotal > 0 -> MaterialTheme.colorScheme.primary
+                                            dayTotal > 0 -> MailxPalette.ForwardedGreen
                                             else -> MaterialTheme.colorScheme.surfaceContainerHighest
                                         }
                                     )
@@ -1106,6 +1181,7 @@ private fun MailxSevenDayChartCard(userStats: UiUserStats) {
                         Text(
                             text = lbl,
                             fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1123,13 +1199,14 @@ private fun ChartLegendDot(color: Color, label: String) {
     ) {
         Box(
             modifier = Modifier
-                .size(6.dp)
+                .size(7.dp)
                 .clip(CircleShape)
                 .background(color)
         )
         Text(
             text = label,
             fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

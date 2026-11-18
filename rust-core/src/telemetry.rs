@@ -22,7 +22,6 @@ pub struct AggregatedUserStats {
     pub daily_points: Vec<DailyStatPoint>,
 }
 
-/// Converts days since Unix epoch (1970-01-01) into (year, month, day) using Howard Hinnant's civil_from_days algorithm.
 pub fn civil_from_days(z: i64) -> (i32, u32, u32) {
     let z = z + 719468;
     let era = if z >= 0 { z } else { z - 146096 } / 146097;
@@ -37,7 +36,6 @@ pub fn civil_from_days(z: i64) -> (i32, u32, u32) {
     (year, m, d)
 }
 
-/// Converts a civil (year, month, day) date into days since Unix epoch (1970-01-01).
 pub fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
     let y = year as i64 - if month <= 2 { 1 } else { 0 };
     let era = if y >= 0 { y } else { y - 399 } / 400;

@@ -41,25 +41,20 @@ fun PrivacyLabBottomSheet(
 
     var selectedTool by remember { mutableIntStateOf(0) }
 
-    // Tool 0: URL Sanitizer state
     var rawUrlInput by remember { mutableStateOf("") }
     var urlReport by remember { mutableStateOf<JSONObject?>(null) }
 
-    // Tool 1: Phishing & Spoofing Guard state
     var phishFromInput by remember { mutableStateOf("") }
     var phishReplyToInput by remember { mutableStateOf("") }
     var phishReturnPathInput by remember { mutableStateOf("") }
     var phishReport by remember { mutableStateOf<JSONObject?>(null) }
 
-    // Tool 2: Header & MIME Inspector state
     var rawHeadersInput by remember { mutableStateOf("") }
     var headerReport by remember { mutableStateOf<JSONObject?>(null) }
 
-    // Tool 3: Contextual Alias & Passphrase Studio state
     var serviceNameInput by remember { mutableStateOf("") }
     var contextualReport by remember { mutableStateOf<JSONObject?>(null) }
 
-    // Tool 4: Exposure & Hygiene Radar state
     val hygieneSummary = remember(aliases) {
         runCatching {
             val rawArr = JSONArray().apply { aliases.forEach { put(it.rawJson) } }.toString()
@@ -196,7 +191,6 @@ fun PrivacyLabBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Horizontal Scrollable Material 3 Tool Selector Pills
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -208,12 +202,24 @@ fun PrivacyLabBottomSheet(
                     FilterChip(
                         selected = isSelected,
                         onClick = { selectedTool = idx },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(50),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White,
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                            selectedBorderColor = MaterialTheme.colorScheme.primary
+                        ),
                         label = {
                             Text(
                                 text = label,
                                 fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
                         }
                     )
@@ -221,7 +227,6 @@ fun PrivacyLabBottomSheet(
             }
 
             when (selectedTool) {
-                // TOOL 0: URL SANITIZER
                 0 -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -239,7 +244,7 @@ fun PrivacyLabBottomSheet(
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text("Try Sample URL", fontSize = 11.5.sp)
+                            Text("Try Sample URL", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -248,7 +253,7 @@ fun PrivacyLabBottomSheet(
                         onValueChange = { evaluateUrl(it) },
                         label = { Text("Paste URL or text with tracking parameters") },
                         placeholder = { Text("https://example.com/?utm_source=...&fbclid=...") },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = mailxTextFieldColors(),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -266,7 +271,7 @@ fun PrivacyLabBottomSheet(
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                             border = BorderStroke(
                                 width = 1.dp,
@@ -287,7 +292,7 @@ fun PrivacyLabBottomSheet(
                                         text = "Stripped $removedCount tracking parameter(s)",
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MailxPalette.ForwardEmerald
+                                        color = MailxPalette.ForwardedGreen
                                     )
                                     if (removedKeys.isNotEmpty()) {
                                         Text(
@@ -314,19 +319,22 @@ fun PrivacyLabBottomSheet(
                                     onClick = {
                                         copyToClipboard(context, "Sanitized URL", cleaned, "Clean URL copied")
                                     },
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = Color.White
+                                    ),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(MailxIcons.Copy, contentDescription = null, modifier = Modifier.size(15.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Copy Sanitized URL", fontSize = 12.5.sp)
+                                    Text("Copy Sanitized URL", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     }
                 }
 
-                // TOOL 1: PHISHING & SPOOFING GUARD
                 1 -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -478,7 +486,6 @@ fun PrivacyLabBottomSheet(
                     }
                 }
 
-                // TOOL 2: HEADER & MIME INSPECTOR
                 2 -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -600,7 +607,6 @@ fun PrivacyLabBottomSheet(
                     }
                 }
 
-                // TOOL 3: CONTEXTUAL ALIAS & PASSPHRASE STUDIO
                 3 -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -744,7 +750,6 @@ fun PrivacyLabBottomSheet(
                     }
                 }
 
-                // TOOL 4: EXPOSURE & HYGIENE RADAR
                 else -> {
                     if (hygieneSummary != null) {
                         val score = hygieneSummary.optInt("overall_score", 90)

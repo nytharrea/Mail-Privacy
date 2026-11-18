@@ -435,7 +435,6 @@ pub const RFC3463_STATUS_CATALOG: &[Rfc3463CodeEntry] = &[
     },
 ];
 
-
 pub fn lookup_rfc3463_code(code: &str) -> Option<&'static Rfc3463CodeEntry> {
     let trimmed = code.trim();
     RFC3463_STATUS_CATALOG.iter().find(|e| e.code == trimmed)

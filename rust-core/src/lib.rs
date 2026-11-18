@@ -40,5 +40,3 @@ pub use utils::{
     encode_nato_phonetic, encode_qr_matrix, generate_random_suffix, generate_reverse_alias,
     generate_wildcard_on_the_fly, validate_access_key,
 };
-
-

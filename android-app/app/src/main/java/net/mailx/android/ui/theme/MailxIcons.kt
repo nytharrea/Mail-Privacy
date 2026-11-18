@@ -55,11 +55,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.unit.dp
 
-/**
- * Clean, optically balanced, fully tintable icon system for Mailx Privacy.
- * Uses strictly Outlined icons for unselected/action states and Filled icons for
- * selected bottom navigation states so visual hierarchy stays crisp and consistent.
- */
 object MailxIcons {
 
     fun strokeVector(
@@ -87,7 +82,6 @@ object MailxIcons {
         ).build()
     }
 
-    // Navigation Bar Icons: Strictly Outlined (unselected) vs Filled (selected) pairs
     val LayoutDashboard: ImageVector get() = Icons.Outlined.Dashboard
     val LayoutDashboardSelected: ImageVector get() = Icons.Filled.Dashboard
 
@@ -103,7 +97,6 @@ object MailxIcons {
     val Settings: ImageVector get() = Icons.Outlined.Settings
     val SettingsSelected: ImageVector get() = Icons.Filled.Settings
 
-    // Action & Status Icons: Strictly Outlined for 100% stroke consistency across the app
     val Passkey: ImageVector get() = Icons.Outlined.Key
     val ShieldCheck: ImageVector get() = Icons.Outlined.Shield
     val Send: ImageVector get() = Icons.AutoMirrored.Outlined.Send

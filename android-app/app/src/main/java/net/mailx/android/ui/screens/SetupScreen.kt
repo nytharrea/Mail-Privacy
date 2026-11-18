@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -28,10 +29,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.mailx.android.ui.components.MailxModernDialog
+import net.mailx.android.ui.components.MailxPrimaryButton
 import net.mailx.android.ui.components.MailxSegmentedControl
+import net.mailx.android.ui.components.MailxTonalButton
 import net.mailx.android.ui.components.mailxTextFieldColors
 import net.mailx.android.ui.model.AuthUiState
 import net.mailx.android.ui.theme.MailxIcons
+import net.mailx.android.ui.theme.MailxPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,45 +78,52 @@ fun SetupScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Focal Brand Header Card with subtle Teal border accent
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                            .padding(18.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
                             ),
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(50.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = MailxIcons.ShieldCheck,
                                     contentDescription = "Mailx Privacy",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = MailxPalette.BrandPrimaryAccent,
+                                    modifier = Modifier.size(25.dp)
                                 )
                             }
                         }
 
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -125,15 +136,16 @@ fun SetupScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    shape = RoundedCornerShape(50),
+                                    color = MailxPalette.ReplySky.copy(alpha = 0.16f),
+                                    border = BorderStroke(0.75.dp, MailxPalette.ReplySky.copy(alpha = 0.38f))
                                 ) {
                                     Text(
                                         text = "Rust Core",
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                        fontWeight = FontWeight.Bold,
+                                        color = MailxPalette.ReplySky,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                     )
                                 }
                             }
@@ -146,13 +158,12 @@ fun SetupScreen(
                     }
                 }
 
-                // Authentication Form Card
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -170,10 +181,10 @@ fun SetupScreen(
                             Text(
                                 text = "Instance & Authentication",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            FilledTonalButton(
+                            Surface(
                                 onClick = {
                                     val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
@@ -182,22 +193,28 @@ fun SetupScreen(
                                     }
                                     onLoginModeChange("access_key")
                                 },
-                                shape = RoundedCornerShape(9.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.height(30.dp)
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                             ) {
-                                Icon(
-                                    imageVector = MailxIcons.ClipboardPaste,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Paste Key", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = MailxIcons.ClipboardPaste,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(13.5.dp)
+                                    )
+                                    Text(
+                                        text = "Paste Key",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
 
@@ -229,7 +246,7 @@ fun SetupScreen(
                                 label = { Text("Self-Hosted Server URL") },
                                 leadingIcon = { Icon(MailxIcons.Server, contentDescription = null) },
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = cleanFieldColors,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Uri,
@@ -246,7 +263,7 @@ fun SetupScreen(
                                 label = { Text("Account Email") },
                                 leadingIcon = { Icon(MailxIcons.Mail, contentDescription = null) },
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = cleanFieldColors,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Email,
@@ -270,7 +287,7 @@ fun SetupScreen(
                                 },
                                 visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = cleanFieldColors,
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Password,
@@ -297,6 +314,7 @@ fun SetupScreen(
                                     Text(
                                         text = "Forgot Password?",
                                         fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -317,7 +335,7 @@ fun SetupScreen(
                                 },
                                 visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = cleanFieldColors,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -326,7 +344,7 @@ fun SetupScreen(
                         if (!authState.totpRequired) {
                             authState.errorMessage?.let { err ->
                                 Surface(
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.errorContainer,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -340,8 +358,10 @@ fun SetupScreen(
                             }
                         }
 
-                        // Brand Teal primary button
-                        Button(
+                        MailxPrimaryButton(
+                            text = if (authState.isLoading && !authState.totpRequired) "Signing in..." else "Sign In",
+                            icon = MailxIcons.ShieldCheck,
+                            enabled = !authState.isLoading,
                             onClick = {
                                 if (isCredentialsMode) {
                                     onConnectWithCredentials()
@@ -349,72 +369,37 @@ fun SetupScreen(
                                     onConnectWithAccessKey()
                                 }
                             },
-                            enabled = !authState.isLoading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            if (authState.isLoading && !authState.totpRequired) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Signing in...", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            } else {
-                                Text("Sign In", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                            modifier = Modifier.fillMaxWidth(),
+                            height = 50.dp
+                        )
 
                         if (isCredentialsMode) {
-                            FilledTonalButton(
-                                onClick = { onConnectWithPasskey(context) },
+                            MailxTonalButton(
+                                text = "Sign in with Passkey",
+                                icon = MailxIcons.Passkey,
+                                accentColor = MailxPalette.ReplySky,
                                 enabled = !authState.isLoading,
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(46.dp),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = MailxIcons.Passkey,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Sign in with Passkey",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                                onClick = { onConnectWithPasskey(context) },
+                                modifier = Modifier.fillMaxWidth(),
+                                height = 48.dp
+                            )
                         }
                     }
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(15.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -425,7 +410,7 @@ fun SetupScreen(
                             Icon(
                                 imageVector = MailxIcons.Globe,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MailxPalette.ReplySky,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
@@ -437,8 +422,8 @@ fun SetupScreen(
                         Text(
                             text = "Zero-knowledge memory drop",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.primary
+                            fontWeight = FontWeight.SemiBold,
+                            color = MailxPalette.ForwardedGreen
                         )
                     }
                 }
@@ -505,7 +490,7 @@ fun SetupScreen(
                     }
                 ),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = cleanFieldColors,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -514,7 +499,7 @@ fun SetupScreen(
 
             authState.errorMessage?.let { err ->
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.errorContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -570,7 +555,7 @@ fun SetupScreen(
                     onValueChange = { resetEmail = it },
                     label = { Text("Email Address") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = cleanFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -580,7 +565,7 @@ fun SetupScreen(
                     onValueChange = { resetToken = it.trim() },
                     label = { Text("Reset Token (32 chars)") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = cleanFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -590,7 +575,7 @@ fun SetupScreen(
                     label = { Text("New Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = cleanFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )

@@ -131,26 +131,50 @@ fun RecipientsTab(
                         FilterChip(
                             selected = !showVerifiedOnly,
                             onClick = { showVerifiedOnly = false },
-                            shape = RoundedCornerShape(10.dp),
-                            label = { Text("All", fontSize = 12.sp) }
+                            shape = RoundedCornerShape(50),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            label = {
+                                Text(
+                                    text = "All",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (!showVerifiedOnly) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
                         )
                         FilterChip(
                             selected = showVerifiedOnly,
                             onClick = { showVerifiedOnly = true },
-                            shape = RoundedCornerShape(10.dp),
-                            label = { Text("Verified", fontSize = 12.sp) }
+                            shape = RoundedCornerShape(50),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            label = {
+                                Text(
+                                    text = "Verified",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (showVerifiedOnly) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
                         )
                     }
 
                     Button(
                         onClick = { showAddRecipientDialog = true },
-                        shape = RoundedCornerShape(11.dp),
+                        shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            contentColor = Color.White
                         ),
-                        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 7.dp),
-                        modifier = Modifier.height(34.dp)
+                        contentPadding = PaddingValues(horizontal = 15.dp, vertical = 7.dp),
+                        modifier = Modifier.height(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Add,
@@ -158,7 +182,7 @@ fun RecipientsTab(
                             modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
-                        Text("New Recipient", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("New Recipient", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -469,7 +493,6 @@ fun RecipientsTab(
                                 )
                             }
 
-                            // Calm, single-purpose expanded section with Rust Domain Trust & PGP Inspector
                             AnimatedVisibility(visible = isExpanded) {
                                 Column(
                                     modifier = Modifier
@@ -613,7 +636,6 @@ fun RecipientsTab(
                                         }
                                     }
 
-                                    // Compact single-row quick actions bar instead of 4 oversized buttons
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),

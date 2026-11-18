@@ -14,7 +14,6 @@ use crate::utils::{
 };
 use serde::Serialize;
 
-
 #[derive(Serialize)]
 pub struct JniEnvelope<T: Serialize> {
     pub ok: bool,
@@ -262,7 +261,6 @@ pub fn handle_generate_passphrase_and_candidate(
 ) -> String {
     JniEnvelope::success(generate_passphrase_and_candidate(format, domain, word_count))
 }
-
 
 #[cfg(feature = "network")]
 pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {

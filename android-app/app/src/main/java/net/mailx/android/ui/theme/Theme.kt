@@ -21,15 +21,15 @@ val LocalReducedMotion = compositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
     primary = MailxPalette.BrandPrimaryDark,
-    onPrimary = Color(0xFF111113),
+    onPrimary = Color.White,
     primaryContainer = MailxPalette.BrandPrimaryContainerDark,
     onPrimaryContainer = MailxPalette.BrandOnPrimaryContainerDark,
     secondary = MailxPalette.BrandAccentTealDark,
-    onSecondary = Color(0xFF141417),
+    onSecondary = Color(0xFF062033),
     secondaryContainer = MailxPalette.BrandSecondaryContainerDark,
     onSecondaryContainer = MailxPalette.BrandOnSecondaryContainerDark,
     tertiary = MailxPalette.BrandTertiaryVioletDark,
-    onTertiary = Color(0xFF141820),
+    onTertiary = Color(0xFF1B1038),
     tertiaryContainer = MailxPalette.BrandTertiaryContainerDark,
     onTertiaryContainer = MailxPalette.BrandOnTertiaryContainerDark,
     background = MailxPalette.Obsidian950,
@@ -38,7 +38,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = MailxPalette.Slate100,
     surfaceVariant = MailxPalette.Obsidian800,
     onSurfaceVariant = MailxPalette.Slate400,
-    surfaceContainerLowest = Color(0xFF0E0E10),
+    surfaceContainerLowest = Color(0xFF070A10),
     surfaceContainerLow = MailxPalette.Obsidian900,
     surfaceContainer = MailxPalette.Obsidian850,
     surfaceContainerHigh = MailxPalette.Obsidian800,
@@ -46,9 +46,9 @@ private val DarkColorScheme = darkColorScheme(
     outline = MailxPalette.Slate600,
     outlineVariant = MailxPalette.ObsidianBorder,
     error = MailxPalette.BlockedRose,
-    onError = Color(0xFF2B0B0E),
-    errorContainer = Color(0xFF3B1418),
-    onErrorContainer = Color(0xFFFCE7E9)
+    onError = Color.White,
+    errorContainer = Color(0xFF3F1521),
+    onErrorContainer = Color(0xFFFFE4E6)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -70,39 +70,34 @@ private val LightColorScheme = lightColorScheme(
     onSurface = MailxPalette.Slate900,
     surfaceVariant = MailxPalette.Pearl150,
     onSurfaceVariant = MailxPalette.Slate600,
-    surfaceContainerLowest = Color(0xFFF2F2F5),
+    surfaceContainerLowest = Color(0xFFF1F5F9),
     surfaceContainerLow = Color.White,
-    surfaceContainer = Color(0xFFF1F1F4),
-    surfaceContainerHigh = Color(0xFFE7E7EC),
-    surfaceContainerHighest = MailxPalette.Pearl200,
+    surfaceContainer = Color(0xFFF1F5F9),
+    surfaceContainerHigh = Color(0xFFE2E8F0),
+    surfaceContainerHighest = MailxPalette.Pearl300,
     outline = MailxPalette.Slate400,
-    outlineVariant = MailxPalette.Pearl300,
-    error = Color(0xFFB94A52),
+    outlineVariant = MailxPalette.Pearl200,
+    error = Color(0xFFE11D48),
     onError = Color.White,
-    errorContainer = Color(0xFFFCE7E9),
-    onErrorContainer = Color(0xFF691B21)
+    errorContainer = Color(0xFFFFE4E6),
+    onErrorContainer = Color(0xFF881337)
 )
 
-/**
- * Softens Android 12+ Dynamic Wallpaper colors so they never produce glaring neon/electric blue
- * switches or borders, while preserving true achromatic Zinc surfaces.
- */
-private fun ColorScheme.withCalmDynamicDark(): ColorScheme {
-    val calmPrimary = lerp(primary, MailxPalette.BrandPrimaryDark, 0.72f)
-    val calmSecondary = lerp(secondary, MailxPalette.BrandAccentTealDark, 0.75f)
+private fun ColorScheme.withHarmonizedDynamicDark(): ColorScheme {
+    val balancedPrimary = lerp(primary, MailxPalette.BrandPrimaryDark, 0.45f)
+    val balancedSecondary = lerp(secondary, MailxPalette.BrandAccentTealDark, 0.45f)
     return copy(
-        primary = calmPrimary,
-        onPrimary = Color(0xFF111113),
-        primaryContainer = MailxPalette.BrandPrimaryContainerDark,
+        primary = balancedPrimary,
+        onPrimary = Color.White,
+        primaryContainer = lerp(primaryContainer, MailxPalette.BrandPrimaryContainerDark, 0.55f),
         onPrimaryContainer = MailxPalette.BrandOnPrimaryContainerDark,
-        secondary = calmSecondary,
-        onSecondary = Color(0xFF141417),
-        secondaryContainer = MailxPalette.BrandSecondaryContainerDark,
+        secondary = balancedSecondary,
+        secondaryContainer = lerp(secondaryContainer, MailxPalette.BrandSecondaryContainerDark, 0.55f),
         onSecondaryContainer = MailxPalette.BrandOnSecondaryContainerDark,
         background = MailxPalette.Obsidian950,
         surface = MailxPalette.Obsidian925,
         surfaceVariant = MailxPalette.Obsidian800,
-        surfaceContainerLowest = Color(0xFF0E0E10),
+        surfaceContainerLowest = Color(0xFF070A10),
         surfaceContainerLow = MailxPalette.Obsidian900,
         surfaceContainer = MailxPalette.Obsidian850,
         surfaceContainerHigh = MailxPalette.Obsidian800,
@@ -112,31 +107,31 @@ private fun ColorScheme.withCalmDynamicDark(): ColorScheme {
     )
 }
 
-private fun ColorScheme.withCalmDynamicLight(): ColorScheme {
-    val calmPrimary = lerp(primary, MailxPalette.BrandPrimary, 0.68f)
+private fun ColorScheme.withHarmonizedDynamicLight(): ColorScheme {
+    val balancedPrimary = lerp(primary, MailxPalette.BrandPrimary, 0.45f)
     return copy(
-        primary = calmPrimary,
+        primary = balancedPrimary,
         onPrimary = Color.White,
         background = MailxPalette.Pearl50,
         surface = MailxPalette.Pearl100,
-        surfaceContainerLowest = Color(0xFFF2F2F5),
+        surfaceContainerLowest = Color(0xFFF1F5F9),
         surfaceContainerLow = Color.White,
-        surfaceContainer = Color(0xFFF1F1F4),
-        surfaceContainerHigh = Color(0xFFE7E7EC),
-        surfaceContainerHighest = MailxPalette.Pearl200,
-        outlineVariant = MailxPalette.Pearl300
+        surfaceContainer = Color(0xFFF1F5F9),
+        surfaceContainerHigh = Color(0xFFE2E8F0),
+        surfaceContainerHighest = MailxPalette.Pearl300,
+        outlineVariant = MailxPalette.Pearl200
     )
 }
 
 private fun ColorScheme.withAmoledPitchBlack(): ColorScheme = copy(
     background = Color.Black,
-    surface = Color(0xFF09090B),
-    surfaceContainerLowest = Color(0xFF0C0C0E),
-    surfaceContainerLow = Color(0xFF121214),
-    surfaceContainer = Color(0xFF19191C),
-    surfaceContainerHigh = Color(0xFF222226),
-    surfaceContainerHighest = Color(0xFF2B2B30),
-    outlineVariant = Color(0xFF252529)
+    surface = Color(0xFF06080E),
+    surfaceContainerLowest = Color(0xFF04060A),
+    surfaceContainerLow = Color(0xFF0B0E17),
+    surfaceContainer = Color(0xFF111624),
+    surfaceContainerHigh = Color(0xFF181F32),
+    surfaceContainerHighest = Color(0xFF202942),
+    outlineVariant = Color(0xFF1E263D)
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -152,9 +147,9 @@ fun MailxTheme(
     val context = LocalContext.current
     val baseScheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (darkTheme) {
-            dynamicDarkColorScheme(context).withCalmDynamicDark()
+            dynamicDarkColorScheme(context).withHarmonizedDynamicDark()
         } else {
-            dynamicLightColorScheme(context).withCalmDynamicLight()
+            dynamicLightColorScheme(context).withHarmonizedDynamicLight()
         }
     } else {
         if (darkTheme) DarkColorScheme else LightColorScheme

@@ -449,7 +449,7 @@ impl MailxClient {
                         last_err = Some(err);
                         continue;
                     }
-                    // If email-scoped passkey begin failed because user prefers discoverable login, fallback to discoverable
+
                     if !is_discoverable {
                         return self.passkey_login_begin("");
                     }

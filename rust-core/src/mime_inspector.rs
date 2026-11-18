@@ -160,4 +160,3 @@ Content-Disposition: attachment; filename="invoice.scr"
         assert_eq!(rep.high_risk_attachments, vec!["invoice.scr".to_string()]);
     }
 }
-

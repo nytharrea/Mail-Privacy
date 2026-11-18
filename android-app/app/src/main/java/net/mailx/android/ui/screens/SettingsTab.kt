@@ -89,7 +89,7 @@ fun SettingsTab(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 1. APPEARANCE & DISPLAY GROUP
+
         item(key = "header_appearance") {
             MailxSectionHeader(title = "Appearance & Display")
         }
@@ -180,7 +180,6 @@ fun SettingsTab(
             }
         }
 
-        // 2. PRIVACY & RELAY TOOLS GROUP
         item(key = "header_privacy_tools") {
             MailxSectionHeader(
                 title = "Privacy & Relay Tools",
@@ -223,7 +222,6 @@ fun SettingsTab(
             }
         }
 
-        // 3. SERVER FORWARDING DEFAULTS GROUP
         item(key = "header_defaults") {
             MailxSectionHeader(
                 title = "Server Forwarding Defaults",
@@ -320,7 +318,6 @@ fun SettingsTab(
             }
         }
 
-        // 4. DIAGNOSTICS & DELIVERY LOGS GROUP
         item(key = "header_diagnostics") {
             MailxSectionHeader(
                 title = "Diagnostics & Delivery Logs",
@@ -353,7 +350,6 @@ fun SettingsTab(
             }
         }
 
-        // 5. ACCOUNT, SECURITY & BACKUP GROUP
         item(key = "header_manage_data") {
             MailxSectionHeader(
                 title = "Account, Security & Backup",

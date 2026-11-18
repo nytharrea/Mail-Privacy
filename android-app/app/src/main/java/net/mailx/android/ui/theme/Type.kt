@@ -8,10 +8,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Refined, calm architectural shape scale (8dp -> 22dp) inspired by
- * Proton Pass, Bitwarden, and Android 16 Material 3 Expressive.
- */
 val MailxShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
@@ -20,11 +16,6 @@ val MailxShapes = Shapes(
     extraLarge = RoundedCornerShape(30.dp)
 )
 
-/**
- * High-contrast, calm editorial typography hierarchy:
- * Stronger separation between section headers, row titles, and muted descriptions
- * for effortless scanning.
- */
 val MailxTypography = Typography(
     displayLarge = TextStyle(
         fontWeight = FontWeight.ExtraBold,

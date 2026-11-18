@@ -119,7 +119,6 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, value).apply()
 
-    // Dynamic Color is OFF by default so Mailx Brand Teal (#14B8A6) is preserved
     var dynamicColorEnabled: Boolean
         get() = prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
