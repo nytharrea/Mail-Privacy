@@ -137,6 +137,10 @@ dependencies {
     implementation("androidx.appsearch:appsearch-platform-storage:1.1.0")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
+    // UniFFI's generated Kotlin bindings call the Rust shared library through JNA.
+    // Use the Android AAR variant so its native dispatch libraries are packaged.
+    implementation("net.java.dev.jna:jna:5.19.1@aar")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
 
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

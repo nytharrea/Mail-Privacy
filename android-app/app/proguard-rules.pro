@@ -11,3 +11,8 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# UniFFI Kotlin bindings use JNA reflection to reach the Rust shared library.
+-keep class com.sun.jna.** { *; }
+-keep class net.java.dev.jna.** { *; }
+-dontwarn com.sun.jna.**

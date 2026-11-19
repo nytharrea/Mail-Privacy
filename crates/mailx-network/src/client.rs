@@ -330,7 +330,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = self.agent.post(&url)
+            let resp = self.agent.post(url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15))
@@ -428,7 +428,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = self.agent.post(&url)
+            let resp = self.agent.post(url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15))
@@ -495,7 +495,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let mut req = self.agent.post(&url)
+            let mut req = self.agent.post(url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15));
@@ -608,7 +608,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = self.agent.post(&url)
+            let resp = self.agent.post(url)
                 .set("Accept", "application/json")
                 .set("Cookie", &format!("authn={}", cookie_val))
                 .timeout(std::time::Duration::from_secs(15))
@@ -678,7 +678,7 @@ impl MailxClient {
                 format!("authn={}; authntemp={}", cookie_val, ceremony_cookie.trim())
             };
 
-            let resp = self.agent.post(&url)
+            let resp = self.agent.post(url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .set("Cookie", &cookie_header)
@@ -731,7 +731,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = self.agent.post(&url)
+            let resp = self.agent.post(url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15))
@@ -799,7 +799,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let mut req = self.agent.request(method, &url)
+            let mut req = self.agent.request(method, url)
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15));
 
@@ -896,7 +896,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let mut req = self.agent.request(method, &url)
+            let mut req = self.agent.request(method, url)
                 .set("Accept", "application/json, text/plain, text/csv, */*")
                 .timeout(std::time::Duration::from_secs(20));
 
