@@ -591,7 +591,12 @@ mod android_exports {
     use std::panic::{catch_unwind, AssertUnwindSafe};
 
     fn jstring_to_rust(env: &mut JNIEnv, input: JString) -> String {
-        env.get_string(&input).map(|s| s.into()).unwrap_or_default()
+        // Never turn a JNI conversion failure into an apparently valid empty argument.
+        // This helper is only called inside run_jni_safely, so the panic is caught and
+        // returned to Kotlin as a structured native failure.
+        env.get_string(&input)
+            .unwrap_or_else(|_| panic!("Failed to read Java string argument"))
+            .into()
     }
 
     fn rust_to_jstring(env: &mut JNIEnv, output: String) -> jstring {

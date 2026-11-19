@@ -18,9 +18,9 @@ permissions:
   contents: write
 
 env:
-  JAVA_VERSION: "21"
+  JAVA_VERSION: "27"
   NDK_VERSION: "30.0.16248370"
-  BUILD_TOOLS_VERSION: "37.0.0"
+  BUILD_TOOLS_VERSION: "36.0.0"
 
 jobs:
   mailx-android-release:
@@ -38,8 +38,6 @@ jobs:
 
       - name: "Set up Gradle"
         uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: "9.9.1"
 
       - name: "Install Rust Toolchain"
         uses: dtolnay/rust-toolchain@stable
@@ -58,12 +56,7 @@ jobs:
           if [ ! -d "${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}" ]; then
             "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "build-tools;${BUILD_TOOLS_VERSION}" || true
           fi
-          if [ ! -d "${ANDROID_HOME}/platforms/android-37.0" ] && [ ! -d "${ANDROID_HOME}/platforms/android-37" ]; then
-            "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" || "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37"
-          fi
-          if [ -d "${ANDROID_HOME}/platforms/android-37.0" ] && [ ! -e "${ANDROID_HOME}/platforms/android-37" ]; then
-            ln -s "${ANDROID_HOME}/platforms/android-37.0" "${ANDROID_HOME}/platforms/android-37" || true
-          fi
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;${BUILD_TOOLS_VERSION}"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "${GITHUB_ENV}"
           echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "${GITHUB_ENV}"
 
@@ -134,19 +127,13 @@ jobs:
 
       - name: "Build Signed Mailx APKs"
         working-directory: android-app
-        run: |
-          if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version 9.9.1
-          fi
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: "Verify APK Alignment & Signature"
         run: |
           BT_DIR="${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}"
-          if [ ! -d "${BT_DIR}" ]; then
-            BT_DIR="${ANDROID_HOME}/build-tools/36.0.0"
-          fi
+          test -x "${BT_DIR}/zipalign"
+          test -x "${BT_DIR}/apksigner"
           ZIPALIGN="${BT_DIR}/zipalign"
           APKSIGNER="${BT_DIR}/apksigner"
           mkdir -p dist-apks
@@ -175,7 +162,7 @@ jobs:
           if [ "${TAG_NAME}" = "nightly" ]; then
             gh release create nightly dist-apks/*.apk \
               --title "Mailx Android (Nightly Build)" \
-              --notes "16 KB aligned and multi-ABI (arm64-v8a, armeabi-v7a, x86_64, x86) signed automatic build (Material 3 Expressive 1.5.0-rc01 & Compose BOM 2026.09.00)." \
+              --notes "16 KB aligned and multi-ABI (arm64-v8a, armeabi-v7a, x86_64, x86) signed automatic build (Material 3 Expressive 1.5.0 & Compose BOM 2026.09.00)." \
               --prerelease || gh release upload nightly dist-apks/*.apk --clobber
           else
             gh release create "${TAG_NAME}" dist-apks/*.apk \

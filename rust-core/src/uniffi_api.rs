@@ -5,7 +5,7 @@ use crate::secure_store_port::{SecureStorePort, SecureStorePortError};
 use serde_json::json;
 use thiserror::Error;
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
 pub struct AppState {
     pub route: String,
     pub authenticated: bool,

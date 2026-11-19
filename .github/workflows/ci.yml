@@ -49,7 +49,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "27"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -59,7 +59,7 @@ jobs:
       - name: Install Android SDK components
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;30.0.16248370"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;30.0.16248370"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/30.0.16248370" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/30.0.16248370" >> "$GITHUB_ENV"
 
@@ -91,20 +91,15 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.9.1"
 
       - name: Build Android debug APK
         working-directory: android-app
-        run: |
-          gradle wrapper --gradle-version 9.9.1
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Android emulator launch smoke test
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 36
           target: google_apis
           arch: x86_64
           profile: pixel_6

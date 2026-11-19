@@ -84,3 +84,8 @@ See [docs/MIGRATION_PLAN.md](docs/MIGRATION_PLAN.md) for completed preparation a
 ## Android design and Rust-first runtime
 
 The Android client uses the Night Fjord design system (graphite surfaces, sea-glass mint primary actions, cool-blue secondary actions and restrained lilac tool accents). Jetpack Compose is the native Android presentation/platform layer; the application/domain/security runtime and app-shell route reducer are Rust-first through the JNI facade. The Android application ID remains `net.mailx.android`.
+
+
+## Migration implementation status
+
+See [`docs/IMPLEMENTATION_STATUS_2026-11-19.md`](docs/IMPLEMENTATION_STATUS_2026-11-19.md) for the changes applied in this delivery, verified existing safeguards, and the remaining Rust-first / Compose-first migration work.

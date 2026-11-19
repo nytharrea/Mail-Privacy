@@ -120,6 +120,14 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
+    // Persistent Rust app-shell snapshot. Revision is preserved across events so Rust,
+    // not a Kotlin fallback, remains authoritative for route and sheet transitions.
+    private var rustShellState = JSONObject()
+        .put("route", "home")
+        .put("authenticated", prefs.isConfigured())
+        .put("active_sheet", JSONObject.NULL)
+        .put("revision", 0L)
+
     private var searchJob: Job? = null
     private var hasLoadedInitialData = false
     private var hasLoadedDeletedAliases = false
@@ -147,23 +155,15 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun selectTab(tab: MainNavTab) {
         if (_currentTab.value == tab) return
 
-        // Rust owns route validation and shell transitions; Compose only renders the result.
-        val shellState = org.json.JSONObject()
-            .put("route", _currentTab.value.name.lowercase())
-            .put("authenticated", prefs.isConfigured())
-            .put("revision", 0)
-        val shellEvent = org.json.JSONObject()
-            .put("type", "navigate")
-            .put("route", tab.name.lowercase())
-        val resolvedTab = runCatching {
-            val response = org.json.JSONObject(
-                MailxRustBridge.nativeReduceAppShellState(shellState.toString(), shellEvent.toString())
-            )
-            val route = response.optJSONObject("data")?.optString("route").orEmpty()
-            MainNavTab.entries.firstOrNull { it.name.equals(route, ignoreCase = true) } ?: tab
-        }.getOrDefault(tab)
-
-        _currentTab.value = resolvedTab
+        // Rust validates the event and returns the next persistent shell snapshot.
+        // On an error, retain the existing route instead of silently falling back.
+        val accepted = dispatchShellEvent(
+            JSONObject().put("type", "navigate").put("route", tab.name.lowercase())
+        )
+        if (!accepted) return
+        _currentTab.value = MainNavTab.entries.firstOrNull {
+            it.name.equals(rustShellState.optString("route"), ignoreCase = true)
+        } ?: return
         if (!prefs.isConfigured()) return
         when (tab) {
             MainNavTab.HOME -> {
@@ -193,7 +193,32 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
+    private fun dispatchShellEvent(event: JSONObject): Boolean {
+        return runCatching {
+            val response = JSONObject(
+                MailxRustBridge.nativeReduceAppShellState(rustShellState.toString(), event.toString())
+            )
+            if (!response.optBoolean("ok", false)) {
+                emitToast(response.optString("error", "Navigation transition rejected"))
+                return false
+            }
+            val next = response.optJSONObject("data") ?: return false
+            rustShellState = next
+            true
+        }.getOrElse {
+            emitToast("Application navigation failed")
+            false
+        }
+    }
+
+    private fun syncRustAuthentication(authenticated: Boolean) {
+        dispatchShellEvent(JSONObject().put("type", if (authenticated) "authenticate" else "sign_out"))
+    }
+
     fun openSheet(sheet: ActiveSheet) {
+        if (sheet != ActiveSheet.None) {
+            if (!dispatchShellEvent(JSONObject().put("type", "open_sheet").put("sheet", sheet.name.lowercase()))) return
+        }
         _activeSheet.value = sheet
         when (sheet) {
             ActiveSheet.DiagnosticsSheet -> fetchDiagnosticLogs()
@@ -204,6 +229,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 
     fun closeSheet() {
+        dispatchShellEvent(JSONObject().put("type", "close_sheet"))
         _activeSheet.value = ActiveSheet.None
     }
 
@@ -269,6 +295,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 prefs.bearerToken = data.optString("token")
                 prefs.applyServerDefaults(data)
                 applyDefaultsJsonToState(data)
+                syncRustAuthentication(true)
 
                 _authState.update {
                     it.copy(
@@ -357,6 +384,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 prefs.bearerToken = data.optString("token")
                 prefs.applyServerDefaults(data)
                 applyDefaultsJsonToState(data)
+                syncRustAuthentication(true)
 
                 _authState.update {
                     it.copy(
@@ -440,6 +468,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 prefs.bearerToken = data.optString("token")
                 prefs.applyServerDefaults(data)
                 applyDefaultsJsonToState(data)
+                syncRustAuthentication(true)
 
                 _authState.update {
                     it.copy(
@@ -2112,6 +2141,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         val oldUrl = prefs.baseUrl
         val oldToken = prefs.bearerToken
         prefs.clearSession()
+        syncRustAuthentication(false)
         hasLoadedInitialData = false
         hasLoadedDeletedAliases = false
         _aliases.value = emptyList()
