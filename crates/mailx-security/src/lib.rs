@@ -8,3 +8,5 @@ pub mod rfc_email;
 pub mod rules_engine;
 pub mod totp_engine;
 pub mod wordlist;
+
+pub mod secure_store;

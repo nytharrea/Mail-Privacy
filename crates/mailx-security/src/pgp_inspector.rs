@@ -219,12 +219,17 @@ pub fn parse_openpgp_armored_public_key(armored: &str) -> Result<OpenPgpKeyringR
             }
         };
 
-        offset += hdr_advance;
-        if offset + body_len > raw_bytes.len() {
+        let Some(body_start) = offset.checked_add(hdr_advance) else {
+            break;
+        };
+        let Some(body_end) = body_start.checked_add(body_len) else {
+            break;
+        };
+        if body_end > raw_bytes.len() {
             break;
         }
-        let body = &raw_bytes[offset..offset + body_len];
-        offset += body_len;
+        let body = &raw_bytes[body_start..body_end];
+        offset = body_end;
 
         match tag {
             6 => {
@@ -277,5 +282,12 @@ mod tests {
         let crc = compute_openpgp_crc24(b"Mailx OpenPGP Test Payload");
         assert_ne!(crc, 0);
         assert!(crc <= 0x00FF_FFFF);
+    }
+
+    #[test]
+    fn oversized_packet_length_is_rejected_without_panicking() {
+        let armored = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nxv//////\n-----END PGP PUBLIC KEY BLOCK-----";
+        let report = parse_openpgp_armored_public_key(armored).unwrap();
+        assert!(report.packets.is_empty());
     }
 }

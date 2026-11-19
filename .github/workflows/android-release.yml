@@ -18,7 +18,7 @@ permissions:
   contents: write
 
 env:
-  JAVA_VERSION: "27"
+  JAVA_VERSION: "21"
   NDK_VERSION: "30.0.16248370"
   BUILD_TOOLS_VERSION: "37.0.0"
 
@@ -85,13 +85,24 @@ jobs:
       - name: "Verify 16 KB ELF Alignment"
         run: |
           OBJDUMP="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-objdump"
-          for so_file in $(find android-app/app/src/main/jniLibs -name "libmailx_core.so"); do
+          mapfile -d '' SO_FILES < <(find android-app/app/src/main/jniLibs -type f -name "*.so" -print0)
+          if [ "${#SO_FILES[@]}" -eq 0 ]; then
+            echo "ERROR - no native shared libraries found"
+            exit 1
+          fi
+          for so_file in "${SO_FILES[@]}"; do
             echo "Checking 16 KB ELF LOAD alignment for ${so_file}"
-            "${OBJDUMP}" -p "${so_file}" | grep "LOAD"
-            if "${OBJDUMP}" -p "${so_file}" | grep "LOAD" | grep -v -E "2\*\*(14|15|16)"; then
-              echo "ERROR - ${so_file} is NOT 16 KB aligned!"
+            LOAD_HEADERS=$("${OBJDUMP}" -p "${so_file}" | awk '/LOAD/ { print $NF }')
+            if [ -z "${LOAD_HEADERS}" ]; then
+              echo "ERROR - no ELF LOAD segments found in ${so_file}"
               exit 1
             fi
+            while IFS= read -r alignment; do
+              if ! [[ "${alignment}" =~ ^2\*\*(14|15|16)$ ]]; then
+                echo "ERROR - ${so_file} has unsupported LOAD alignment: ${alignment}"
+                exit 1
+              fi
+            done <<< "${LOAD_HEADERS}"
           done
 
       - name: "Configure Release Keystore"

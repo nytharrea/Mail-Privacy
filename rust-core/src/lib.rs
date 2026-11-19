@@ -7,7 +7,7 @@ pub use mailx_network::{client, MailxClient, MailxError};
 pub use mailx_runtime::skeleton;
 pub use mailx_security::{
     disposable_domains, dns_security, mime_inspector, mta_diagnostics, pgp_inspector,
-    phishing_guard, rfc_email, rules_engine, totp_engine, wordlist,
+    phishing_guard, rfc_email, rules_engine, secure_store, totp_engine, wordlist,
 };
 pub use mailx_utils::{secret, utils, SecretString};
 
@@ -29,3 +29,4 @@ pub use mailx_utils::utils::{
 };
 
 pub use mailx_runtime::app_shell::reduce_app_shell_state;
+pub use mailx_runtime::MailxCore;
