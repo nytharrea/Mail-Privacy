@@ -27,7 +27,7 @@ object PasskeyManager {
     ): Result<String> {
         return runCatching {
             val requestJson = extractPublicKeyJson(optionsWrapper)
-            validateRpId(requestJson, activityContext)
+            validateRpId(requestJson)
             val credentialManager = CredentialManager.create(activityContext)
             val option = GetPublicKeyCredentialOption(requestJson = requestJson)
             val request = GetCredentialRequest(listOf(option))
@@ -42,11 +42,7 @@ object PasskeyManager {
                 throw IllegalStateException("Unexpected credential type returned by system")
             }
         }.recoverCatching { err ->
-            val rpId = (optionsWrapper.optJSONObject("publicKey") ?: optionsWrapper).let { pk ->
-                pk.optString("rpId").ifBlank { pk.optJSONObject("rp")?.optString("id").orEmpty() }
-            }
-            val hint = if (rpId.isBlank()) "" else " RP ID: $rpId. Verify https://$rpId/.well-known/assetlinks.json."
-            throw IllegalStateException(formatPasskeyError(err) + hint)
+            throw IllegalStateException(formatPasskeyError(err))
         }
     }
 
@@ -56,7 +52,7 @@ object PasskeyManager {
     ): Result<String> {
         return runCatching {
             val requestJson = extractPublicKeyJson(optionsWrapper)
-            validateRpId(requestJson, activityContext)
+            validateRpId(requestJson)
             val credentialManager = CredentialManager.create(activityContext)
             val request = CreatePublicKeyCredentialRequest(requestJson = requestJson)
             val result = credentialManager.createCredential(
@@ -69,11 +65,7 @@ object PasskeyManager {
                 throw IllegalStateException("Unexpected registration response from Credential Manager")
             }
         }.recoverCatching { err ->
-            val rpId = (optionsWrapper.optJSONObject("publicKey") ?: optionsWrapper).let { pk ->
-                pk.optString("rpId").ifBlank { pk.optJSONObject("rp")?.optString("id").orEmpty() }
-            }
-            val hint = if (rpId.isBlank()) "" else " RP ID: $rpId. Verify https://$rpId/.well-known/assetlinks.json."
-            throw IllegalStateException(formatPasskeyError(err) + hint)
+            throw IllegalStateException(formatPasskeyError(err))
         }
     }
 
@@ -81,7 +73,7 @@ object PasskeyManager {
      * RP ID is server-controlled. Never rewrite it to the API hostname or the
      * Android package name: doing so invalidates WebAuthn verification.
      */
-    private fun validateRpId(requestJson: String, context: Context) {
+    private fun validateRpId(requestJson: String) {
         val json = JSONObject(requestJson)
         val rpId = json.optString("rpId").ifBlank {
             json.optJSONObject("rp")?.optString("id").orEmpty()
@@ -102,15 +94,14 @@ object PasskeyManager {
             is GetCredentialException,
             is CreateCredentialException -> {
                 val msg = err.message.orEmpty()
-                if (msg.contains("assetlinks", ignoreCase = true) ||
-                    msg.contains("RP ID", ignoreCase = true) ||
+                if (msg.contains("RP ID", ignoreCase = true) ||
                     msg.contains("relying party", ignoreCase = true) ||
                     msg.contains("SecurityError", ignoreCase = true) ||
                     msg.contains("associated url", ignoreCase = true) ||
                     msg.contains("selected app", ignoreCase = true) ||
                     msg.contains("security reasons", ignoreCase = true)
                 ) {
-                    "Passkey app/domain mismatch. Check the server RP ID and https://<RP-ID>/.well-known/assetlinks.json for package net.mailx.android and the installed APK's signing SHA-256. 1Password blocks unverified associations."
+                    "The passkey provider rejected the app/domain association. Check that the server-provided RP ID is correct and that the domain is configured for this Android app."
                 } else {
                     msg.ifBlank { "Passkey operation failed (${err.javaClass.simpleName})." }
                 }

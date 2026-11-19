@@ -683,11 +683,17 @@ fun MailxAppScreen(
                     onTogglePinned = { vm.toggleAliasPinned(target, it) },
                     watched = isWatched,
                     onToggleWatched = { enabled ->
-                        if (watchManager.setWatched(target.id, enabled)) {
+                        val updated = watchManager.setWatched(target.id, enabled)
+                        if (updated) {
                             isWatched = enabled
-                        } else {
-                            android.widget.Toast.makeText(context, "Maximum 25 watched aliases", android.widget.Toast.LENGTH_LONG).show()
+                        } else if (enabled) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Maximum 25 watched aliases",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
                         }
+                        updated
                     },
                     onUpdateMetadata = { desc, from, rec ->
                         vm.updateAliasMetadata(target, desc, from, rec)
@@ -744,10 +750,6 @@ private fun MailxModernBottomBar(
     onSelectTab: (MainNavTab) -> Unit
 ) {
     val reducedMotion = LocalReducedMotion.current
-    var showBackupDialog by remember { mutableStateOf(false) }
-    var aliasSearchEnabled by remember { mutableStateOf(vm.prefs.aliasSearchEnabled) }
-    val localScope = rememberCoroutineScope()
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -891,9 +893,6 @@ private fun MailxCleanTopBar(
     onProfileClick: () -> Unit
 ) {
     val reducedMotion = LocalReducedMotion.current
-    var showBackupDialog by remember { mutableStateOf(false) }
-    var aliasSearchEnabled by remember { mutableStateOf(vm.prefs.aliasSearchEnabled) }
-    val localScope = rememberCoroutineScope()
     var refreshTapCount by remember { mutableIntStateOf(0) }
     val refreshRotation by animateFloatAsState(
         targetValue = refreshTapCount * 360f,
