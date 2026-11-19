@@ -959,6 +959,86 @@ impl MailxClient {
     }
 
     #[cfg(feature = "network")]
+    pub fn import_aliases_csv(&self, csv_text: &str) -> Result<serde_json::Value, MailxError> {
+        if csv_text.trim().is_empty() {
+            return Err(MailxError::SerializationError("CSV content is empty.".to_string()));
+        }
+
+        let raw_token = self.current_token().unwrap_or_default();
+        let is_cookie = raw_token.starts_with("cookie:");
+        let path = Self::resolve_scoped_path("/v1/aliases/import", is_cookie);
+        let candidates = self.candidate_urls(&path);
+        let boundary = format!(
+            "----MailxCsvImport{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        );
+        let mut body = Vec::with_capacity(csv_text.len() + 256);
+        body.extend_from_slice(
+            format!(
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"aliases.csv\"\r\nContent-Type: text/csv; charset=utf-8\r\n\r\n"
+            )
+            .as_bytes(),
+        );
+        body.extend_from_slice(csv_text.as_bytes());
+        body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+
+        let mut last_err: Option<MailxError> = None;
+        for (idx, url) in candidates.iter().enumerate() {
+            let mut req = self
+                .agent
+                .post(url)
+                .set("Accept", "application/json")
+                .set("Content-Type", &format!("multipart/form-data; boundary={boundary}"))
+                .timeout(std::time::Duration::from_secs(60));
+            if !raw_token.is_empty() {
+                if let Some(cookie_val) = raw_token.strip_prefix("cookie:") {
+                    req = req.set("Cookie", &format!("authn={cookie_val}"));
+                } else {
+                    req = req.set("Authorization", &format!("Bearer {raw_token}"));
+                }
+            }
+            match req.send_bytes(&body) {
+                Ok(response) => {
+                    let response_text = response
+                        .into_string()
+                        .map_err(|e| MailxError::NetworkError(e.to_string()))?;
+                    let trimmed = response_text.trim();
+                    if trimmed.is_empty() {
+                        return Ok(serde_json::json!({"message":"OK"}));
+                    }
+                    return match serde_json::from_str::<serde_json::Value>(trimmed) {
+                        Ok(value) => Ok(value),
+                        Err(_) => Ok(serde_json::json!({"text": response_text})),
+                    };
+                }
+                Err(ureq::Error::Status(code, response)) => {
+                    let response_body = response.into_string().unwrap_or_default();
+                    let err = Self::parse_error_body(code, &response_body);
+                    if idx + 1 < candidates.len() && (code == 404 || code == 405) {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+                Err(error) => {
+                    let err = MailxError::NetworkError(error.to_string());
+                    if idx + 1 < candidates.len() {
+                        last_err = Some(err);
+                        continue;
+                    }
+                    return Err(err);
+                }
+            }
+        }
+        Err(last_err.unwrap_or_else(|| {
+            MailxError::NetworkError("Could not reach the API server.".to_string())
+        }))
+    }
+
+    #[cfg(feature = "network")]
     pub fn fetch_aliases(&self, filter: &AliasFilter) -> Result<AliasListResponse, MailxError> {
         let path = build_aliases_query_path(filter);
         self.execute_authenticated("GET", &path, None, true)

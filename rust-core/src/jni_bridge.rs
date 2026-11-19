@@ -393,6 +393,28 @@ pub fn handle_api_request(
 }
 
 #[cfg(feature = "network")]
+pub fn handle_import_aliases_csv(
+    base_url: &str,
+    access_key: &str,
+    bearer_token: &str,
+    csv_text: &str,
+) -> String {
+    use mailx_network::client::MailxClient;
+    let client = match MailxClient::new(base_url, true) {
+        Ok(client) => client,
+        Err(error) => return JniEnvelope::<serde_json::Value>::failure(error),
+    };
+    client.set_credentials(Some(access_key.to_string()), Some(bearer_token.to_string()));
+    match client.import_aliases_csv(csv_text) {
+        Ok(data) => {
+            let refreshed = detect_refreshed_token(&client, bearer_token);
+            JniEnvelope::success_with_token(data, refreshed)
+        }
+        Err(error) => JniEnvelope::<serde_json::Value>::failure_with_code(&error, error.error_code()),
+    }
+}
+
+#[cfg(feature = "network")]
 pub fn handle_fetch_defaults(base_url: &str, access_key: &str, bearer_token: &str) -> String {
     use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
@@ -1086,6 +1108,25 @@ mod android_exports {
             let p = jstring_to_rust(env, path);
             let b = jstring_to_rust(env, body_json);
             handle_api_request(&url, &key, &tok, &m, &p, &b)
+        })
+    }
+
+    #[cfg(feature = "network")]
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeImportAliasesCsv(
+        env: JNIEnv,
+        _class: JClass,
+        base_url: JString,
+        access_key: JString,
+        bearer_token: JString,
+        csv_text: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let url = jstring_to_rust(env, base_url);
+            let key = jstring_to_rust(env, access_key);
+            let token = jstring_to_rust(env, bearer_token);
+            let csv = jstring_to_rust(env, csv_text);
+            handle_import_aliases_csv(&url, &key, &token, &csv)
         })
     }
 

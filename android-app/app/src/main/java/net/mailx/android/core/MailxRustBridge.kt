@@ -187,6 +187,14 @@ object MailxRustBridge {
     ): String
 
     @JvmStatic
+    external fun nativeImportAliasesCsv(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        csvText: String
+    ): String
+
+    @JvmStatic
     external fun nativeFetchDefaults(
         baseUrl: String,
         accessKey: String,
@@ -315,6 +323,15 @@ object MailxRustBridge {
         bodyJson: String = ""
     ): JSONObject = withContext(Dispatchers.IO) {
         JSONObject(nativeApiRequest(baseUrl, accessKey, bearerToken, method, path, bodyJson))
+    }
+
+    suspend fun importAliasesCsv(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        csvText: String
+    ): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject(nativeImportAliasesCsv(baseUrl, accessKey, bearerToken, csvText))
     }
 
     suspend fun fetchDefaults(

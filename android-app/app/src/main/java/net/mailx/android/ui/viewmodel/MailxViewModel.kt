@@ -2067,53 +2067,21 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun importAliasesFromCsvText(csvText: String) {
         viewModelScope.launch {
-            val domainsArr = JSONArray().apply {
-                _customDomains.value.forEach { d ->
-                    put(
-                        JSONObject().apply {
-                            put("id", d.id)
-                            put("name", d.name)
-                            put("enabled", d.enabled)
-                        }
-                    )
-                }
-            }.toString()
-
-            val planObj = runCatching {
-                JSONObject(
-                    MailxRustBridge.nativeParseAliasesCsvImport(
-                        csvText,
-                        domainsArr,
-                        prefs.defaultRecipient
-                    )
-                )
-            }.getOrNull()
-
-            val data = planObj?.optJSONObject("data")
-            val requestsArr = data?.optJSONArray("requests")
-            var skippedCount = data?.optInt("skipped", 0) ?: 0
-            var importedCount = 0
-
-            if (requestsArr != null) {
-                for (i in 0 until requestsArr.length()) {
-                    val reqJson = requestsArr.optJSONObject(i)?.toString().orEmpty()
-                    if (reqJson.isEmpty()) continue
-                    val res = MailxRustBridge.createAlias(
-                        prefs.baseUrl,
-                        prefs.accessKey,
-                        prefs.bearerToken,
-                        reqJson
-                    )
-                    if (res.optBoolean("ok", false)) {
-                        importedCount++
-                    } else {
-                        skippedCount++
-                    }
-                }
+            val res = MailxRustBridge.importAliasesCsv(
+                prefs.baseUrl,
+                prefs.accessKey,
+                prefs.bearerToken,
+                csvText
+            )
+            if (res.optBoolean("ok", false)) {
+                val data = res.optJSONObject("data")
+                val imported = data?.optInt("count", 0) ?: 0
+                val skipped = data?.optJSONArray("skipped")?.length() ?: 0
+                emitToast("Imported $imported aliases ($skipped skipped)")
+                loadAliasesInternal(showIndicator = false)
+            } else {
+                emitToast(res.optString("error").ifBlank { "Alias CSV import failed" })
             }
-
-            emitToast("Imported $importedCount aliases ($skippedCount skipped)")
-            loadAliasesInternal(showIndicator = false)
         }
     }
 
