@@ -11,6 +11,7 @@ use mailx_runtime::skeleton::{
 use mailx_utils::utils::{
     compute_privacy_posture, encode_nato_phonetic, encode_qr_matrix, generate_random_suffix,
     generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key,
+    PrivacyPostureInput,
 };
 use serde::Serialize;
 
@@ -136,26 +137,8 @@ pub fn handle_generate_random_suffix(length: usize) -> String {
     JniEnvelope::success(generate_random_suffix(length))
 }
 
-pub fn handle_compute_privacy_posture(
-    forwards: u64,
-    blocks: u64,
-    active_aliases: usize,
-    total_aliases: usize,
-    pgp_active: bool,
-    trackers_blocked: bool,
-    header_stripped: bool,
-    rules_active: usize,
-) -> String {
-    JniEnvelope::success(compute_privacy_posture(
-        forwards,
-        blocks,
-        active_aliases,
-        total_aliases,
-        pgp_active,
-        trackers_blocked,
-        header_stripped,
-        rules_active,
-    ))
+pub fn handle_compute_privacy_posture(input: PrivacyPostureInput) -> String {
+    JniEnvelope::success(compute_privacy_posture(input))
 }
 
 pub fn handle_filter_and_sort_aliases(
@@ -733,6 +716,7 @@ mod android_exports {
         })
     }
 
+    #[allow(clippy::too_many_arguments)] // JNI ABI mirrors the Kotlin native method signature.
     #[no_mangle]
     pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeComputePrivacyPosture(
         env: JNIEnv,
@@ -747,16 +731,16 @@ mod android_exports {
         rules_active: jint,
     ) -> jstring {
         run_jni_safely(env, |_env| {
-            handle_compute_privacy_posture(
-                forwards.max(0) as u64,
-                blocks.max(0) as u64,
-                active_aliases.max(0) as usize,
-                total_aliases.max(0) as usize,
-                pgp_active == JNI_TRUE,
-                trackers_blocked == JNI_TRUE,
-                header_stripped == JNI_TRUE,
-                rules_active.max(0) as usize,
-            )
+            handle_compute_privacy_posture(PrivacyPostureInput {
+                forwards: forwards.max(0) as u64,
+                blocks: blocks.max(0) as u64,
+                active_aliases: active_aliases.max(0) as usize,
+                total_aliases: total_aliases.max(0) as usize,
+                pgp_active: pgp_active == JNI_TRUE,
+                trackers_blocked: trackers_blocked == JNI_TRUE,
+                header_stripped: header_stripped == JNI_TRUE,
+                rules_active: rules_active.max(0) as usize,
+            })
         })
     }
 

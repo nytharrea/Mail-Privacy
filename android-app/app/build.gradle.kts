@@ -90,6 +90,14 @@ android {
     }
 }
 
+configurations.configureEach {
+    resolutionStrategy.force(
+        "androidx.compose.material3:material3:1.5.0-rc01",
+        "androidx.compose.material3:material3-window-size-class:1.5.0-rc01",
+        "androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-rc01"
+    )
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
@@ -108,9 +116,9 @@ dependencies {
     implementation("androidx.compose.animation:animation")
 
     // Jetpack Compose Material 3 Expressive stable release.
-    implementation("androidx.compose.material3:material3:1.5.0")
-    implementation("androidx.compose.material3:material3-window-size-class:1.5.0")
-    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0")
+    implementation("androidx.compose.material3:material3:1.5.0-rc01")
+    implementation("androidx.compose.material3:material3-window-size-class:1.5.0-rc01")
+    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-rc01")
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 

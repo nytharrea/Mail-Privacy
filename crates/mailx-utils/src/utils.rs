@@ -179,16 +179,29 @@ pub fn encode_qr_matrix(payload: &str) -> Result<QrMatrix, String> {
     Ok(QrMatrix { width, rows })
 }
 
-pub fn compute_privacy_posture(
-    forwards: u64,
-    blocks: u64,
-    active_aliases: usize,
-    total_aliases: usize,
-    pgp_active: bool,
-    trackers_blocked: bool,
-    header_stripped: bool,
-    rules_active: usize,
-) -> PrivacyPostureReport {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PrivacyPostureInput {
+    pub forwards: u64,
+    pub blocks: u64,
+    pub active_aliases: usize,
+    pub total_aliases: usize,
+    pub pgp_active: bool,
+    pub trackers_blocked: bool,
+    pub header_stripped: bool,
+    pub rules_active: usize,
+}
+
+pub fn compute_privacy_posture(input: PrivacyPostureInput) -> PrivacyPostureReport {
+    let PrivacyPostureInput {
+        forwards,
+        blocks,
+        active_aliases,
+        total_aliases,
+        pgp_active,
+        trackers_blocked,
+        header_stripped,
+        rules_active,
+    } = input;
     let mut score: u8 = 40;
     if trackers_blocked {
         score = score.saturating_add(20);
@@ -215,11 +228,11 @@ pub fn compute_privacy_posture(
     }
     .to_string();
     let total_traffic = forwards.saturating_add(blocks);
-    let block_rate_percent = if total_traffic == 0 {
-        0
-    } else {
-        ((blocks.saturating_mul(100)) / total_traffic).min(100) as u8
-    };
+    let block_rate_percent = blocks
+        .saturating_mul(100)
+        .checked_div(total_traffic)
+        .unwrap_or(0)
+        .min(100) as u8;
     PrivacyPostureReport {
         score,
         grade,
@@ -422,7 +435,16 @@ mod tests {
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].word, "Alpha");
         assert_eq!(tokens[1].word, "At");
-        let posture = compute_privacy_posture(120, 30, 10, 12, true, true, true, 3);
+        let posture = compute_privacy_posture(PrivacyPostureInput {
+            forwards: 120,
+            blocks: 30,
+            active_aliases: 10,
+            total_aliases: 12,
+            pgp_active: true,
+            trackers_blocked: true,
+            header_stripped: true,
+            rules_active: 3,
+        });
         assert_eq!(posture.score, 100);
         assert_eq!(posture.grade, "A+");
     }
