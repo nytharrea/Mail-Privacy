@@ -1530,13 +1530,43 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchBlocklist() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
-                "GET", "/v1/blocklist?limit=100&page=1"
-            )
-            if (res.optBoolean("ok", false)) {
-                val itemsArr = res.optJSONObject("data")?.optJSONArray("items")
-                _blocklist.value = UiBlocklistItem.listFromJsonArray(itemsArr)
+            // The official API caps blocklist pages at 100 items and reports the
+            // full matching count in `total`. Load all pages before replacing UI state.
+            val allItems = mutableListOf<UiBlocklistItem>()
+            var page = 1
+            var total = Int.MAX_VALUE
+            var fetchError: String? = null
+
+            while (allItems.size < total) {
+                val res = MailxRustBridge.apiRequest(
+                    prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                    "GET", "/v1/blocklist?limit=100&page=$page"
+                )
+                prefs.syncRefreshedTokenIfPresent(res)
+                if (!res.optBoolean("ok", false)) {
+                    fetchError = res.optString("error", "Failed to fetch blocklist")
+                    break
+                }
+
+                val data = res.optJSONObject("data")
+                val items = data?.optJSONArray("items")
+                if (data == null || items == null) {
+                    fetchError = "Invalid blocklist response from server"
+                    break
+                }
+
+                total = data.optInt("total", allItems.size + items.length())
+                val parsed = UiBlocklistItem.listFromJsonArray(items)
+                if (parsed.isEmpty()) break
+
+                allItems.addAll(parsed)
+                page += 1
+            }
+
+            if (fetchError == null) {
+                _blocklist.value = allItems.distinctBy { it.id }
+            } else {
+                emitToast(fetchError)
             }
         }
     }
