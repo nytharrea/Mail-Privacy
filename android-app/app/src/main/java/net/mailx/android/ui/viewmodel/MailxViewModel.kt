@@ -37,7 +37,28 @@ private fun ActiveSheet.toRustSheetKey(): String = when (this) {
     ActiveSheet.ConfirmLogout -> "confirm_logout"
 }
 
-class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
+class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {\n\n    /**
+     * Central API request path for ViewModel operations.
+     *
+     * Persist server-issued token rotations consistently, instead of relying on
+     * every individual screen/action to remember the synchronization call.
+     */
+    private suspend fun requestApi(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        method: String,
+        path: String,
+        bodyJson: String = ""
+    ): JSONObject {
+        val response = MailxRustBridge.apiRequest(
+            baseUrl, accessKey, bearerToken, method, path, bodyJson
+        )
+        if (bearerToken.isNotBlank() && bearerToken == prefs.bearerToken) {
+            prefs.syncRefreshedTokenIfPresent(response)
+        }
+        return response
+    }
 
     private val _authState = MutableStateFlow(
         AuthUiState(
@@ -517,7 +538,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         if (clean.isEmpty()) return
         viewModelScope.launch {
             val body = JSONObject().put("email", clean).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 _authState.value.baseUrl,
                 "",
                 "",
@@ -543,7 +564,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("otp", otpToken.trim())
                 put("password", newPassword)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 _authState.value.baseUrl,
                 "",
                 "",
@@ -800,7 +821,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(defaultDomain = domain) }
         viewModelScope.launch {
             val body = JSONObject().put("domain", domain).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/domain", body
             )
@@ -817,7 +838,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(defaultRecipient = recipient) }
         viewModelScope.launch {
             val body = JSONObject().put("recipient", recipient).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/recipient", body
             )
@@ -834,7 +855,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(defaultFormat = format) }
         viewModelScope.launch {
             val body = JSONObject().put("alias_format", format).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/alias-format", body
             )
@@ -852,7 +873,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(defaultFromName = clean) }
         viewModelScope.launch {
             val body = JSONObject().put("from_name", clean).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/from-name", body
             )
@@ -870,7 +891,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(removeHeader = removeHeader) }
         viewModelScope.launch {
             val body = JSONObject().put("remove_header", removeHeader).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/remove-header", body
             )
@@ -887,7 +908,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(blockTrackers = block) }
         viewModelScope.launch {
             val body = JSONObject().put("block_trackers", block).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/block-trackers", body
             )
@@ -904,7 +925,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(unsubscribeBehaviour = behaviour) }
         viewModelScope.launch {
             val body = JSONObject().put("list_unsubscribe_behaviour", behaviour).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/list-unsubscribe-behaviour", body
             )
@@ -921,7 +942,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _defaultsState.update { it.copy(logIssues = enable) }
         viewModelScope.launch {
             val body = JSONObject().put("log_issues", enable).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/settings/log-issues", body
             )
@@ -961,7 +982,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchWildcardDomainInfo(domainParam: String) {
         if (!prefs.isConfigured() || domainParam.isBlank()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/alias/wildcard-domain-info?domain=$domainParam"
             )
@@ -1088,7 +1109,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("value", value.coerceIn(1, 10))
                 put("unit", unit)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/alias/$aliasId/pause", body
             )
@@ -1103,7 +1124,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun unpauseAlias(aliasId: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/alias/$aliasId/pause"
             )
@@ -1121,7 +1142,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             list.map { if (it.id == alias.id) it.copy(deletedAt = "") else it }
         }
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/alias/restore/${alias.id}"
             )
@@ -1138,7 +1159,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun forgetAlias(alias: UiAlias) {
         _aliases.update { list -> list.filterNot { it.id == alias.id } }
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/alias/forget/${alias.id}"
             )
@@ -1186,7 +1207,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("ids", idsArr)
                 put("enabled", enabled)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/aliases/bulk/enable", body
             )
@@ -1211,7 +1232,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("ids", idsArr)
                 put("pinned", pinned)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/aliases/bulk/pin", body
             )
@@ -1231,7 +1252,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/aliases/bulk/delete", body
             )
@@ -1254,7 +1275,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/aliases/bulk/restore", body
             )
@@ -1274,7 +1295,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         viewModelScope.launch {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/aliases/bulk/forget", body
             )
@@ -1290,7 +1311,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchRecipients() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/recipients"
             )
@@ -1313,7 +1334,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         if (clean.isEmpty()) return
         viewModelScope.launch {
             val body = JSONObject().put("email", clean).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/recipient", body
             )
@@ -1328,7 +1349,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun sendRecipientOtp(recipientId: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/recipient/sendotp/$recipientId"
             )
@@ -1343,7 +1364,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun verifyRecipientOtp(recipientId: String, otp: String) {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/recipient/activate/$recipientId", body
             )
@@ -1370,7 +1391,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("pgp_enabled", pgpEnabled)
                 put("pgp_inline", pgpInline)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/recipient", body
             )
@@ -1386,7 +1407,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun deleteRecipient(recipientId: String, fallbackRecipients: String) {
         viewModelScope.launch {
             val body = JSONObject().put("recipients", fallbackRecipients.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/recipient/delete/$recipientId", body
             )
@@ -1403,7 +1424,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchDomains() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/domains"
             )
@@ -1413,7 +1434,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                     _customDomains.value = UiCustomDomain.listFromJsonArray(arr)
                 }
             }
-            val cfgRes = MailxRustBridge.apiRequest(
+            val cfgRes = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/domains/dns-config"
             )
@@ -1428,7 +1449,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         if (clean.isEmpty()) return
         viewModelScope.launch {
             val body = JSONObject().put("name", clean).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/domain", body
             )
@@ -1446,7 +1467,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun verifyDomainDns(domainId: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/domain/$domainId/verify-dns"
             )
@@ -1497,7 +1518,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("catch_all", catchAll)
                 put("create_alias", createAlias)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/domain/${domain.id}", body
             )
@@ -1513,7 +1534,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deleteCustomDomain(domainId: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/domain/$domainId"
             )
@@ -1538,7 +1559,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             var fetchError: String? = null
 
             while (allItems.size < total) {
-                val res = MailxRustBridge.apiRequest(
+                val res = requestApi(
                     prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                     "GET", "/v1/blocklist?limit=100&page=$page"
                 )
@@ -1579,7 +1600,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("type", type)
                 put("value", clean)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/blocklist", body
             )
@@ -1594,7 +1615,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deleteBlocklistItem(id: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/blocklist/$id"
             )
@@ -1610,7 +1631,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchRules() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/rules"
             )
@@ -1650,7 +1671,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             val isUpdate = !ruleId.isNullOrBlank()
             val method = if (isUpdate) "PUT" else "POST"
             val path = if (isUpdate) "/v1/rule/$ruleId" else "/v1/rule"
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 method, path, body
             )
@@ -1667,7 +1688,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         _rules.update { list -> list.map { if (it.id == rule.id) it.copy(active = active) else it } }
         viewModelScope.launch {
             val body = JSONObject().put("active", active).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/rule/${rule.id}/active", body
             )
@@ -1694,7 +1715,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         viewModelScope.launch {
             val idsArr = JSONArray().apply { current.forEach { put(it.id) } }
             val body = JSONObject().put("ids", idsArr).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/rules/order", body
             )
@@ -1708,7 +1729,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deleteRule(ruleId: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/rule/$ruleId"
             )
@@ -1724,7 +1745,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchUserStats() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/user/stats"
             )
@@ -1781,7 +1802,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun checkServerHealth() {
         viewModelScope.launch {
             _serverHealthStatus.value = "Checking server health..."
-            val liveRes = MailxRustBridge.apiRequest(
+            val liveRes = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/livez"
             )
@@ -1799,7 +1820,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchDiagnosticLogs() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/logs"
             )
@@ -1812,7 +1833,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun fetchBounceLogFile(logId: String, onLoaded: (String) -> Unit) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/log/file/$logId"
             )
@@ -1828,7 +1849,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deleteAllDiagnosticLogs() {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/logs"
             )
@@ -1844,7 +1865,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun fetchAccountAndSubscription() {
         if (!prefs.isConfigured()) return
         viewModelScope.launch {
-            val userRes = MailxRustBridge.apiRequest(
+            val userRes = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/user"
             )
@@ -1866,7 +1887,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 }
             }
 
-            val subRes = MailxRustBridge.apiRequest(
+            val subRes = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/sub"
             )
@@ -1883,7 +1904,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 }
             }
 
-            val keysRes = MailxRustBridge.apiRequest(
+            val keysRes = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/accesskeys"
             )
@@ -1891,7 +1912,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 _accessKeys.value = UiAccessKey.listFromJsonArray(keysRes.optJSONArray("data"))
             }
 
-            val credsRes = MailxRustBridge.apiRequest(
+            val credsRes = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/user/credentials"
             )
@@ -1903,7 +1924,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun sendAccountVerificationOtp() {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/user/sendotp"
             )
@@ -1918,7 +1939,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun verifyAccountEmailOtp(otp: String) {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/user/activate", body
             )
@@ -1933,7 +1954,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deletePasskeyCredential(credentialId: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/user/credential/$credentialId"
             )
@@ -1948,7 +1969,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun fetchAnnouncements() {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/announcements"
             )
@@ -1964,7 +1985,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("old_password", oldPassword)
                 put("password", newPassword)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/user/changepassword", body
             )
@@ -1980,13 +2001,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         viewModelScope.launch {
             if (currentPassword.isNotEmpty()) {
                 val stepBody = JSONObject().put("password", currentPassword).toString()
-                MailxRustBridge.apiRequest(
+                requestApi(
                     prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                     "POST", "/v1/user/stepup/password", stepBody
                 )
             }
             val body = JSONObject().put("email", newEmail.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/user/changeemail", body
             )
@@ -2001,7 +2022,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun initiateTotpSetup() {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/user/totp/enable"
             )
@@ -2022,7 +2043,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun confirmTotpSetup(otp: String) {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/user/totp/enable/confirm", body
             )
@@ -2046,7 +2067,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun disableTotp(otp: String) {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "PUT", "/v1/user/totp/disable", body
             )
@@ -2067,7 +2088,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 put("name", name.trim().ifEmpty { "Mailx Android" })
                 put("expires_at", expIso)
             }.toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/accesskeys", body
             )
@@ -2088,7 +2109,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun deleteAccessKey(id: String) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "DELETE", "/v1/accesskeys/$id"
             )
@@ -2103,7 +2124,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun exportAliasesCsv(onCsvReady: (String) -> Unit) {
         viewModelScope.launch {
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "GET", "/v1/aliases/export"
             )
@@ -2148,12 +2169,12 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         viewModelScope.launch {
             if (currentPassword.isNotEmpty()) {
                 val stepBody = JSONObject().put("password", currentPassword).toString()
-                MailxRustBridge.apiRequest(
+                requestApi(
                     prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                     "POST", "/v1/user/stepup/password", stepBody
                 )
             }
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/user/delete/request"
             )
@@ -2169,7 +2190,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     fun confirmAccountDeletion(otp: String) {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
-            val res = MailxRustBridge.apiRequest(
+            val res = requestApi(
                 prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                 "POST", "/v1/user/delete", body
             )
