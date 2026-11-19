@@ -17,6 +17,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: mailx-android-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   JAVA_VERSION: "27"
   NDK_VERSION: "30.0.16248370"
@@ -176,12 +180,35 @@ jobs:
             TAG_NAME="nightly"
           fi
           if [ "${TAG_NAME}" = "nightly" ]; then
-            gh release create nightly dist-apks/*.apk \
-              --title "Mailx Android (Nightly Build)" \
-              --notes "16 KB aligned and multi-ABI (arm64-v8a, armeabi-v7a, x86_64, x86) signed automatic build (Material 3 Expressive 1.5.0 & Compose BOM 2026.09.00)." \
-              --prerelease || gh release upload nightly dist-apks/*.apk --clobber
+            RELEASE_TITLE="Mailx Android (Nightly Build)"
+            RELEASE_NOTES="16 KB aligned and multi-ABI (arm64-v8a, armeabi-v7a, x86_64, x86) signed automatic build."
+            PRERELEASE_ARGS=(--prerelease)
           else
-            gh release create "${TAG_NAME}" dist-apks/*.apk \
-              --title "Mailx Android ${TAG_NAME}" \
-              --generate-notes || gh release upload "${TAG_NAME}" dist-apks/*.apk --clobber
+            RELEASE_TITLE="Mailx Android ${TAG_NAME}"
+            RELEASE_NOTES=""
+            PRERELEASE_ARGS=()
+          fi
+
+          # Do not use `create || upload`: that masks unrelated create failures
+          # as if the release already existed. Check existence explicitly.
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Release ${TAG_NAME} already exists; replacing matching APK assets."
+            gh release upload "${TAG_NAME}" dist-apks/*.apk --clobber
+            if [ "${TAG_NAME}" = "nightly" ]; then
+              gh release edit "${TAG_NAME}" \
+                --title "${RELEASE_TITLE}" \
+                --notes "${RELEASE_NOTES}" \
+                --prerelease
+            fi
+          else
+            if [ "${TAG_NAME}" = "nightly" ]; then
+              gh release create "${TAG_NAME}" dist-apks/*.apk \
+                --title "${RELEASE_TITLE}" \
+                --notes "${RELEASE_NOTES}" \
+                "${PRERELEASE_ARGS[@]}"
+            else
+              gh release create "${TAG_NAME}" dist-apks/*.apk \
+                --title "${RELEASE_TITLE}" \
+                --generate-notes
+            fi
           fi
