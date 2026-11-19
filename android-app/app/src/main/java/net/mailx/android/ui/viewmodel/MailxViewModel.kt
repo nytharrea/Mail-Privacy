@@ -646,18 +646,49 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             val wantDeleted = filter.selectedChip == "deleted"
             val serverStatus = if (wantDeleted) "deleted" else "active_inactive"
 
-            val res = MailxRustBridge.fetchAliases(
-                baseUrl = prefs.baseUrl,
-                accessKey = prefs.accessKey,
-                bearerToken = prefs.bearerToken,
-                search = filter.searchQuery,
-                status = serverStatus,
-                wildcard = ""
-            )
-            prefs.syncRefreshedTokenIfPresent(res)
-            if (res.optBoolean("ok", false)) {
-                val arr = res.optJSONObject("data")?.optJSONArray("aliases")
-                val parsed = UiAlias.listFromJsonArray(arr)
+            // The API paginates aliases and reports the full matching count in `total`.
+            // Fetch every page so the UI does not silently omit aliases beyond page one.
+            val allAliases = mutableListOf<UiAlias>()
+            val allAliasesJson = JSONArray()
+            var page = 1
+            var total = Int.MAX_VALUE
+            var fetchError: String? = null
+
+            while (allAliases.size < total) {
+                val res = MailxRustBridge.fetchAliases(
+                    baseUrl = prefs.baseUrl,
+                    accessKey = prefs.accessKey,
+                    bearerToken = prefs.bearerToken,
+                    search = filter.searchQuery,
+                    status = serverStatus,
+                    wildcard = "",
+                    page = page
+                )
+                prefs.syncRefreshedTokenIfPresent(res)
+                if (!res.optBoolean("ok", false)) {
+                    fetchError = res.optString("error", "Failed to fetch aliases")
+                    break
+                }
+
+                val data = res.optJSONObject("data")
+                val arr = data?.optJSONArray("aliases")
+                if (data == null || arr == null) {
+                    fetchError = "Invalid aliases response from server"
+                    break
+                }
+
+                total = data.optInt("total", allAliases.size + arr.length())
+                val parsedPage = UiAlias.listFromJsonArray(arr)
+                if (parsedPage.isEmpty()) break
+                allAliases.addAll(parsedPage)
+                for (index in 0 until arr.length()) {
+                    arr.optJSONObject(index)?.let(allAliasesJson::put)
+                }
+                page += 1
+            }
+
+            if (fetchError == null) {
+                val parsed = allAliases.distinctBy { it.id }
                 if (wantDeleted) {
                     hasLoadedDeletedAliases = true
                     val activeAndInactive = _aliases.value.filter { it.deletedAt.isBlank() }
@@ -666,15 +697,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                     val deletedItems = _aliases.value.filter { it.deletedAt.isNotBlank() }
                     if (filter.searchQuery.isEmpty()) {
                         _aliases.value = (parsed + deletedItems).distinctBy { it.id }
-                        if (arr != null) {
-                            prefs.cachedAliasesJson = arr.toString()
-                        }
+                        prefs.cachedAliasesJson = allAliasesJson.toString()
                     } else {
                         _aliases.value = (parsed + _aliases.value).distinctBy { it.id }
                     }
                 }
             } else if (showIndicator) {
-                emitToast(res.optString("error", "Failed to fetch aliases"))
+                emitToast(fetchError ?: "Failed to fetch aliases")
             }
         } finally {
             if (showIndicator) {
