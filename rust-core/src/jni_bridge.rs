@@ -602,6 +602,22 @@ mod android_exports {
     }
 
     #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeDetectAliasWatchEvents(
+        env: JNIEnv,
+        _class: JClass,
+        previous_aliases_json: JString,
+        current_aliases_json: JString,
+        watched_ids_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let previous = jstring_to_rust(env, previous_aliases_json);
+            let current = jstring_to_rust(env, current_aliases_json);
+            let watched = jstring_to_rust(env, watched_ids_json);
+            handle_detect_alias_watch_events(&previous, &current, &watched)
+        })
+    }
+
+    #[no_mangle]
     pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeValidateAccessKey(
         env: JNIEnv,
         _class: JClass,

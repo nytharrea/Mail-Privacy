@@ -1,3 +1,4 @@
+pub mod alias_watch;
 pub mod alias_engine;
 pub mod catalog;
 pub mod csv_engine;

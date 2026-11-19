@@ -1,7 +1,7 @@
 // Stable Android-facing facade. Domain and feature modules live in focused crates.
 pub use mailx_application::controller;
 pub use mailx_domain::{
-    alias_engine, catalog, csv_engine, models, offline_audit, telemetry, tracker_db,
+    alias_engine, alias_watch, catalog, csv_engine, models, offline_audit, telemetry, tracker_db,
 };
 pub use mailx_network::{client, MailxClient, MailxError};
 pub use mailx_runtime::skeleton;
