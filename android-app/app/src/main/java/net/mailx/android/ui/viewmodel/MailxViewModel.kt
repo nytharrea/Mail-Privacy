@@ -19,6 +19,24 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
+private fun ActiveSheet.toRustSheetKey(): String = when (this) {
+    ActiveSheet.None -> "none"
+    ActiveSheet.CreateAlias -> "create_alias"
+    ActiveSheet.FilterOptions -> "filter_options"
+    ActiveSheet.ProfileMenu -> "profile_menu"
+    ActiveSheet.AppearanceSheet -> "appearance"
+    ActiveSheet.DiagnosticsSheet -> "diagnostics"
+    ActiveSheet.AccountSheet -> "account"
+    ActiveSheet.AnnouncementsSheet -> "announcements"
+    ActiveSheet.TrackersReportSheet -> "trackers_report"
+    ActiveSheet.PrivacyLabSheet -> "privacy_lab"
+    is ActiveSheet.ManageAlias -> "manage_alias"
+    is ActiveSheet.WildcardGen -> "wildcard_gen"
+    is ActiveSheet.ReverseSend -> "reverse_send"
+    is ActiveSheet.ConfirmDelete -> "confirm_delete"
+    ActiveSheet.ConfirmLogout -> "confirm_logout"
+}
+
 class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     private val _authState = MutableStateFlow(
@@ -217,7 +235,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun openSheet(sheet: ActiveSheet) {
         if (sheet != ActiveSheet.None) {
-            if (!dispatchShellEvent(JSONObject().put("type", "open_sheet").put("sheet", sheet.name.lowercase()))) return
+            if (!dispatchShellEvent(JSONObject().put("type", "open_sheet").put("sheet", sheet.toRustSheetKey()))) return
         }
         _activeSheet.value = sheet
         when (sheet) {
