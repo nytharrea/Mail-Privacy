@@ -6,8 +6,8 @@ use std::sync::Arc;
 pub enum SecureStorePortError {
     #[error("Invalid secure-store key")]
     InvalidKey,
-    #[error("Secure-store backend failed: {message}")]
-    Backend { message: String },
+    #[error("Secure-store backend failed: {detail}")]
+    Backend { detail: String },
     #[error("Stored value failed authentication")]
     CorruptData,
 }

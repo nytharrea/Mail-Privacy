@@ -55,7 +55,7 @@ fn decode_standard_base64(input: &str) -> Result<Vec<u8>, String> {
         .bytes()
         .filter(|b| !b.is_ascii_whitespace())
         .collect();
-    if clean.is_empty() || clean.len() % 4 != 0 {
+    if clean.is_empty() || !clean.len().is_multiple_of(4) {
         return Err("Invalid base64 length".to_string());
     }
 

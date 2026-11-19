@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "net.mailx.android"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "30.0.16248370"
 
     defaultConfig {

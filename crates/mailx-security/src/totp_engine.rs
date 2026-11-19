@@ -54,17 +54,26 @@ pub fn sha1_digest(message: &[u8]) -> [u8; 20] {
     }
     padded.extend_from_slice(&bit_len.to_be_bytes());
 
-    for chunk in padded.chunks_exact(64) {
+    let (blocks, remainder) = padded.as_chunks::<64>();
+    debug_assert!(remainder.is_empty());
+
+    for chunk in blocks {
         let mut w = [0u32; 80];
-        for i in 0..16 {
+        for (i, word) in w.iter_mut().take(16).enumerate() {
             let j = i * 4;
-            w[i] = ((chunk[j] as u32) << 24)
+            *word = ((chunk[j] as u32) << 24)
                 | ((chunk[j + 1] as u32) << 16)
                 | ((chunk[j + 2] as u32) << 8)
                 | (chunk[j + 3] as u32);
         }
-        for i in 16..80 {
-            w[i] = (w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16]).rotate_left(1);
+        let mut schedule_index = 16;
+        while schedule_index < 80 {
+            w[schedule_index] = (w[schedule_index - 3]
+                ^ w[schedule_index - 8]
+                ^ w[schedule_index - 14]
+                ^ w[schedule_index - 16])
+                .rotate_left(1);
+            schedule_index += 1;
         }
 
         let mut a = h0;
@@ -73,7 +82,7 @@ pub fn sha1_digest(message: &[u8]) -> [u8; 20] {
         let mut d = h3;
         let mut e = h4;
 
-        for i in 0..80 {
+        for (i, word) in w.iter().enumerate() {
             let (f, k) = match i {
                 0..=19 => ((b & c) | ((!b) & d), 0x5A82_7999u32),
                 20..=39 => (b ^ c ^ d, 0x6ED9_EBA1u32),
@@ -85,7 +94,7 @@ pub fn sha1_digest(message: &[u8]) -> [u8; 20] {
                 .wrapping_add(f)
                 .wrapping_add(e)
                 .wrapping_add(k)
-                .wrapping_add(w[i]);
+                .wrapping_add(*word);
             e = d;
             d = c;
             c = b.rotate_left(30);

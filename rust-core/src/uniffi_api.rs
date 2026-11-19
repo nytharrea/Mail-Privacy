@@ -24,15 +24,15 @@ pub enum AppEvent {
 
 #[derive(Debug, Error, uniffi::Error)]
 pub enum MailxCoreError {
-    #[error("Invalid application event: {message}")]
-    InvalidEvent { message: String },
-    #[error("Application core failure: {message}")]
-    Internal { message: String },
+    #[error("Invalid application event: {detail}")]
+    InvalidEvent { detail: String },
+    #[error("Application core failure: {detail}")]
+    Internal { detail: String },
 }
 
 impl From<String> for MailxCoreError {
     fn from(message: String) -> Self {
-        Self::InvalidEvent { message }
+        Self::InvalidEvent { detail: message }
     }
 }
 
@@ -56,38 +56,38 @@ impl MailxCore {
     /// Attach the Android Keystore/Tink adapter for this process.
     pub fn attach_secure_store(&self, store: Arc<dyn SecureStorePort>) -> Result<(), MailxCoreError> {
         let mut slot = self.secure_store.lock()
-            .map_err(|_| MailxCoreError::Internal { message: "Secure-store lock is poisoned".into() })?;
+            .map_err(|_| MailxCoreError::Internal { detail: "Secure-store lock is poisoned".into() })?;
         *slot = Some(store);
         Ok(())
     }
 
     pub fn secure_store_get(&self, key: String) -> Result<Option<Vec<u8>>, SecureStorePortError> {
         let store = self.secure_store.lock()
-            .map_err(|_| SecureStorePortError::Backend { message: "Secure-store lock is poisoned".into() })?;
+            .map_err(|_| SecureStorePortError::Backend { detail: "Secure-store lock is poisoned".into() })?;
         let adapter = store.as_ref()
-            .ok_or_else(|| SecureStorePortError::Backend { message: "Secure store is not attached".into() })?;
+            .ok_or_else(|| SecureStorePortError::Backend { detail: "Secure store is not attached".into() })?;
         adapter.get(key)
     }
 
     pub fn secure_store_put(&self, key: String, value: Vec<u8>) -> Result<(), SecureStorePortError> {
         let store = self.secure_store.lock()
-            .map_err(|_| SecureStorePortError::Backend { message: "Secure-store lock is poisoned".into() })?;
+            .map_err(|_| SecureStorePortError::Backend { detail: "Secure-store lock is poisoned".into() })?;
         let adapter = store.as_ref()
-            .ok_or_else(|| SecureStorePortError::Backend { message: "Secure store is not attached".into() })?;
+            .ok_or_else(|| SecureStorePortError::Backend { detail: "Secure store is not attached".into() })?;
         adapter.put(key, value)
     }
 
     pub fn secure_store_delete(&self, key: String) -> Result<(), SecureStorePortError> {
         let store = self.secure_store.lock()
-            .map_err(|_| SecureStorePortError::Backend { message: "Secure-store lock is poisoned".into() })?;
+            .map_err(|_| SecureStorePortError::Backend { detail: "Secure-store lock is poisoned".into() })?;
         let adapter = store.as_ref()
-            .ok_or_else(|| SecureStorePortError::Backend { message: "Secure store is not attached".into() })?;
+            .ok_or_else(|| SecureStorePortError::Backend { detail: "Secure store is not attached".into() })?;
         adapter.delete(key)
     }
 
     pub fn state(&self) -> Result<AppState, MailxCoreError> {
         let snapshot = self.inner.state_snapshot()
-            .map_err(|message| MailxCoreError::Internal { message })?;
+            .map_err(|message| MailxCoreError::Internal { detail: message })?;
         parse_state(&snapshot)
     }
 
@@ -100,16 +100,16 @@ impl MailxCore {
             AppEvent::CloseSheet => json!({"type":"close_sheet"}),
         };
         let encoded = serde_json::to_string(&payload)
-            .map_err(|error| MailxCoreError::Internal { message: error.to_string() })?;
+            .map_err(|error| MailxCoreError::Internal { detail: error.to_string() })?;
         let snapshot = self.inner.dispatch(&encoded)
-            .map_err(|message| MailxCoreError::InvalidEvent { message })?;
+            .map_err(|message| MailxCoreError::InvalidEvent { detail: message })?;
         parse_state(&snapshot)
     }
 }
 
 fn parse_state(snapshot: &str) -> Result<AppState, MailxCoreError> {
     serde_json::from_str(snapshot)
-        .map_err(|error| MailxCoreError::Internal { message: error.to_string() })
+        .map_err(|error| MailxCoreError::Internal { detail: error.to_string() })
 }
 
 #[cfg(test)]

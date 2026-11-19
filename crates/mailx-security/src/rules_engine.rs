@@ -93,17 +93,31 @@ pub fn is_text_value_action_type(action_type: &str) -> bool {
     )
 }
 
-pub fn normalize_rule_payload_json(
-    rule_id: Option<&str>,
-    name: &str,
-    operator: &str,
-    forwards: bool,
-    replies: bool,
-    sends: bool,
-    active: bool,
-    conditions: &[RuleConditionSpec],
-    actions: &[RuleActionSpec],
-) -> Result<String, String> {
+#[derive(Debug, Clone, Copy)]
+pub struct RulePayloadInput<'a> {
+    pub rule_id: Option<&'a str>,
+    pub name: &'a str,
+    pub operator: &'a str,
+    pub forwards: bool,
+    pub replies: bool,
+    pub sends: bool,
+    pub active: bool,
+    pub conditions: &'a [RuleConditionSpec],
+    pub actions: &'a [RuleActionSpec],
+}
+
+pub fn normalize_rule_payload_json(input: RulePayloadInput<'_>) -> Result<String, String> {
+    let RulePayloadInput {
+        rule_id,
+        name,
+        operator,
+        forwards,
+        replies,
+        sends,
+        active,
+        conditions,
+        actions,
+    } = input;
     let clean_name = name.trim();
     if clean_name.is_empty() {
         return Err("Rule name cannot be empty.".to_string());
