@@ -37,7 +37,9 @@ private fun ActiveSheet.toRustSheetKey(): String = when (this) {
     ActiveSheet.ConfirmLogout -> "confirm_logout"
 }
 
-class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {\n\n    /**
+class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
+
+    /**
      * Central API request path for ViewModel operations.
      *
      * Persist server-issued token rotations consistently, instead of relying on
