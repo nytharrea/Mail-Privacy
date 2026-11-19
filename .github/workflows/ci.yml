@@ -91,14 +91,18 @@ jobs:
           cargo install uniffi --version 0.32.2 --features cli --locked
           uniffi-bindgen generate --library android-app/app/src/main/jniLibs/arm64-v8a/libmailx_core.so \
             --language kotlin \
+            --no-format \
             --out-dir android-app/app/src/main/java
+
+      - name: Prepare Gradle Wrapper
+        run: chmod +x android-app/gradlew
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android debug APK
         working-directory: android-app
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: bash ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Android emulator launch smoke test
         uses: ReactiveCircus/android-emulator-runner@v2

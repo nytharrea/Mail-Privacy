@@ -1373,7 +1373,7 @@ pub fn format_tracker_element_label(element: &str) -> String {
         "background" => "CSS Background Image".to_string(),
         "link" => "Prefetch / Stylesheet (<link>)".to_string(),
         "a" | "href" => "Tracked Hyperlink (<a>)".to_string(),
-        other if other.is_empty() => "HTML Element".to_string(),
+        "" => "HTML Element".to_string(),
         other => other.to_string(),
     }
 }
@@ -1384,7 +1384,7 @@ pub fn format_tracker_reason_label(reason: &str) -> String {
         "tiny" => "1x1 / Hidden spy pixel".to_string(),
         "pattern" => "Tracking URL signature".to_string(),
         "pixel" => "Invisible web beacon".to_string(),
-        other if other.is_empty() => "Heuristic tracker match".to_string(),
+        "" => "Heuristic tracker match".to_string(),
         other => other.to_string(),
     }
 }
