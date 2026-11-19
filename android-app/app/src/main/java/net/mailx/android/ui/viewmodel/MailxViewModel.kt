@@ -1299,10 +1299,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 if (arr != null) {
                     val list = UiRecipient.listFromJsonArray(arr)
                     _recipients.value = list
+                    // The recipients endpoint is authoritative. Clear stale verified
+                    // recipients when the server returns none (e.g. all were deactivated).
                     val verifiedEmails = list.filter { it.isActive }.map { it.email }
-                    if (verifiedEmails.isNotEmpty()) {
-                        _defaultsState.update { it.copy(availableRecipients = verifiedEmails) }
-                    }
+                    _defaultsState.update { it.copy(availableRecipients = verifiedEmails) }
                 }
             }
         }
