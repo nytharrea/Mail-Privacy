@@ -677,7 +677,9 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             var total = Int.MAX_VALUE
             var fetchError: String? = null
 
-            while (allAliases.size < total) {
+            val seenAliasIds = mutableSetOf<String>()
+            var pagesFetched = 0
+            while (seenAliasIds.size < total && pagesFetched < 1000) {
                 val res = MailxRustBridge.fetchAliases(
                     baseUrl = prefs.baseUrl,
                     accessKey = prefs.accessKey,
@@ -702,12 +704,26 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
                 total = data.optInt("total", allAliases.size + arr.length())
                 val parsedPage = UiAlias.listFromJsonArray(arr)
-                if (parsedPage.isEmpty()) break
-                allAliases.addAll(parsedPage)
+                if (parsedPage.isEmpty()) {
+                    if (seenAliasIds.size < total) {
+                        fetchError = "Alias pagination ended before all records were loaded"
+                    }
+                    break
+                }
+                val newItems = parsedPage.filter { seenAliasIds.add(it.id) }
+                if (newItems.isEmpty()) {
+                    fetchError = "Alias pagination returned a repeated page; existing data was preserved"
+                    break
+                }
+                allAliases.addAll(newItems)
                 for (index in 0 until arr.length()) {
                     arr.optJSONObject(index)?.let(allAliasesJson::put)
                 }
                 page += 1
+                pagesFetched += 1
+            }
+            if (pagesFetched >= 1000 && seenAliasIds.size < total && fetchError == null) {
+                fetchError = "Alias pagination exceeded the safety limit; existing data was preserved"
             }
 
             if (fetchError == null) {
@@ -1560,12 +1576,13 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
             var total = Int.MAX_VALUE
             var fetchError: String? = null
 
-            while (allItems.size < total) {
+            val seenBlocklistIds = mutableSetOf<String>()
+            var pagesFetched = 0
+            while (seenBlocklistIds.size < total && pagesFetched < 1000) {
                 val res = requestApi(
                     prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
                     "GET", "/v1/blocklist?limit=100&page=$page"
                 )
-                prefs.syncRefreshedTokenIfPresent(res)
                 if (!res.optBoolean("ok", false)) {
                     fetchError = res.optString("error", "Failed to fetch blocklist")
                     break
@@ -1580,14 +1597,27 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
                 total = data.optInt("total", allItems.size + items.length())
                 val parsed = UiBlocklistItem.listFromJsonArray(items)
-                if (parsed.isEmpty()) break
-
-                allItems.addAll(parsed)
+                if (parsed.isEmpty()) {
+                    if (seenBlocklistIds.size < total) {
+                        fetchError = "Blocklist pagination ended before all records were loaded"
+                    }
+                    break
+                }
+                val newItems = parsed.filter { seenBlocklistIds.add(it.id) }
+                if (newItems.isEmpty()) {
+                    fetchError = "Blocklist pagination returned a repeated page; existing data was preserved"
+                    break
+                }
+                allItems.addAll(newItems)
                 page += 1
+                pagesFetched += 1
+            }
+            if (pagesFetched >= 1000 && seenBlocklistIds.size < total && fetchError == null) {
+                fetchError = "Blocklist pagination exceeded the safety limit; existing data was preserved"
             }
 
             if (fetchError == null) {
-                _blocklist.value = allItems.distinctBy { it.id }
+                _blocklist.value = allItems
             } else {
                 emitToast(fetchError)
             }
