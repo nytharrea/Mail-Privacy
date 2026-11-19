@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --licenses < <(yes 2>/dev/null) >/dev/null
           sdkmanager --install --channel=3 \\
             "platforms;android-37" \\
             "build-tools;36.0.0" \\

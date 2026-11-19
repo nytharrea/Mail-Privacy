@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses < <(yes 2>/dev/null) > /dev/null
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install --channel=3 \\
             "platforms;android-37" \\
             "build-tools;${BUILD_TOOLS_VERSION}" \\
