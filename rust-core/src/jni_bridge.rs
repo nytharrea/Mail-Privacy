@@ -1,6 +1,6 @@
 #[cfg(feature = "network")]
-use crate::models::{AliasFilter, AliasRequest};
-use crate::skeleton::{
+use mailx_domain::models::{AliasFilter, AliasRequest};
+use mailx_runtime::skeleton::{
     analyze_email_headers, analyze_mta_bounce_log, audit_alias_hygiene,
     compute_seven_day_telemetry, decode_and_audit_trackers, evaluate_phishing_and_domain_risk,
     filter_and_sort_aliases, format_aliases_csv_export, generate_contextual_aliases,
@@ -8,7 +8,7 @@ use crate::skeleton::{
     inspect_openpgp_key_armor, parse_aliases_csv_import, sanitize_tracking_urls,
     simulate_rule_evaluation,
 };
-use crate::utils::{
+use mailx_utils::utils::{
     compute_privacy_posture, encode_nato_phonetic, encode_qr_matrix, generate_random_suffix,
     generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key,
 };
@@ -61,7 +61,7 @@ impl<T: Serialize> JniEnvelope<T> {
 
 #[cfg(feature = "network")]
 fn detect_refreshed_token(
-    client: &crate::client::MailxClient,
+    client: &mailx_network::client::MailxClient,
     original_token: &str,
 ) -> Option<String> {
     client
@@ -264,7 +264,7 @@ pub fn handle_generate_passphrase_and_candidate(
 
 #[cfg(feature = "network")]
 pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -277,7 +277,7 @@ pub fn handle_authenticate(base_url: &str, access_key: &str) -> String {
 
 #[cfg(feature = "network")]
 pub fn handle_login(base_url: &str, email: &str, password: &str, otp: &str) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -290,7 +290,7 @@ pub fn handle_login(base_url: &str, email: &str, password: &str, otp: &str) -> S
 
 #[cfg(feature = "network")]
 pub fn handle_passkey_login_begin(base_url: &str, email: &str) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -309,7 +309,7 @@ pub fn handle_passkey_login_finish(
     discoverable: bool,
     fallback_email: &str,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -322,7 +322,7 @@ pub fn handle_passkey_login_finish(
 
 #[cfg(feature = "network")]
 pub fn handle_passkey_register_begin(base_url: &str, bearer_token: &str) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -341,7 +341,7 @@ pub fn handle_passkey_register_finish(
     ceremony_cookie: &str,
     credential_json: &str,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -365,7 +365,7 @@ pub fn handle_api_request(
     path: &str,
     body_json: &str,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -387,7 +387,7 @@ pub fn handle_api_request(
 
 #[cfg(feature = "network")]
 pub fn handle_fetch_defaults(base_url: &str, access_key: &str, bearer_token: &str) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -412,7 +412,7 @@ pub fn handle_fetch_aliases(
     wildcard: &str,
     page: usize,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -446,7 +446,7 @@ pub fn handle_create_alias(
     bearer_token: &str,
     request_json: &str,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -473,7 +473,7 @@ pub fn handle_update_alias(
     alias_id: &str,
     request_json: &str,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -500,7 +500,7 @@ pub fn handle_pin_alias(
     alias_id: &str,
     pinned: bool,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -522,7 +522,7 @@ pub fn handle_delete_alias(
     bearer_token: &str,
     alias_id: &str,
 ) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
@@ -539,7 +539,7 @@ pub fn handle_delete_alias(
 
 #[cfg(feature = "network")]
 pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
-    use crate::client::MailxClient;
+    use mailx_network::client::MailxClient;
     let client = match MailxClient::new(base_url, true) {
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),

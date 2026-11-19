@@ -1,6 +1,6 @@
-use crate::models::*;
-use crate::secret::SecretString;
-use crate::utils::{build_aliases_query_path, validate_access_key};
+use mailx_domain::models::*;
+use mailx_utils::secret::SecretString;
+use mailx_utils::{build_aliases_query_path, validate_access_key};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};

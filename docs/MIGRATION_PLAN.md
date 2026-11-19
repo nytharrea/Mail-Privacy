@@ -10,19 +10,28 @@
 - Removed the unverified `MIT` Cargo metadata declaration pending provenance review.
 - Removed the predictable hard-coded release-signing fallback. Release signing now requires repository secrets.
 
+## Completed in this follow-up
+
+- Added a seven-crate Rust workspace while preserving the `mailx-core` package name and `mailx_core` native library name.
+- Kept the Android JNI exports in the facade crate; moved domain, utilities, security, networking, application orchestration and runtime into separate crates.
+- Preserved the existing Rust unit tests and added JNI facade contract integration tests.
+- Expanded CI to run formatting, Clippy and all workspace tests.
+- Added Android CI to build JNI libraries for four ABIs, assemble a debug APK and perform an emulator launch/JNI crash smoke test.
+- Updated architecture and build documentation.
+
 ## Next implementation stages
 
 ### 1. Establish repository remotes
 
 Initialize or use the existing Git repository, set `origin` to the user's Android-client repository, and add `upstream` as the official service repository. See `docs/UPSTREAM.md`.
 
-### 2. Stabilize behavior before restructuring
+### 2. Expand behavior and API contract tests
 
-Add Rust unit and integration tests for authentication, alias CRUD, recipients, rules, serialization, offline behavior, and security analyzers. Add API contract fixtures from documented or observed responses; do not store real account data in fixtures.
+The existing unit tests and new facade contract tests are retained. Add focused fixtures and integration tests for authentication, alias CRUD, recipients, rules, serialization, offline behavior and security analyzers. Use documented or observed API responses; never store real account data in fixtures.
 
-### 3. Separate Rust responsibilities
+### 3. Validate the crate split in CI
 
-Extract modules incrementally into crates only after tests pass. Keep the JNI ABI stable during each extraction. The current source remains one crate until that work is completed.
+The seven-crate extraction is implemented but still needs a successful CI run before it should be treated as build-verified. Keep the JNI ABI stable and resolve any compiler/test findings from CI before merging.
 
 ### 4. Strengthen Android state ownership
 
@@ -40,7 +49,7 @@ Require a private release keystore in GitHub Actions secrets. Never generate a k
 
 - No new applicationId or Kotlin package migration.
 - No automatic merge of IVPN's service repository.
-- No seven-crate Rust split yet.
+- No successful compile/test result is available from this preparation environment; CI must validate the seven-crate split.
 - No replacement of JNI with UniFFI.
 - No production SQLCipher integration or storage rewrite.
-- No compile/test claim: the execution environment used to prepare this archive did not have Cargo, Gradle or an Android SDK installed.
+- No physical-device test has been run. The emulator smoke test is configured in CI but must complete successfully in GitHub Actions.

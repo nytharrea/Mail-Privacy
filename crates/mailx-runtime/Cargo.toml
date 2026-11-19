@@ -1,0 +1,10 @@
+[package]
+name = "mailx-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mailx-domain = { path = "../mailx-domain" }
+mailx-utils = { path = "../mailx-utils" }
+mailx-security = { path = "../mailx-security" }
+serde_json.workspace = true

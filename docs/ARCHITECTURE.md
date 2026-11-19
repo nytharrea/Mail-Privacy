@@ -2,17 +2,31 @@
 
 ## Current architecture
 
-The current snapshot is a **Rust-first modular monolith**: one Cargo crate (`mailx-core`) exposes focused Rust modules, and the Android application uses Kotlin/Jetpack Compose for presentation and Android platform integration. The existing JNI bridge is the active FFI boundary.
+The Rust core is now split into seven Cargo crates. The Android application keeps the existing Kotlin/Jetpack Compose presentation and Android platform integration. The `mailx-core` package remains the Android-facing facade and preserves the native library name `libmailx_core.so`.
 
-The Rust modules already present include:
+| Crate | Responsibility | Main contents |
+|---|---|---|
+| `mailx-domain` | Domain types and pure domain operations | models, alias engine, CSV, telemetry, tracker DB, offline portfolio audit, catalog |
+| `mailx-utils` | Shared low-level helpers and secret wrapper | validation/encoding helpers, `SecretString` |
+| `mailx-security` | Local security inspection and generators | phishing, MIME, PGP, DNS, RFC email, MTA, TOTP, disposable domains, wordlists, rules |
+| `mailx-network` | Mailx HTTP client and transport | authentication, API requests, token handling |
+| `mailx-application` | Application use cases and API action orchestration | controller and action endpoint mapping |
+| `mailx-runtime` | Composition of local domain/security capabilities | skeleton runtime and JSON-facing local use cases |
+| `mailx-core` | Android JNI facade / FFI boundary | stable `mailx_core` library name and JNI exports |
 
-- Domain and data: `models`, `alias_engine`, `rules_engine`, `csv_engine`, `catalog`.
-- Application orchestration: `skeleton`, `controller`.
-- Service integration: `client`.
-- Security and analysis: `secret`, `phishing_guard`, `mime_inspector`, `rfc_email`, `pgp_inspector`, `dns_security`, `mta_diagnostics`, `totp_engine`, `tracker_db`, `disposable_domains`, `offline_audit`, `telemetry`.
-- Platform boundary: `jni_bridge`.
+## Dependency direction
 
-Do not describe the current source as seven independent Rust crates: that split is a target architecture, not implemented in this snapshot.
+Dependencies are intentionally acyclic:
+
+- `mailx-domain` has no dependency on networking, Android or JNI.
+- `mailx-utils` depends on `mailx-domain` for shared data types.
+- `mailx-security` depends on `mailx-utils` for shared helpers.
+- `mailx-network` depends on `mailx-domain` and `mailx-utils`.
+- `mailx-application` composes `mailx-domain` and `mailx-network`.
+- `mailx-runtime` composes `mailx-domain`, `mailx-utils` and `mailx-security`.
+- `mailx-core` is the outer facade and composes the other crates for JNI.
+
+The facade composes the crates; domain and security crates must not depend on Android/JNI or the network client. Keep JNI glue thin and do not place business rules in it.
 
 ## Ownership rules
 
@@ -23,20 +37,14 @@ Do not describe the current source as seven independent Rust crates: that split 
 - Network calls must be cancellable from the Android lifecycle and must not run on the main thread.
 - Sensitive values must not be logged. Keep credentials in the existing protected storage path and review key lifecycle before changing it.
 
-## Target modularization
+## Storage boundary
 
-Split the current crate only after tests establish stable boundaries:
-
-1. `mailx-domain`: models and pure domain rules.
-2. `mailx-application`: use cases, orchestration and ports.
-3. `mailx-security`: local security inspection and secret handling.
-4. `mailx-network`: Mailx API client and transport.
-5. `mailx-storage`: persistence abstractions and encrypted local storage.
-6. `mailx-runtime`: application runtime/state coordination.
-7. `mailx-ffi`: narrow Android-facing FFI surface.
-
-Migration order: add tests around public behavior; extract pure domain modules; extract security modules; define application ports; isolate network; introduce storage behind an interface; narrow JNI/consider UniFFI only after the API contract is stable. Do not combine a crate split with a behavior rewrite in one change.
+Encrypted preferences and Android Keystore remain in the Android layer. No Rust storage crate or SQLCipher migration is claimed by this refactor. If persistent Rust-side storage is introduced later, define an explicit storage port and migration plan first.
 
 ## Offline-first boundary
 
 Local-only analysis (URL sanitizing, header inspection, PGP parsing, TOTP preview, local rule simulation and portfolio audits) should remain usable without network access. Server-backed operations (authentication, alias CRUD, recipients, rules and delivery telemetry) must expose explicit loading, stale-data and offline/error states. Do not imply that server mutations have succeeded until the server confirms them.
+
+## Validation
+
+The workspace CI runs formatting, Clippy and tests for all crates/features. A separate Android CI job cross-compiles the Rust JNI library for all four configured Android ABIs and runs `assembleDebug`. A successful CI build is still not a substitute for testing installation, login, lifecycle, offline behavior and JNI calls on physical Android devices.

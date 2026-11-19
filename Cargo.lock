@@ -256,14 +256,74 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
+name = "mailx-application"
+version = "0.5.0"
+dependencies = [
+ "mailx-domain",
+ "mailx-network",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mailx-core"
 version = "0.5.0"
 dependencies = [
  "jni",
- "qrcode-rs",
+ "mailx-application",
+ "mailx-domain",
+ "mailx-network",
+ "mailx-runtime",
+ "mailx-security",
+ "mailx-utils",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mailx-domain"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mailx-network"
+version = "0.5.0"
+dependencies = [
+ "mailx-domain",
+ "mailx-utils",
  "serde",
  "serde_json",
  "ureq",
+]
+
+[[package]]
+name = "mailx-runtime"
+version = "0.5.0"
+dependencies = [
+ "mailx-domain",
+ "mailx-security",
+ "mailx-utils",
+ "serde_json",
+]
+
+[[package]]
+name = "mailx-security"
+version = "0.5.0"
+dependencies = [
+ "mailx-utils",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mailx-utils"
+version = "0.5.0"
+dependencies = [
+ "mailx-domain",
+ "qrcode-rs",
 ]
 
 [[package]]

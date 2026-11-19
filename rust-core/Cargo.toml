@@ -11,12 +11,16 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["network"]
-network = ["dep:ureq"]
+network = ["mailx-network/network", "mailx-application/network"]
 jni = ["dep:jni"]
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-qrcode-rs = { version = "2.2.0", default-features = false }
-ureq = { version = "2.10", default-features = false, features = ["tls", "json"], optional = true }
+mailx-domain = { path = "../crates/mailx-domain" }
+mailx-utils = { path = "../crates/mailx-utils" }
+mailx-security = { path = "../crates/mailx-security" }
+mailx-network = { path = "../crates/mailx-network", default-features = false }
+mailx-application = { path = "../crates/mailx-application", default-features = false }
+mailx-runtime = { path = "../crates/mailx-runtime" }
+serde.workspace = true
+serde_json.workspace = true
 jni = { version = "0.21", optional = true }

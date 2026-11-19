@@ -1,6 +1,6 @@
 # Mailx API compatibility
 
-The Android client integrates with the service at `https://mailx.net` by default (see `rust-core/src/client.rs`). Keep API paths and payload models aligned with the official service repository: <https://github.com/ivpn/mailx>.
+The Android client integrates with the service at `https://mailx.net` by default (see `crates/mailx-network/src/client.rs`). Keep API paths and payload models aligned with the official service repository: <https://github.com/ivpn/mailx>.
 
 When changing API integration:
 

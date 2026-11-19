@@ -1,0 +1,8 @@
+[package]
+name = "mailx-utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mailx-domain = { path = "../mailx-domain" }
+qrcode-rs = { version = "2.2.0", default-features = false }

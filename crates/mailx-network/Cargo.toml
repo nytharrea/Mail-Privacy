@@ -1,0 +1,15 @@
+[package]
+name = "mailx-network"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["network"]
+network = ["dep:ureq"]
+
+[dependencies]
+mailx-domain = { path = "../mailx-domain" }
+mailx-utils = { path = "../mailx-utils" }
+serde.workspace = true
+serde_json.workspace = true
+ureq = { version = "2.10", default-features = false, features = ["tls", "json"], optional = true }

@@ -6,27 +6,107 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
 
 jobs:
-  mailx-rust-core:
-    name: "Mailx Rust Core CI"
+  rust:
+    name: Rust workspace checks
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout Mailx Android"
+      - name: Checkout
         uses: actions/checkout@v5
 
-      - name: "Install Rust Toolchain"
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: "Cache Cargo Build"
+      - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: "Run Clippy Lints"
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: "Run Mailx Core Tests"
+      - name: Run tests
         run: cargo test --workspace --all-features -- --nocapture
+
+  android-debug:
+    name: Android debug build (all ABIs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;30.0.16248370"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/30.0.16248370" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/30.0.16248370" >> "$GITHUB_ENV"
+
+      - name: Install Rust Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: Build Rust JNI libraries
+        run: |
+          cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -t x86 \
+            -o android-app/app/src/main/jniLibs \
+            build --release -p mailx-core --features "network,jni"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.1"
+
+      - name: Build Android debug APK
+        working-directory: android-app
+        run: |
+          gradle wrapper --gradle-version 9.9.1
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Android emulator launch smoke test
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            APK="$(find android-app/app/build/outputs/apk/debug -name '*x86_64*debug.apk' -o -name '*universal*debug.apk' | head -n 1)"
+            test -n "$APK"
+            adb install -r "$APK"
+            adb shell monkey -p net.mailx.android.debug 1
+            sleep 12
+            adb shell pidof net.mailx.android.debug
+            if adb logcat -d -t 600 | grep -E 'FATAL EXCEPTION|UnsatisfiedLinkError'; then
+              echo "Android startup/JNI crash detected"
+              exit 1
+            fi

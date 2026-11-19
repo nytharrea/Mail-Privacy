@@ -1,0 +1,9 @@
+[package]
+name = "mailx-security"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mailx-utils = { path = "../mailx-utils" }
+serde.workspace = true
+serde_json.workspace = true

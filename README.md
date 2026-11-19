@@ -16,11 +16,12 @@ The client keeps the `Mailx` product identity and integrates with the official M
 
 ## Architecture today
 
-The current implementation is a Rust-first **modular monolith** in `rust-core` (one Cargo crate with focused modules), with Kotlin responsible for Android lifecycle, Compose rendering, widgets, platform services and JNI integration. The proposed multi-crate split is documented but not claimed as complete. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The Rust implementation is organized as seven Cargo crates (`mailx-domain`, `mailx-utils`, `mailx-security`, `mailx-network`, `mailx-application`, `mailx-runtime`, and the Android-facing `mailx-core` JNI facade). Kotlin remains responsible for Android lifecycle, Compose rendering, widgets and platform services. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Main source areas
 
-- `rust-core/`: Rust domain models, Mailx API client, orchestration, alias/rules engines and local security analyzers.
+- `crates/`: six focused Rust capability crates.
+- `rust-core/`: stable `mailx-core` facade and Android JNI exports.
 - `android-app/app/`: Compose screens, ViewModel, Android services, widgets, secure preferences and JNI bridge.
 - `assets/branding/`: editable brand artwork.
 - `docs/`: upstream policy, architecture, branding, licensing and migration notes.
@@ -30,15 +31,16 @@ The current implementation is a Rust-first **modular monolith** in `rust-core` (
 ### Rust
 
 ```bash
-cargo test --manifest-path rust-core/Cargo.toml --all-features
-cargo clippy --manifest-path rust-core/Cargo.toml --all-targets --all-features -- -D warnings
+cargo fmt --all -- --check
+cargo test --workspace --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 ```
 
 ### Android
 
 Open `android-app/` in Android Studio with the Android SDK and NDK versions configured in `android-app/app/build.gradle.kts` and `.github/workflows/android-release.yml`.
 
-The release workflow builds the Rust JNI library for Android ABIs before assembling APKs. Release signing requires the following GitHub Actions secrets:
+The CI workflow builds the Rust JNI library for all four Android ABIs, assembles a debug APK and runs an emulator launch smoke test. The release workflow builds signed APKs. Release signing requires the following GitHub Actions secrets:
 
 - `KEYSTORE_BASE64`
 - `KEYSTORE_PASSWORD`
@@ -76,4 +78,4 @@ The launcher icon uses a geometric spider-web motif with an envelope at its cent
 
 ## Migration status
 
-See [docs/MIGRATION_PLAN.md](docs/MIGRATION_PLAN.md) for completed preparation and remaining work. This archive patch has not been compiled in an Android SDK environment.
+See [docs/MIGRATION_PLAN.md](docs/MIGRATION_PLAN.md) for completed preparation and remaining work. The source archive is statically validated, but this preparation environment does not include Cargo, Gradle or the Android SDK. The CI workflow is configured to perform those builds and the emulator smoke test; a physical-device test is still required.

@@ -1,8 +1,8 @@
 #[cfg(feature = "network")]
-use crate::client::{MailxClient, MailxError};
-use crate::csv_engine::parse_aliases_csv_import;
-use crate::models::CustomDomain;
-use crate::telemetry::{civil_from_days, current_utc_epoch_days};
+use mailx_network::client::{MailxClient, MailxError};
+use mailx_domain::csv_engine::parse_aliases_csv_import;
+use mailx_domain::models::CustomDomain;
+use mailx_domain::telemetry::{civil_from_days, current_utc_epoch_days};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

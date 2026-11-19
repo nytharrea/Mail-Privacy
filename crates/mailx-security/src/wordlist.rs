@@ -1,4 +1,4 @@
-use crate::utils::generate_random_suffix;
+use mailx_utils::generate_random_suffix;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};

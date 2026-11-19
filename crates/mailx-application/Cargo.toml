@@ -1,0 +1,14 @@
+[package]
+name = "mailx-application"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["network"]
+network = ["mailx-network/network"]
+
+[dependencies]
+mailx-domain = { path = "../mailx-domain" }
+mailx-network = { path = "../mailx-network", default-features = false }
+serde.workspace = true
+serde_json.workspace = true

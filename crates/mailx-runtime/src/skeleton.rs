@@ -1,8 +1,8 @@
-use crate::models::{
+use mailx_domain::models::{
     Alias, AliasRequest, CsvImportPlan, CustomDomain, DailyStatPoint, SkeletonInfo,
     TelemetrySummary,
 };
-use crate::utils::generate_random_suffix;
+use mailx_utils::generate_random_suffix;
 use std::cmp::Ordering;
 use std::sync::{OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -422,7 +422,7 @@ pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
             if (token.starts_with("http://") || token.starts_with("https://"))
                 && token.contains('?')
             {
-                let res = crate::offline_audit::sanitize_tracking_url(token);
+                let res = mailx_domain::offline_audit::sanitize_tracking_url(token);
                 if res.was_modified {
                     urls_cleaned += 1;
                     removed_params.extend(res.removed_parameters);
@@ -442,8 +442,8 @@ pub fn sanitize_tracking_urls(raw_text: &str) -> serde_json::Value {
 }
 
 pub fn analyze_email_headers(raw_headers: &str) -> serde_json::Value {
-    let rfc_report = crate::rfc_email::analyze_raw_email_headers(raw_headers);
-    let mime_report = crate::mime_inspector::inspect_mime_message(raw_headers);
+    let rfc_report = mailx_security::rfc_email::analyze_raw_email_headers(raw_headers);
+    let mime_report = mailx_security::mime_inspector::inspect_mime_message(raw_headers);
 
     let lower = raw_headers.to_ascii_lowercase();
     let spf_pass = rfc_report.spf_pass || lower.contains("spf=pass");
@@ -584,13 +584,13 @@ pub fn generate_contextual_aliases(
             let token = generate_random_suffix(6);
             candidates.push(format!("{}.{}@{}", prefix, token, clean_domain));
         } else {
-            let word_part = crate::wordlist::generate_words_local_part();
+            let word_part = mailx_security::wordlist::generate_words_local_part();
             let first_word = word_part.split('.').next().unwrap_or("shield");
             let num_suffix = &word_part[word_part.len().saturating_sub(2)..];
             candidates.push(format!("{}.{}{}@{}", prefix, first_word, num_suffix, clean_domain));
         }
     }
-    let passphrase = crate::wordlist::generate_passphrase(4, "-");
+    let passphrase = mailx_security::wordlist::generate_passphrase(4, "-");
     let recommended_description = format!(
         "{}{} — {}",
         prefix[..1].to_ascii_uppercase(),
@@ -641,7 +641,7 @@ pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
         })
         .collect();
 
-    let portfolio = crate::offline_audit::audit_alias_portfolio(&aliases, &[], true, true, true);
+    let portfolio = mailx_domain::offline_audit::audit_alias_portfolio(&aliases, &[], true, true, true);
     let grade = match portfolio.hygiene_score {
         90..=100 => "A+",
         80..=89 => "A",
@@ -663,9 +663,9 @@ pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
 }
 
 pub fn decode_and_audit_trackers(url_or_fragment: &str) -> Result<serde_json::Value, String> {
-    let report = crate::utils::decode_trackers_report(url_or_fragment)
+    let report = mailx_utils::decode_trackers_report(url_or_fragment)
         .map_err(|e| e.to_string())?;
-    let audit = crate::tracker_db::audit_trackers_report(&report);
+    let audit = mailx_domain::tracker_db::audit_trackers_report(&report);
     Ok(serde_json::json!({
         "total": report.total,
         "trackers": report.trackers,
@@ -678,8 +678,8 @@ pub fn decode_and_audit_trackers(url_or_fragment: &str) -> Result<serde_json::Va
 }
 
 pub fn inspect_openpgp_key_armor(armored_key: &str) -> serde_json::Value {
-    let armor_summary = crate::dns_security::inspect_pgp_public_key_armor(armored_key);
-    match crate::pgp_inspector::parse_openpgp_armored_public_key(armored_key) {
+    let armor_summary = mailx_security::dns_security::inspect_pgp_public_key_armor(armored_key);
+    match mailx_security::pgp_inspector::parse_openpgp_armored_public_key(armored_key) {
         Ok(packet_meta) => serde_json::json!({
             "valid_armor": packet_meta.valid_armor && armor_summary.is_valid_armor,
             "crc24_verified": packet_meta.crc24_verified,
@@ -721,18 +721,18 @@ pub fn evaluate_phishing_and_domain_risk(
     reply_to_header: &str,
     return_path_header: &str,
 ) -> serde_json::Value {
-    let decomposed_from = crate::rfc_email::decompose_email_address(from_header);
+    let decomposed_from = mailx_security::rfc_email::decompose_email_address(from_header);
     let spf_dkim_ok = return_path_header.is_empty()
         || return_path_header
             .to_ascii_lowercase()
             .contains(&decomposed_from.domain.to_ascii_lowercase());
-    let phishing = crate::phishing_guard::evaluate_sender_phishing_risk(
+    let phishing = mailx_security::phishing_guard::evaluate_sender_phishing_risk(
         from_header,
         reply_to_header,
         spf_dkim_ok,
         spf_dkim_ok,
     );
-    let domain_trust = crate::disposable_domains::assess_domain_trust(&phishing.sender_domain);
+    let domain_trust = mailx_security::disposable_domains::assess_domain_trust(&phishing.sender_domain);
     serde_json::json!({
         "from_address": decomposed_from.raw,
         "display_name": decomposed_from.display_name,
@@ -757,12 +757,12 @@ pub fn simulate_rule_evaluation(
     rule_json: &str,
     email_context_json: &str,
 ) -> Result<serde_json::Value, String> {
-    let rule: crate::rules_engine::MailxRuleSpec = serde_json::from_str(rule_json)
+    let rule: mailx_security::rules_engine::MailxRuleSpec = serde_json::from_str(rule_json)
         .map_err(|e| format!("Invalid rule JSON: {}", e))?;
-    let ctx: crate::rules_engine::SimulatedEmailContext =
+    let ctx: mailx_security::rules_engine::SimulatedEmailContext =
         serde_json::from_str(email_context_json)
             .map_err(|e| format!("Invalid simulated email context JSON: {}", e))?;
-    let res = crate::rules_engine::evaluate_rule(&rule, &ctx);
+    let res = mailx_security::rules_engine::evaluate_rule(&rule, &ctx);
     serde_json::to_value(res).map_err(|e| e.to_string())
 }
 
@@ -778,7 +778,7 @@ pub fn analyze_mta_bounce_log(
     } else {
         format!("{} {}", message_text, raw_bounce)
     };
-    let analysis = crate::mta_diagnostics::analyze_mta_diagnostic_log(
+    let analysis = mailx_security::mta_diagnostics::analyze_mta_diagnostic_log(
         status_text,
         &combined_msg,
         remote_mta,
@@ -798,7 +798,7 @@ pub fn generate_totp_token(
             .map(|d| d.as_secs())
             .unwrap_or(0)
     };
-    let snap = crate::totp_engine::generate_totp_code_at(base32_secret, ts, 30, 6)?;
+    let snap = mailx_security::totp_engine::generate_totp_code_at(base32_secret, ts, 30, 6)?;
     serde_json::to_value(snap).map_err(|e| e.to_string())
 }
 
@@ -807,8 +807,8 @@ pub fn generate_passphrase_and_candidate(
     domain: &str,
     word_count: usize,
 ) -> serde_json::Value {
-    let candidate = crate::wordlist::generate_alias_preview_candidate(format, domain);
-    let passphrase = crate::wordlist::generate_passphrase(word_count.clamp(3, 10), "-");
+    let candidate = mailx_security::wordlist::generate_alias_preview_candidate(format, domain);
+    let passphrase = mailx_security::wordlist::generate_passphrase(word_count.clamp(3, 10), "-");
     serde_json::json!({
         "full_address": candidate.full_address,
         "local_part": candidate.local_part,

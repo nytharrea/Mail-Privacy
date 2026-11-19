@@ -1,4 +1,4 @@
-use crate::models::{
+use mailx_domain::models::{
     AliasFilter, PhoneticToken, PrivacyPostureReport, QrMatrix, RemovedTrackerItem, TrackersReport,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
