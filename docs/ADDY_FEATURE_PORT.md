@@ -18,12 +18,12 @@ portable Addy ideas, and features that require server support.
 
 | Addy source | Candidate | Mailx status / constraints |
 |---|---|---|
-| `service/AliasWatcher.kt` | Watch selected aliases for increases in forwarded-message counters | Rust change detector added; Android watch-list UI, persistence, scheduler and notification delivery remain to be integrated. |
-| `service/AliasSearchManager.kt` | Android system AppSearch and dynamic shortcuts | Not ported yet. Must be opt-in because alias addresses are sensitive and should not be indexed in system search by default. |
-| `service/BackupHelper.kt` | User-triggered encrypted backup/restore | Not ported yet. Addy's legacy cipher parameters are intentionally not copied. Mailx should use a versioned format, random salt/nonce, PBKDF2-HMAC-SHA-256 and AES-GCM; credentials/tokens need an explicit policy. |
-| `notifications/NotificationHelper.kt` | Actionable, categorized notifications | Mailx already has diagnostic surfaces; notification channels/actions still need a dedicated integration. |
-| `service/BackgroundWorker.kt` | Periodic refresh/check orchestration | Not ported yet. Must respect Android background limits and avoid unnecessary polling. |
-| `service/AliasSearchManager.kt` | Per-alias launcher shortcuts | Not ported yet. Prefer user-pinned aliases only and provide a privacy setting. |
+| `service/AliasWatcher.kt` | Watch selected aliases for increases in forwarded-message counters | Integrated: alias-detail controls, encrypted watch list, WorkManager polling and actionable notifications. |
+| `service/AliasSearchManager.kt` | Android system AppSearch and dynamic shortcuts | Integrated behind an explicit opt-in; disabling clears the local index and shortcuts. |
+| `service/BackupHelper.kt` | User-triggered encrypted backup/restore | Integrated using a versioned AES-GCM format and SAF; session credentials are opt-in. |
+| `notifications/NotificationHelper.kt` | Actionable, categorized notifications | Alias Watch notification channel and open/stop-watching actions are integrated. |
+| `service/BackgroundWorker.kt` | Periodic refresh/check orchestration | Alias Watch uses WorkManager's 15-minute minimum interval and Android background limits. |
+| `service/AliasSearchManager.kt` | Per-alias launcher shortcuts | Integrated behind the same explicit privacy opt-in; only active aliases are exposed. |
 
 ## Implemented in this change
 

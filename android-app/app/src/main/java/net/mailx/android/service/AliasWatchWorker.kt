@@ -154,7 +154,21 @@ class AliasWatchWorker(
         } else {
             "$count new forwarded message(s) for $email"
         }
+        val stopIntent = android.content.Intent(
+            applicationContext,
+            StopAliasWatchReceiver::class.java
+        ).apply {
+            action = StopAliasWatchReceiver.ACTION_STOP_WATCHING
+            putExtra(StopAliasWatchReceiver.EXTRA_ALIAS_ID, aliasId)
+        }
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            applicationContext,
+            aliasId.hashCode() xor 0x4D41,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .addAction(0, "Stop watching", stopPendingIntent)
             .setSmallIcon(R.drawable.ic_mailx_web_mark)
             .setContentTitle("Watched alias activity")
             .setContentText(text)

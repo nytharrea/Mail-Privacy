@@ -44,6 +44,8 @@ object AliasSearchIndex {
                         .addSchemas(schema)
                         .setSchemaTypeDisplayedBySystem(TYPE, true)
                         .setForceOverride(true).build()).await()
+                    // Remove deleted/renamed aliases before repopulating the opted-in index.
+                    session.removeAsync("", SearchSpec.Builder().addFilterNamespaces(NS).build()).await()
                     for (batch in aliases.filter { it.deletedAt.isBlank() }.chunked(100)) {
                         val request = PutDocumentsRequest.Builder()
                         batch.forEach { alias ->
