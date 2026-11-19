@@ -146,7 +146,24 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun selectTab(tab: MainNavTab) {
         if (_currentTab.value == tab) return
-        _currentTab.value = tab
+
+        // Rust owns route validation and shell transitions; Compose only renders the result.
+        val shellState = org.json.JSONObject()
+            .put("route", _currentTab.value.name.lowercase())
+            .put("authenticated", prefs.isConfigured())
+            .put("revision", 0)
+        val shellEvent = org.json.JSONObject()
+            .put("type", "navigate")
+            .put("route", tab.name.lowercase())
+        val resolvedTab = runCatching {
+            val response = org.json.JSONObject(
+                MailxRustBridge.nativeReduceAppShellState(shellState.toString(), shellEvent.toString())
+            )
+            val route = response.optJSONObject("data")?.optString("route").orEmpty()
+            MainNavTab.entries.firstOrNull { it.name.equals(route, ignoreCase = true) } ?: tab
+        }.getOrDefault(tab)
+
+        _currentTab.value = resolvedTab
         if (!prefs.isConfigured()) return
         when (tab) {
             MainNavTab.HOME -> {

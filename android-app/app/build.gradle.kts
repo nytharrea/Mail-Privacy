@@ -113,8 +113,7 @@ dependencies {
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 
-    // Lucide Icons & Material Symbols support
-    implementation("com.composables:icons-lucide-android:2.2.1")
+    // Material Symbols Extended + the custom Mailx vector mark provide one consistent icon family.
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
 

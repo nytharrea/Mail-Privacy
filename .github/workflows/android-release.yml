@@ -157,7 +157,7 @@ jobs:
           if [ "${TAG_NAME}" = "nightly" ]; then
             gh release create nightly dist-apks/*.apk \
               --title "Mailx Android (Nightly Build)" \
-              --notes "16 KB aligned and multi-ABI (arm64-v8a, armeabi-v7a, x86_64, x86) signed automatic build (Material 3 1.4.0 & Compose BOM 2026.09.00)." \
+              --notes "16 KB aligned and multi-ABI (arm64-v8a, armeabi-v7a, x86_64, x86) signed automatic build (Material 3 Expressive 1.5.0-rc01 & Compose BOM 2026.09.00)." \
               --prerelease || gh release upload nightly dist-apks/*.apk --clobber
           else
             gh release create "${TAG_NAME}" dist-apks/*.apk \

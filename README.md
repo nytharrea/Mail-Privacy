@@ -79,3 +79,8 @@ The launcher icon uses a geometric spider-web motif with an envelope at its cent
 ## Migration status
 
 See [docs/MIGRATION_PLAN.md](docs/MIGRATION_PLAN.md) for completed preparation and remaining work. The source archive is statically validated, but this preparation environment does not include Cargo, Gradle or the Android SDK. The CI workflow is configured to perform those builds and the emulator smoke test; a physical-device test is still required.
+
+
+## Android design and Rust-first runtime
+
+The Android client uses the Night Fjord design system (graphite surfaces, sea-glass mint primary actions, cool-blue secondary actions and restrained lilac tool accents). Jetpack Compose is the native Android presentation/platform layer; the application/domain/security runtime and app-shell route reducer are Rust-first through the JNI facade. The Android application ID remains `net.mailx.android`.

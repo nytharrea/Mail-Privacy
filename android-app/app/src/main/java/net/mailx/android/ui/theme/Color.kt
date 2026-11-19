@@ -3,69 +3,69 @@ package net.mailx.android.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Mailx brand and semantic palette.
- * Keep brand teal for primary actions; reserve status colors for status meaning.
+ * Mailx "Night Fjord" design system.
+ * Brand accents are reserved for actions; semantic colors communicate state.
  */
 object MailxPalette {
-    // Brand: deep teal in light mode, luminous teal in dark mode.
-    val BrandPrimary = Color(0xFF0F766E)
-    val BrandPrimaryDark = Color(0xFF5EEAD4)
-    val BrandPrimaryAccent = Color(0xFF99F6E4)
-    val BrandPrimaryDeep = Color(0xFF115E59)
+    // Brand: sea-glass mint with a deep teal light-theme counterpart.
+    val BrandPrimary = Color(0xFF087F73)
+    val BrandPrimaryDark = Color(0xFF63E6CB)
+    val BrandPrimaryAccent = Color(0xFF9AF5E2)
+    val BrandPrimaryDeep = Color(0xFF075B55)
     val BrandPrimaryContainerDark = Color(0xFF123B3A)
-    val BrandOnPrimaryContainerDark = Color(0xFFCCFBF1)
-    val BrandPrimaryContainerLight = Color(0xFFCCFBF1)
-    val BrandOnPrimaryContainerLight = Color(0xFF134E4A)
+    val BrandOnPrimaryContainerDark = Color(0xFFD0FFF4)
+    val BrandPrimaryContainerLight = Color(0xFFD3F8EF)
+    val BrandOnPrimaryContainerLight = Color(0xFF064E49)
 
-    // Secondary accent stays in the teal/cyan family, not a competing blue.
-    val BrandAccentTeal = Color(0xFF0E7490)
-    val BrandAccentTealDark = Color(0xFF67E8F9)
-    val BrandSecondaryContainerDark = Color(0xFF12313A)
-    val BrandOnSecondaryContainerDark = Color(0xFFCFFAFE)
-    val BrandSecondaryContainerLight = Color(0xFFCFFAFE)
-    val BrandOnSecondaryContainerLight = Color(0xFF164E63)
+    // Cool blue is a secondary interaction color, not a second primary.
+    val BrandAccentTeal = Color(0xFF176F91)
+    val BrandAccentTealDark = Color(0xFF78D7F6)
+    val BrandSecondaryContainerDark = Color(0xFF163543)
+    val BrandOnSecondaryContainerDark = Color(0xFFD5F5FF)
+    val BrandSecondaryContainerLight = Color(0xFFDDF4FC)
+    val BrandOnSecondaryContainerLight = Color(0xFF104A62)
 
-    // Neutral tertiary keeps the interface quiet; violet is no longer a brand color.
-    val BrandTertiaryNeutral = Color(0xFF475569)
-    val BrandTertiaryNeutralDark = Color(0xFFCBD5E1)
-    val BrandTertiaryContainerDark = Color(0xFF263340)
-    val BrandOnTertiaryContainerDark = Color(0xFFE2E8F0)
-    val BrandTertiaryContainerLight = Color(0xFFE2E8F0)
-    val BrandOnTertiaryContainerLight = Color(0xFF1E293B)
+    // Restrained lilac is reserved for specialist tools and neutral emphasis.
+    val BrandTertiaryNeutral = Color(0xFF67558E)
+    val BrandTertiaryNeutralDark = Color(0xFFC6B4FF)
+    val BrandTertiaryContainerDark = Color(0xFF302A45)
+    val BrandOnTertiaryContainerDark = Color(0xFFECE5FF)
+    val BrandTertiaryContainerLight = Color(0xFFEDE7FF)
+    val BrandOnTertiaryContainerLight = Color(0xFF3F3267)
 
-    // Semantic states: do not reuse the brand accent for success/error/warning.
+    // Semantic states.
     val ForwardEmerald = Color(0xFF10B981)
     val ForwardEmeraldSoft = Color(0xFF34D399)
-    val ForwardedGreen = Color(0xFF34D399)
-    val CryptoCyan = Color(0xFF67E8F9)
-    val ReplySky = Color(0xFF7DD3FC)
-    val SentSlate = Color(0xFF94A3B8)
-    val BlockedRose = Color(0xFFFB7185)
-    val PausedAmber = Color(0xFFFBBF24)
+    val ForwardedGreen = Color(0xFF42D6A0)
+    val CryptoCyan = Color(0xFF78D7F6)
+    val ReplySky = Color(0xFF78CFF4)
+    val SentSlate = Color(0xFF9BAFC0)
+    val BlockedRose = Color(0xFFFF718B)
+    val PausedAmber = Color(0xFFF6C66A)
 
-    // Obsidian / graphite surfaces.
-    val Obsidian950 = Color(0xFF0B1118)
-    val Obsidian925 = Color(0xFF101820)
-    val Obsidian900 = Color(0xFF151F28)
-    val Obsidian850 = Color(0xFF1B2731)
-    val Obsidian800 = Color(0xFF23313C)
-    val Obsidian750 = Color(0xFF2D3C47)
-    val ObsidianBorder = Color(0xFF293842)
+    // Dark surfaces: cool graphite with enough separation for layered cards.
+    val Obsidian950 = Color(0xFF080E15)
+    val Obsidian925 = Color(0xFF0D151E)
+    val Obsidian900 = Color(0xFF121D28)
+    val Obsidian850 = Color(0xFF172431)
+    val Obsidian800 = Color(0xFF20303D)
+    val Obsidian750 = Color(0xFF2A3D4B)
+    val ObsidianBorder = Color(0xFF263845)
 
-    val Pearl50 = Color(0xFFF5F8F8)
+    val Pearl50 = Color(0xFFF3F7F8)
     val Pearl100 = Color(0xFFFFFFFF)
-    val Pearl150 = Color(0xFFEDF3F2)
-    val Pearl200 = Color(0xFFDCE6E4)
-    val Pearl300 = Color(0xFFC6D4D1)
+    val Pearl150 = Color(0xFFEBF2F3)
+    val Pearl200 = Color(0xFFDCE7E8)
+    val Pearl300 = Color(0xFFC7D7D9)
 
     val Slate50 = Color(0xFFF8FAFC)
     val Slate100 = Color(0xFFF1F5F9)
     val Slate200 = Color(0xFFE2E8F0)
     val Slate300 = Color(0xFFCBD5E1)
-    val Slate400 = Color(0xFF94A3B8)
-    val Slate500 = Color(0xFF64748B)
-    val Slate600 = Color(0xFF475569)
-    val Slate700 = Color(0xFF334155)
-    val Slate800 = Color(0xFF1E293B)
-    val Slate900 = Color(0xFF0F172A)
+    val Slate400 = Color(0xFF9AAAB8)
+    val Slate500 = Color(0xFF6D7E8D)
+    val Slate600 = Color(0xFF536675)
+    val Slate700 = Color(0xFF3B4C59)
+    val Slate800 = Color(0xFF243440)
+    val Slate900 = Color(0xFF101B25)
 }

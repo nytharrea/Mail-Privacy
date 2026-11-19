@@ -551,6 +551,13 @@ pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
     }
 }
 
+pub fn handle_reduce_app_shell_state(state_json: &str, event_json: &str) -> String {
+    match mailx_runtime::app_shell::reduce_app_shell_state(state_json, event_json) {
+        Ok(state) => JniEnvelope::success(state),
+        Err(error) => JniEnvelope::<serde_json::Value>::failure(error),
+    }
+}
+
 #[cfg(feature = "jni")]
 mod android_exports {
     use super::*;
@@ -578,6 +585,20 @@ mod android_exports {
             Err(_) => JniEnvelope::<serde_json::Value>::failure("Internal native panic recovered"),
         };
         rust_to_jstring(&mut env, payload)
+    }
+
+    #[no_mangle]
+    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeReduceAppShellState(
+        env: JNIEnv,
+        _class: JClass,
+        state_json: JString,
+        event_json: JString,
+    ) -> jstring {
+        run_jni_safely(env, |env| {
+            let state = jstring_to_rust(env, state_json);
+            let event = jstring_to_rust(env, event_json);
+            handle_reduce_app_shell_state(&state, &event)
+        })
     }
 
     #[no_mangle]

@@ -27,3 +27,5 @@ pub use mailx_utils::utils::{
     encode_nato_phonetic, encode_qr_matrix, generate_random_suffix, generate_reverse_alias,
     generate_wildcard_on_the_fly, validate_access_key,
 };
+
+pub use mailx_runtime::app_shell::reduce_app_shell_state;

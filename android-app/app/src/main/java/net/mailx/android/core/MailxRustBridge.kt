@@ -10,6 +10,9 @@ object MailxRustBridge {
     }
 
     @JvmStatic
+    external fun nativeReduceAppShellState(stateJson: String, eventJson: String): String
+
+    @JvmStatic
     external fun nativeValidateAccessKey(accessKey: String): String
 
     @JvmStatic

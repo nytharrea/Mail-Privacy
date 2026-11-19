@@ -767,19 +767,24 @@ private fun MailxCleanTopBar(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 4.dp, height = 22.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    MailxPalette.BrandPrimaryAccent,
-                                    MailxPalette.BrandPrimary
-                                )
-                            )
+                Surface(
+                    shape = RoundedCornerShape(11.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
+                    ),
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = MailxIcons.MailxMark,
+                            contentDescription = "Mailx",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(21.dp)
                         )
-                )
+                    }
+                }
 
                 Text(
                     text = title,
@@ -815,14 +820,14 @@ private fun MailxCleanTopBar(
             ) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.70f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.82f)
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -883,7 +888,7 @@ private fun MailxCleanTopBar(
 
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(

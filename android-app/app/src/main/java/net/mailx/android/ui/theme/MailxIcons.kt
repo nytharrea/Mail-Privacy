@@ -82,6 +82,32 @@ object MailxIcons {
         ).build()
     }
 
+    val MailxMark: ImageVector by lazy {
+        strokeVector(
+            name = "MailxMark",
+            strokeColor = Color.Unspecified,
+            strokeWidth = 1.7f
+        ) {
+            // Envelope body.
+            moveTo(3.5f, 7.5f)
+            lineTo(20.5f, 7.5f)
+            lineTo(20.5f, 18.5f)
+            lineTo(3.5f, 18.5f)
+            close()
+            // Envelope fold.
+            moveTo(3.5f, 8f)
+            lineTo(12f, 14f)
+            lineTo(20.5f, 8f)
+            // Minimal web strands around the envelope.
+            moveTo(12f, 2.5f)
+            lineTo(12f, 7.5f)
+            moveTo(6.5f, 4.5f)
+            lineTo(9.2f, 8.2f)
+            moveTo(17.5f, 4.5f)
+            lineTo(14.8f, 8.2f)
+        }
+    }
+
     val LayoutDashboard: ImageVector get() = Icons.Outlined.Dashboard
     val LayoutDashboardSelected: ImageVector get() = Icons.Filled.Dashboard
 

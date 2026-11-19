@@ -22,11 +22,11 @@ fn runtime_state() -> &'static RwLock<MailxSkeletonRuntime> {
 pub fn get_skeleton_info() -> SkeletonInfo {
     SkeletonInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        engine: "Mailx Rust Native Core Skeleton".to_string(),
+        engine: "Mailx Rust Native Application Runtime".to_string(),
         page_alignment_kb: 16,
         zeroize_memory_drop: true,
         ui_design_system: "Jetpack Compose Material 3 Expressive (1.5.0-rc01)".to_string(),
-        icon_system: "Lucide Icons v1.70 + Material Symbols Rounded".to_string(),
+        icon_system: "Material Icons Extended + custom Mailx vector mark".to_string(),
     }
 }
 
