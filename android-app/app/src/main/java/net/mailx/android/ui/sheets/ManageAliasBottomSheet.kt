@@ -1,5 +1,10 @@
 package net.mailx.android.ui.sheets
 
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
@@ -50,6 +55,8 @@ fun ManageAliasBottomSheet(
     onDismiss: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onTogglePinned: (Boolean) -> Unit,
+    watched: Boolean = false,
+    onToggleWatched: (Boolean) -> Boolean = { false },
     onUpdateMetadata: (description: String, fromName: String, recipients: String) -> Unit,
     onPauseAlias: (value: Int, unit: String) -> Unit = { _, _ -> },
     onUnpauseAlias: () -> Unit = {},
@@ -60,6 +67,18 @@ fun ManageAliasBottomSheet(
     onRequestDelete: () -> Unit
 ) {
     val context = LocalContext.current
+    var isWatched by remember(alias.id) { mutableStateOf(watched) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted && onToggleWatched(true)) isWatched = true
+    }
+    fun toggleWatch(enabled: Boolean) {
+        if (enabled && Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else if (onToggleWatched(enabled)) {
+            isWatched = enabled
+        }
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showNato by remember { mutableStateOf(false) }
@@ -373,6 +392,16 @@ fun ManageAliasBottomSheet(
                             }
                         )
 
+                        MailxGroupDivider()
+                        MailxSectionRow(
+                            title = "Watch alias activity",
+                            description = "Notify me when the forwarded-email counter increases (up to 25 aliases)",
+                            startIcon = Icons.Outlined.Notifications,
+                            showSwitch = true,
+                            switchChecked = isWatched,
+                            onSwitchChange = ::toggleWatch,
+                            grouped = true
+                        )
                         MailxGroupDivider()
                         MailxSectionRow(
                             title = "Pin to Top",

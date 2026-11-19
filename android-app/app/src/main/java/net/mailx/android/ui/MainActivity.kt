@@ -3,7 +3,11 @@
 package net.mailx.android.ui
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.content.Intent
+import androidx.fragment.app.FragmentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -50,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.mailx.android.core.EncryptedPrefsManager
 import net.mailx.android.core.MailxRustBridge
@@ -67,15 +72,92 @@ import net.mailx.android.ui.viewmodel.MailxViewModel
 import net.mailx.android.ui.viewmodel.MailxViewModelFactory
 import net.mailx.android.widget.MailxWidgetUpdater
 import net.mailx.android.service.AliasWatchWorker
+import net.mailx.android.service.AliasWatchManager
 import org.json.JSONArray
 import org.json.JSONObject
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    private var appLocked by mutableStateOf(false)
+    private var biometricEnabled by mutableStateOf(false)
+    private var promptShowing = false
+    private var externalDocumentFlow = false
+    private var pendingAliasId by mutableStateOf<String?>(null)
+    fun setExternalDocumentFlow(active: Boolean) { externalDocumentFlow = active }
+    private lateinit var securePrefs: EncryptedPrefsManager
+
+    private fun authenticate(afterSuccess: () -> Unit = { appLocked = false }) {
+        if (promptShowing) return
+        // Android 11+ supports biometric-or-device-credential. On API 26–29,
+        // this authenticator combination is unsupported; use biometrics only.
+        val authenticators = if (android.os.Build.VERSION.SDK_INT >= 30) {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        } else {
+            BiometricManager.Authenticators.BIOMETRIC_WEAK
+        }
+        if (BiometricManager.from(this).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
+            android.widget.Toast.makeText(this, "Set up biometrics or device screen lock first", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        promptShowing = true
+        val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    promptShowing = false
+                    afterSuccess()
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    promptShowing = false
+                }
+            })
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Mailx")
+            .setSubtitle("Confirm your identity to access private aliases")
+            .setAllowedAuthenticators(authenticators)
+        if (android.os.Build.VERSION.SDK_INT < 30) info.setNegativeButtonText("Cancel")
+        prompt.authenticate(info.build())
+    }
+
+    private fun changeBiometric(enabled: Boolean) {
+        authenticate {
+            securePrefs.biometricEnabled = enabled
+            biometricEnabled = enabled
+            appLocked = false
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (biometricEnabled && securePrefs.isConfigured() && !externalDocumentFlow) appLocked = true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (appLocked && !promptShowing) window.decorView.post { if (appLocked) authenticate() }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingAliasId = intent.getStringExtra(AliasWatchWorker.EXTRA_WATCHED_ALIAS_ID)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        pendingAliasId = intent?.getStringExtra(AliasWatchWorker.EXTRA_WATCHED_ALIAS_ID)
         val prefs = EncryptedPrefsManager(this)
+        securePrefs = prefs
+        biometricEnabled = prefs.biometricEnabled
+        appLocked = biometricEnabled && prefs.isConfigured()
         AliasWatchWorker.schedule(this, prefs.aliasWatchEnabled && prefs.getWatchedAliasIds().isNotEmpty())
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            prefs.aliasWatchEnabled
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 3401)
+        }
 
         setContent {
             val vm: MailxViewModel = viewModel(factory = MailxViewModelFactory(prefs))
@@ -98,7 +180,20 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MailxAppScreen(vm = vm)
+                    if (appLocked && prefs.isConfigured()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Text("Mailx is locked", style = MaterialTheme.typography.headlineSmall)
+                                Button(onClick = { authenticate() }) { Text("Unlock") }
+                            }
+                        }
+                    } else {
+                        MailxAppScreen(vm = vm, biometricEnabled = biometricEnabled,
+                            onToggleBiometric = ::changeBiometric,
+                            requestedAliasId = pendingAliasId,
+                            onAliasOpened = { pendingAliasId = null })
+                    }
                 }
             }
         }
@@ -107,9 +202,18 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MailxAppScreen(vm: MailxViewModel) {
+fun MailxAppScreen(
+    vm: MailxViewModel,
+    biometricEnabled: Boolean = false,
+    onToggleBiometric: (Boolean) -> Unit = {},
+    requestedAliasId: String? = null,
+    onAliasOpened: () -> Unit = {}
+) {
     val context = LocalContext.current
     val reducedMotion = LocalReducedMotion.current
+    var showBackupDialog by remember { mutableStateOf(false) }
+    var aliasSearchEnabled by remember { mutableStateOf(vm.prefs.aliasSearchEnabled) }
+    val localScope = rememberCoroutineScope()
 
     val authState by vm.authState.collectAsStateWithLifecycle()
     val currentTab by vm.currentTab.collectAsStateWithLifecycle()
@@ -136,6 +240,14 @@ fun MailxAppScreen(vm: MailxViewModel) {
     val toastMessage by vm.toastMessage.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(requestedAliasId, authState.isLoggedIn, aliases) {
+        if (!requestedAliasId.isNullOrBlank() && authState.isLoggedIn &&
+            aliases.any { it.id == requestedAliasId }) {
+            vm.selectTab(MainNavTab.ALIASES)
+            vm.openSheet(ActiveSheet.ManageAlias(requestedAliasId))
+            onAliasOpened()
+        }
+    }
 
     BackHandler(enabled = activeSheet != ActiveSheet.None || currentTab != MainNavTab.HOME) {
         if (activeSheet != ActiveSheet.None) {
@@ -180,6 +292,14 @@ fun MailxAppScreen(vm: MailxViewModel) {
                 null
             }
         }.getOrNull() ?: aliases
+    }
+
+    LaunchedEffect(authState.isLoggedIn) {
+        if (!authState.isLoggedIn) {
+            aliasSearchEnabled = false
+            net.mailx.android.service.AliasSearchIndex.clear(context)
+            AliasWatchWorker.schedule(context, false)
+        }
     }
 
     if (!authState.isLoggedIn) {
@@ -410,10 +530,27 @@ fun MailxAppScreen(vm: MailxViewModel) {
                         onOpenDiagnosticsSheet = { vm.openSheet(ActiveSheet.DiagnosticsSheet) },
                         onOpenAccountSheet = { vm.openSheet(ActiveSheet.AccountSheet) },
                         onOpenAnnouncementsSheet = { vm.openSheet(ActiveSheet.AnnouncementsSheet) },
+                        biometricEnabled = biometricEnabled,
+                        onToggleBiometric = onToggleBiometric,
+                        aliasSearchEnabled = aliasSearchEnabled,
+                        onToggleAliasSearch = { enabled ->
+                            aliasSearchEnabled = enabled
+                            vm.prefs.aliasSearchEnabled = enabled
+                            if (!enabled) localScope.launch { net.mailx.android.service.AliasSearchIndex.clear(context) }
+                        },
+                        onOpenBackupDialog = { showBackupDialog = true },
                         onRequestLogout = { vm.openSheet(ActiveSheet.ConfirmLogout) }
                     )
                 }
             }
+        }
+    }
+
+    if (showBackupDialog) SecurityBackupDialog(onDismiss = { showBackupDialog = false })
+
+    LaunchedEffect(aliases, aliasSearchEnabled, authState.isLoggedIn) {
+        if (aliasSearchEnabled && authState.isLoggedIn && aliases.isNotEmpty()) {
+            net.mailx.android.service.AliasSearchIndex.replace(context, aliases)
         }
     }
 
@@ -536,12 +673,22 @@ fun MailxAppScreen(vm: MailxViewModel) {
         is ActiveSheet.ManageAlias -> {
             val target = aliases.find { it.id == sheet.aliasId }
             if (target != null) {
+                val watchManager = remember(context) { AliasWatchManager(context) }
+                var isWatched by remember(target.id) { mutableStateOf(watchManager.isWatched(target.id)) }
                 ManageAliasBottomSheet(
                     alias = target,
                     availableRecipients = defaultsState.availableRecipients,
                     onDismiss = vm::closeSheet,
                     onToggleEnabled = { vm.toggleAliasEnabled(target, it) },
                     onTogglePinned = { vm.toggleAliasPinned(target, it) },
+                    watched = isWatched,
+                    onToggleWatched = { enabled ->
+                        if (watchManager.setWatched(target.id, enabled)) {
+                            isWatched = enabled
+                        } else {
+                            android.widget.Toast.makeText(context, "Maximum 25 watched aliases", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    },
                     onUpdateMetadata = { desc, from, rec ->
                         vm.updateAliasMetadata(target, desc, from, rec)
                     },
@@ -597,6 +744,9 @@ private fun MailxModernBottomBar(
     onSelectTab: (MainNavTab) -> Unit
 ) {
     val reducedMotion = LocalReducedMotion.current
+    var showBackupDialog by remember { mutableStateOf(false) }
+    var aliasSearchEnabled by remember { mutableStateOf(vm.prefs.aliasSearchEnabled) }
+    val localScope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -741,6 +891,9 @@ private fun MailxCleanTopBar(
     onProfileClick: () -> Unit
 ) {
     val reducedMotion = LocalReducedMotion.current
+    var showBackupDialog by remember { mutableStateOf(false) }
+    var aliasSearchEnabled by remember { mutableStateOf(vm.prefs.aliasSearchEnabled) }
+    val localScope = rememberCoroutineScope()
     var refreshTapCount by remember { mutableIntStateOf(0) }
     val refreshRotation by animateFloatAsState(
         targetValue = refreshTapCount * 360f,

@@ -119,6 +119,10 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getString(KEY_PREVIOUS_WATCHED_ALIASES, "[]") ?: "[]"
         set(value) = prefs.edit().putString(KEY_PREVIOUS_WATCHED_ALIASES, value).apply()
 
+    var aliasSearchEnabled: Boolean
+        get() = prefs.getBoolean("alias_search_enabled", false)
+        set(value) = prefs.edit().putBoolean("alias_search_enabled", value).apply()
+
     var aliasWatchEnabled: Boolean
         get() = prefs.getBoolean(KEY_ALIAS_WATCH_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_ALIAS_WATCH_ENABLED, value).apply()
@@ -312,6 +316,10 @@ class EncryptedPrefsManager(context: Context) {
             .remove(KEY_BEARER_TOKEN)
             .remove(KEY_ACCOUNT_EMAIL)
             .remove(KEY_CACHED_ALIASES)
+            .remove(KEY_WATCHED_ALIAS_IDS)
+            .remove(KEY_PREVIOUS_WATCHED_ALIASES)
+            .remove(KEY_ALIAS_WATCH_ENABLED)
+            .remove("alias_search_enabled")
             .remove(KEY_AVAILABLE_DOMAINS)
             .remove(KEY_AVAILABLE_RECIPIENTS)
             .apply()

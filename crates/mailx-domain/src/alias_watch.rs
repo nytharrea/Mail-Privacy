@@ -22,9 +22,8 @@ pub struct AliasWatchEvent {
 /// - `stats.forwards` (Mailx UI model)
 /// - `emails_forwarded` (Addy-compatible API shape)
 ///
-/// Missing previous entries are treated as zero, matching Addy's watcher
-/// semantics. Counter decreases are treated as a reset/baseline change and
-/// never produce a notification.
+/// Missing previous entries establish the initial baseline and do not notify.
+/// Counter decreases are treated as a reset and never produce a notification.
 pub fn detect_alias_watch_events(
     previous_aliases: &Value,
     current_aliases: &Value,
@@ -68,7 +67,9 @@ pub fn detect_alias_watch_events(
         }
 
         let current_count = forwarded_count(alias);
-        let previous_count = previous_counts.get(id).copied().unwrap_or(0);
+        let Some(previous_count) = previous_counts.get(id).copied() else {
+            continue; // First observation must never generate a false notification.
+        };
         if current_count > previous_count {
             events.push(AliasWatchEvent {
                 alias_id: id.to_owned(),
@@ -131,15 +132,14 @@ mod tests {
     }
 
     #[test]
-    fn treats_missing_previous_alias_as_zero() {
+    fn first_observation_does_not_notify() {
         let events = detect_alias_watch_events(
             &json!([]),
             &json!([{"id":"a","name":"a@mailx.net","emails_forwarded":2}]),
             &["a".into()],
         ).unwrap();
 
-        assert_eq!(events[0].new_forwards, 2);
-        assert_eq!(events[0].alias_email, "a@mailx.net");
+        assert!(events.is_empty());
     }
 
     #[test]

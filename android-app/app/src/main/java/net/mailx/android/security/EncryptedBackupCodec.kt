@@ -33,14 +33,14 @@ object EncryptedBackupCodec {
         val nonce = ByteArray(NONCE_SIZE).also(SecureRandom()::nextBytes)
         val header = ByteBuffer.allocate(MAGIC.size + 1 + 4 + SALT_SIZE + NONCE_SIZE)
             .put(MAGIC).put(VERSION).putInt(ITERATIONS).put(salt).put(nonce).array()
-        val key = deriveKey(password, salt, ITERATIONS)
+        val keyBytes = deriveKey(password, salt, ITERATIONS)
         return try {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_BITS, nonce))
+            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(keyBytes, "AES"), GCMParameterSpec(TAG_BITS, nonce))
             cipher.updateAAD(header)
             header + cipher.doFinal(payload.toString().toByteArray(Charsets.UTF_8))
         } finally {
-            key.encoded.fill(0)
+            keyBytes.fill(0)
         }
     }
 
@@ -59,24 +59,23 @@ object EncryptedBackupCodec {
         require(iterations in 100_000..1_000_000) { "Invalid backup KDF parameters" }
         val salt = ByteArray(SALT_SIZE).also(buffer::get)
         val nonce = ByteArray(NONCE_SIZE).also(buffer::get)
-        val key = deriveKey(password, salt, iterations)
+        val keyBytes = deriveKey(password, salt, iterations)
         val plaintext = try {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, nonce))
+            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(keyBytes, "AES"), GCMParameterSpec(TAG_BITS, nonce))
             cipher.updateAAD(header)
             cipher.doFinal(container.copyOfRange(headerSize, container.size))
         } finally {
-            key.encoded.fill(0)
+            keyBytes.fill(0)
         }
         return JSONObject(plaintext.toString(Charsets.UTF_8))
     }
 
-    private fun deriveKey(password: CharArray, salt: ByteArray, iterations: Int): SecretKeySpec {
+    private fun deriveKey(password: CharArray, salt: ByteArray, iterations: Int): ByteArray {
         val spec = PBEKeySpec(password, salt, iterations, KEY_BITS)
         return try {
-            val bytes = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
                 .generateSecret(spec).encoded
-            SecretKeySpec(bytes, "AES").also { bytes.fill(0) }
         } finally {
             spec.clearPassword()
         }

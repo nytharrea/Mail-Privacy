@@ -23,6 +23,7 @@ android {
         targetSdk = 36
         versionCode = 5
         versionName = "0.5.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     packaging {
@@ -124,7 +125,13 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.11.0")
+    implementation("androidx.appsearch:appsearch:1.1.0")
+    implementation("androidx.appsearch:appsearch-platform-storage:1.1.0")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 
     compileOnly("com.google.errorprone:error_prone_annotations:2.36.0")
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")

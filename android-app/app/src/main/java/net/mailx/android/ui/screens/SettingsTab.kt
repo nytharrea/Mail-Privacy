@@ -63,6 +63,11 @@ fun SettingsTab(
     onOpenDiagnosticsSheet: () -> Unit = {},
     onOpenAccountSheet: () -> Unit = {},
     onOpenAnnouncementsSheet: () -> Unit = {},
+    biometricEnabled: Boolean = false,
+    onToggleBiometric: (Boolean) -> Unit = {},
+    aliasSearchEnabled: Boolean = false,
+    onToggleAliasSearch: (Boolean) -> Unit = {},
+    onOpenBackupDialog: () -> Unit = {},
     onRequestLogout: () -> Unit
 ) {
     var showInterfaceSheet by remember { mutableStateOf(false) }
@@ -367,6 +372,35 @@ fun SettingsTab(
                     endIcon = MailxIcons.ChevronRight,
                     grouped = true,
                     onClick = onOpenAccountSheet
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "App lock",
+                    description = "Require biometrics or device screen lock when reopening Mailx",
+                    startIcon = MailxIcons.Lock,
+                    showSwitch = true,
+                    switchChecked = biometricEnabled,
+                    onSwitchChange = onToggleBiometric,
+                    grouped = true
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Alias system search & shortcuts",
+                    description = "Optional: exposes alias addresses to device search and launcher. Off by default.",
+                    startIcon = MailxIcons.Search,
+                    showSwitch = true,
+                    switchChecked = aliasSearchEnabled,
+                    onSwitchChange = onToggleAliasSearch,
+                    grouped = true
+                )
+                MailxGroupDivider()
+                MailxSectionRow(
+                    title = "Encrypted settings backup",
+                    description = "Export or restore a password-protected local backup",
+                    startIcon = MailxIcons.ShieldCheck,
+                    endIcon = MailxIcons.ChevronRight,
+                    grouped = true,
+                    onClick = onOpenBackupDialog
                 )
                 MailxGroupDivider()
                 MailxSectionRow(

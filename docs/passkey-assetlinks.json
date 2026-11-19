@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "net.mailx.android",
+      "sha256_cert_fingerprints": [
+        "F2:C5:92:E3:0B:10:05:CB:0F:07:EC:AB:A0:AD:BD:A8:E0:02:88:3A:66:9A:C5:CF:B0:D2:B7:97:91:21:08:8D"
+      ]
+    }
+  }
+]

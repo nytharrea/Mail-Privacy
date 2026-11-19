@@ -47,24 +47,39 @@ class AliasWatchWorker(
         }.distinct().take(MAX_WATCHED_ALIASES)
         if (ids.isEmpty()) return Result.success()
 
-        val response = runCatching {
-            MailxRustBridge.fetchAliases(
-                baseUrl = prefs.baseUrl,
-                accessKey = prefs.accessKey,
-                bearerToken = prefs.bearerToken,
-                status = "active_inactive",
-                page = 1
-            )
-        }.getOrElse { return Result.retry() }
-
-        prefs.syncRefreshedTokenIfPresent(response)
-        if (!response.optBoolean("ok", false)) {
-            val code = response.optInt("error_code", 0)
-            return if (code == 401 || code == 403) Result.failure() else Result.retry()
+        // Fetch all relevant pages. Do not assume watched aliases are on page one.
+        val current = JSONArray()
+        val seen = mutableSetOf<String>()
+        for (page in 1..100) {
+            val response = runCatching {
+                MailxRustBridge.fetchAliases(
+                    baseUrl = prefs.baseUrl,
+                    accessKey = prefs.accessKey,
+                    bearerToken = prefs.bearerToken,
+                    status = "active_inactive",
+                    page = page
+                )
+            }.getOrElse { return Result.retry() }
+            prefs.syncRefreshedTokenIfPresent(response)
+            if (!response.optBoolean("ok", false)) {
+                val code = response.optInt("error_code", 0)
+                return if (code == 401 || code == 403) Result.failure() else Result.retry()
+            }
+            val batch = response.optJSONObject("data")?.optJSONArray("aliases")
+                ?: return Result.retry()
+            if (batch.length() == 0) break
+            var added = 0
+            for (i in 0 until batch.length()) {
+                val alias = batch.optJSONObject(i) ?: continue
+                val id = alias.optString("id")
+                if (id.isNotBlank() && seen.add(id)) {
+                    if (id in ids) current.put(alias)
+                    added++
+                }
+            }
+            if (ids.all { it in seen } || added == 0) break
+            if (page == 100) return Result.retry() // Incomplete pagination; keep old baseline.
         }
-
-        val current = response.optJSONObject("data")?.optJSONArray("aliases")
-            ?: return Result.retry()
         val previous = runCatching { JSONArray(prefs.previousWatchedAliasesJson) }
             .getOrElse { JSONArray() }
         val watchedJson = JSONArray().apply { ids.forEach { put(it) } }
@@ -91,6 +106,10 @@ class AliasWatchWorker(
             }
             // Store only watched aliases, reducing encrypted preference size.
             val nextBaseline = JSONArray()
+            for (i in 0 until previous.length()) {
+                val old = previous.optJSONObject(i) ?: continue
+                if (old.optString("id") in ids && old.optString("id") !in seen) nextBaseline.put(old)
+            }
             for (i in 0 until current.length()) {
                 val alias = current.optJSONObject(i) ?: continue
                 if (ids.contains(alias.optString("id"))) nextBaseline.put(alias)
