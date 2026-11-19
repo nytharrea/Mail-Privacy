@@ -6,9 +6,12 @@ use serde_json::{json, Value};
 const ROUTES: &[&str] = &["home", "aliases", "recipients", "rules", "settings"];
 
 fn route_or_default(value: Option<&Value>) -> &'static str {
-    value
-        .and_then(Value::as_str)
-        .filter(|route| ROUTES.contains(route))
+    let candidate = value.and_then(Value::as_str);
+
+    ROUTES
+        .iter()
+        .copied()
+        .find(|route| Some(*route) == candidate)
         .unwrap_or("home")
 }
 
