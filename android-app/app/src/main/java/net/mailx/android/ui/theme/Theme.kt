@@ -21,15 +21,15 @@ val LocalReducedMotion = compositionLocalOf { false }
 
 private val DarkColorScheme = darkColorScheme(
     primary = MailxPalette.BrandPrimaryDark,
-    onPrimary = Color.White,
+    onPrimary = Color(0xFF062A27),
     primaryContainer = MailxPalette.BrandPrimaryContainerDark,
     onPrimaryContainer = MailxPalette.BrandOnPrimaryContainerDark,
     secondary = MailxPalette.BrandAccentTealDark,
     onSecondary = Color(0xFF062033),
     secondaryContainer = MailxPalette.BrandSecondaryContainerDark,
     onSecondaryContainer = MailxPalette.BrandOnSecondaryContainerDark,
-    tertiary = MailxPalette.BrandTertiaryVioletDark,
-    onTertiary = Color(0xFF1B1038),
+    tertiary = MailxPalette.BrandTertiaryNeutralDark,
+    onTertiary = Color(0xFF0F172A),
     tertiaryContainer = MailxPalette.BrandTertiaryContainerDark,
     onTertiaryContainer = MailxPalette.BrandOnTertiaryContainerDark,
     background = MailxPalette.Obsidian950,
@@ -60,7 +60,7 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = MailxPalette.BrandSecondaryContainerLight,
     onSecondaryContainer = MailxPalette.BrandOnSecondaryContainerLight,
-    tertiary = MailxPalette.BrandTertiaryViolet,
+    tertiary = MailxPalette.BrandTertiaryNeutral,
     onTertiary = Color.White,
     tertiaryContainer = MailxPalette.BrandTertiaryContainerLight,
     onTertiaryContainer = MailxPalette.BrandOnTertiaryContainerLight,
@@ -88,7 +88,7 @@ private fun ColorScheme.withHarmonizedDynamicDark(): ColorScheme {
     val balancedSecondary = lerp(secondary, MailxPalette.BrandAccentTealDark, 0.45f)
     return copy(
         primary = balancedPrimary,
-        onPrimary = Color.White,
+        onPrimary = Color(0xFF062A27),
         primaryContainer = lerp(primaryContainer, MailxPalette.BrandPrimaryContainerDark, 0.55f),
         onPrimaryContainer = MailxPalette.BrandOnPrimaryContainerDark,
         secondary = balancedSecondary,

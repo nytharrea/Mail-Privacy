@@ -426,7 +426,7 @@ fun HomeDashboardTab(
                                     value = animatedActive.toString(),
                                     label = "Active Aliases",
                                     icon = MailxIcons.AtSign,
-                                    accentColor = MailxPalette.SentIndigo,
+                                    accentColor = MailxPalette.SentSlate,
                                     onClick = { onNavigateToFilter("active_inactive") },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -486,7 +486,7 @@ fun HomeDashboardTab(
                         title = "Rules",
                         status = if (highSpamCount > 0) "$highSpamCount Spam" else "$ruleCount Active",
                         icon = MailxIcons.SlidersHorizontal,
-                        accentColor = if (highSpamCount > 0) MailxPalette.BlockedRose else MailxPalette.BrandTertiaryVioletDark,
+                        accentColor = if (highSpamCount > 0) MailxPalette.BlockedRose else MailxPalette.BrandTertiaryNeutralDark,
                         isActive = ruleCount > 0,
                         isWarning = highSpamCount > 0,
                         onClick = if (highSpamCount > 0) onOpenPrivacyLab else onNavigateToRules,
@@ -535,15 +535,15 @@ fun HomeDashboardTab(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = MailxPalette.BrandTertiaryVioletDark.copy(alpha = 0.16f),
-                                    border = BorderStroke(0.75.dp, MailxPalette.BrandTertiaryVioletDark.copy(alpha = 0.35f)),
+                                    color = MailxPalette.BrandTertiaryNeutralDark.copy(alpha = 0.16f),
+                                    border = BorderStroke(0.75.dp, MailxPalette.BrandTertiaryNeutralDark.copy(alpha = 0.35f)),
                                     modifier = Modifier.size(38.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = MailxIcons.Cpu,
                                             contentDescription = null,
-                                            tint = MailxPalette.BrandTertiaryVioletDark,
+                                            tint = MailxPalette.BrandTertiaryNeutralDark,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }

@@ -829,14 +829,14 @@ private fun MailxCleanTopBar(
                         Surface(
                             onClick = onPrivacyLabClick,
                             shape = CircleShape,
-                            color = MailxPalette.BrandTertiaryVioletDark.copy(alpha = 0.14f),
+                            color = MailxPalette.BrandTertiaryNeutralDark.copy(alpha = 0.14f),
                             modifier = Modifier.size(32.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = MailxIcons.Sparkles,
                                     contentDescription = "Rust Privacy Lab",
-                                    tint = MailxPalette.BrandTertiaryVioletDark,
+                                    tint = MailxPalette.BrandTertiaryNeutralDark,
                                     modifier = Modifier.size(15.dp)
                                 )
                             }
@@ -1024,7 +1024,7 @@ private fun MailxCommandBottomSheet(
                         icon = MailxIcons.Sparkles,
                         title = "Rust Privacy & Security Lab",
                         subtitle = "URL sanitizer, phishing guard, header/MIME & hygiene radar",
-                        iconTint = MailxPalette.BrandTertiaryVioletDark,
+                        iconTint = MailxPalette.BrandTertiaryNeutralDark,
                         onClick = onOpenPrivacyLab
                     )
                     MailxGroupDivider()
@@ -1056,7 +1056,7 @@ private fun MailxCommandBottomSheet(
                         icon = MailxIcons.UserCog,
                         title = "Account, 2FA, Keys & CSV",
                         subtitle = "TOTP, passkeys, API access keys & CSV backup",
-                        iconTint = MailxPalette.SentIndigo,
+                        iconTint = MailxPalette.SentSlate,
                         onClick = onOpenAccount
                     )
                     MailxGroupDivider()

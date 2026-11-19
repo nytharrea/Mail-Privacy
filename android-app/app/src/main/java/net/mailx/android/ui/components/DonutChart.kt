@@ -43,7 +43,7 @@ fun MailxActivityRing(
 ) {
     val cForward = if (enabled) MailxPalette.ForwardEmerald else MailxPalette.Slate500
     val cReply = if (enabled) MailxPalette.ReplySky else MailxPalette.Slate600
-    val cSend = if (enabled) MailxPalette.SentIndigo else MailxPalette.Slate600
+    val cSend = if (enabled) MailxPalette.SentSlate else MailxPalette.Slate600
     val cBlock = if (enabled) MailxPalette.BlockedRose else MailxPalette.Slate700
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
@@ -169,7 +169,7 @@ fun MailxTelemetryBar(
                 modifier = Modifier
                     .weight(sends.toFloat() / total.toFloat())
                     .fillMaxHeight()
-                    .background(MailxPalette.SentIndigo)
+                    .background(MailxPalette.SentSlate)
             )
         }
         if (blocks > 0) {

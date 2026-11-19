@@ -260,7 +260,7 @@ fun SettingsTab(
                     title = "Default Alias Format",
                     description = formatAliasTypeLabel(defaultsState.defaultFormat),
                     startIcon = MailxIcons.AtSign,
-                    iconTint = MailxPalette.SentIndigo,
+                    iconTint = MailxPalette.SentSlate,
                     trailingBadge = defaultsState.defaultFormat.uppercase(),
                     endIcon = MailxIcons.Edit3,
                     grouped = true,
@@ -363,7 +363,7 @@ fun SettingsTab(
                     title = "Account, 2FA, Passkeys & CSV",
                     description = "Manage TOTP, passkeys, API access keys, and CSV import/export",
                     startIcon = MailxIcons.UserCog,
-                    iconTint = MailxPalette.SentIndigo,
+                    iconTint = MailxPalette.SentSlate,
                     endIcon = MailxIcons.ChevronRight,
                     grouped = true,
                     onClick = onOpenAccountSheet
@@ -401,7 +401,7 @@ fun SettingsTab(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "Mailx Privacy • Rust Native Core (16 KB Aligned)",
+                    text = "Mailx • Rust Core (16 KB aligned)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -501,7 +501,7 @@ fun SettingsTab(
                             title = "Reduced Motion",
                             description = "Disable non-essential animations",
                             startIcon = Icons.Outlined.MotionPhotosOff,
-                            iconTint = MailxPalette.SentIndigo,
+                            iconTint = MailxPalette.SentSlate,
                             showSwitch = true,
                             switchChecked = themeState.reducedMotionEnabled,
                             onSwitchChange = onToggleReducedMotion,
@@ -513,7 +513,7 @@ fun SettingsTab(
                             title = "Expressive Motion Physics",
                             description = "Optional spring overshoot (default is standard motion)",
                             startIcon = MailxIcons.Sparkles,
-                            iconTint = MailxPalette.SentIndigo,
+                            iconTint = MailxPalette.SentSlate,
                             showSwitch = true,
                             enabled = !themeState.reducedMotionEnabled,
                             switchChecked = themeState.expressiveMotionEnabled && !themeState.reducedMotionEnabled,

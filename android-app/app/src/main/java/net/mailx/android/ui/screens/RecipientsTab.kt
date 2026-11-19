@@ -473,7 +473,7 @@ fun RecipientsTab(
                                             } else {
                                                 "PGP Added"
                                             },
-                                            color = if (rec.pgpEnabled) MailxPalette.SentIndigo else MaterialTheme.colorScheme.secondary
+                                            color = if (rec.pgpEnabled) MailxPalette.SentSlate else MaterialTheme.colorScheme.secondary
                                         )
                                     }
                                     val trustScore = domainTrustInfo?.optInt("domain_trust_score", 0) ?: 0

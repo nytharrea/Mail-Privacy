@@ -141,7 +141,7 @@ class PrivacyStatsWidgetProvider : AppWidgetProvider() {
                 val views = RemoteViews(context.packageName, R.layout.widget_privacy_stats)
                 views.setTextViewText(
                     R.id.widget_stats_domain,
-                    if (configured) "@${prefs.defaultDomain}" else "Mailx Privacy"
+                    if (configured) "@${prefs.defaultDomain}" else "Mailx"
                 )
                 views.setTextViewText(
                     R.id.widget_stats_aliases_summary,

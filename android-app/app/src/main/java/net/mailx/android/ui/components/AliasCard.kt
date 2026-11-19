@@ -197,7 +197,7 @@ fun AliasCard(
                         Icon(
                             imageVector = MailxIcons.Sparkles,
                             contentDescription = "Wildcard",
-                            tint = MailxPalette.BrandTertiaryVioletDark,
+                            tint = MailxPalette.BrandTertiaryNeutralDark,
                             modifier = Modifier.size(13.5.dp)
                         )
                     }
@@ -310,7 +310,7 @@ fun AliasCard(
 
             val btnAccent = when {
                 justCopied -> MailxPalette.ForwardedGreen
-                alias.wildcard -> MailxPalette.BrandTertiaryVioletDark
+                alias.wildcard -> MailxPalette.BrandTertiaryNeutralDark
                 else -> MaterialTheme.colorScheme.primary
             }
 

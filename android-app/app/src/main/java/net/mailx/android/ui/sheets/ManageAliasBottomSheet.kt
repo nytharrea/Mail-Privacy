@@ -276,7 +276,7 @@ fun ManageAliasBottomSheet(
                                     )
                                     ManageAliasStatLegendRow(
                                         icon = Icons.AutoMirrored.Outlined.ForwardToInbox,
-                                        tint = MailxPalette.SentIndigo,
+                                        tint = MailxPalette.SentSlate,
                                         text = "${alias.sends} sent"
                                     )
                                     ManageAliasStatLegendRow(
@@ -416,7 +416,7 @@ fun ManageAliasBottomSheet(
                         title = "Sender Display Name",
                         description = alias.fromName.ifBlank { "Uses alias address" },
                         startIcon = Icons.Outlined.Badge,
-                        iconTint = MailxPalette.SentIndigo,
+                        iconTint = MailxPalette.SentSlate,
                         endIcon = Icons.Outlined.Edit,
                         grouped = true,
                         onClick = { editingField = "from_name" }
@@ -427,7 +427,7 @@ fun ManageAliasBottomSheet(
                         title = "Timestamps",
                         description = "Created ${formatIsoDateShort(alias.createdAt)} • Updated ${formatIsoDateShort(alias.updatedAt)}",
                         startIcon = Icons.Outlined.Schedule,
-                        iconTint = MailxPalette.BrandTertiaryVioletDark,
+                        iconTint = MailxPalette.BrandTertiaryNeutralDark,
                         grouped = true
                     )
                 }

@@ -99,7 +99,7 @@ fun AccountBottomSheet(
             runCatching {
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     val content = buildString {
-                        appendLine("Mailx Privacy - 2FA Backup Recovery Codes")
+                        appendLine("Mailx - 2FA Backup Recovery Codes")
                         if (userAccount.email.isNotBlank()) {
                             appendLine("Account: ${userAccount.email}")
                         }
@@ -277,7 +277,7 @@ fun AccountBottomSheet(
                     title = "Change Password",
                     description = "Update your account login password",
                     startIcon = Icons.Outlined.LockReset,
-                    iconTint = MailxPalette.SentIndigo,
+                    iconTint = MailxPalette.SentSlate,
                     endIcon = Icons.Outlined.Edit,
                     grouped = true,
                     onClick = { showChangePasswordDialog = true }

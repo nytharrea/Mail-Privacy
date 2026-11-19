@@ -192,7 +192,7 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
                 val views = RemoteViews(context.packageName, R.layout.widget_quick_alias)
                 views.setTextViewText(
                     R.id.widget_quick_title,
-                    if (configured) "@${prefs.defaultDomain}" else "Mailx Privacy"
+                    if (configured) "@${prefs.defaultDomain}" else "Mailx"
                 )
                 views.setTextViewText(
                     R.id.widget_quick_subtitle,

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Mailx</string>
+    <string name="app_tagline">Your inbox. Your privacy.</string>
+    <string name="send_with_mailx">Send with Mailx</string>
+    <string name="quick_alias_tile_name">New Mailx alias</string>
+
     <string name="widget_quick_alias_name">Quick Alias Generator</string>
     <string name="widget_quick_alias_desc">Create and copy a new Mailx alias with one tap</string>
     <string name="widget_stats_name">Privacy Telemetry</string>

@@ -8,7 +8,9 @@
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:label="Mailx"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Mailx">
 
@@ -25,7 +27,7 @@
         <activity
             android:name=".ui.intent.ReverseAliasSendActivity"
             android:exported="true"
-            android:label="Send with Mailx"
+            android:label="@string/send_with_mailx"
             android:theme="@style/Theme.Mailx.Dialog">
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
@@ -42,8 +44,8 @@
         <service
             android:name=".service.QuickAliasTileService"
             android:exported="true"
-            android:icon="@android:drawable/ic_dialog_email"
-            android:label="New Mailx Alias"
+            android:icon="@drawable/ic_mailx_web_mark"
+            android:label="@string/quick_alias_tile_name"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

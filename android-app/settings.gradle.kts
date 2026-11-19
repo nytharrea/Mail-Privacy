@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MailxAndroidRust"
+rootProject.name = "MailxAndroid"
 include(":app")

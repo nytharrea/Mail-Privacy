@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -112,11 +114,10 @@ fun SetupScreen(
                             modifier = Modifier.size(50.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = MailxIcons.ShieldCheck,
-                                    contentDescription = "Mailx Privacy",
-                                    tint = MailxPalette.BrandPrimaryAccent,
-                                    modifier = Modifier.size(25.dp)
+                                Image(
+                                    painter = painterResource(id = net.mailx.android.R.drawable.ic_mailx_web_mark),
+                                    contentDescription = "Mailx web logo",
+                                    modifier = Modifier.size(34.dp)
                                 )
                             }
                         }
@@ -130,7 +131,7 @@ fun SetupScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Mailx Privacy",
+                                    text = "Mailx",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -150,7 +151,12 @@ fun SetupScreen(
                                 }
                             }
                             Text(
-                                text = "Audited alias management, PGP forwarding & local tracker inspection",
+                                text = "Your inbox. Your privacy.",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MailxPalette.BrandPrimaryAccent
+                            )
+                            Text(
+                                text = "Private alias management, PGP forwarding & local tracker inspection",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

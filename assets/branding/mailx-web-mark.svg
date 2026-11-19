@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mailx geometric web and envelope mark">
+  <rect width="512" height="512" rx="112" fill="#0B1118"/>
+  <g fill="none" stroke="#42D6BE" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke-width="12">
+      <path d="M256 256V56 M256 256 397 115 M256 256H456 M256 256 397 397 M256 256V456 M256 256 115 397 M256 256H56 M256 256 115 115"/>
+    </g>
+    <g stroke-width="9">
+      <path d="m256 178 59 24 24 54-24 59-59 24-59-24-24-59 24-54z"/>
+      <path d="m256 116 99 41 41 99-41 99-99 41-99-41-41-99 41-99z"/>
+      <path d="m256 56 141 59 59 141-59 141-141 59-141-59-59-141 59-141z"/>
+    </g>
+  </g>
+  <path d="M205 229 256 266 307 229V294H205Z" fill="#0B1118" stroke="#B7FFF2" stroke-width="10" stroke-linejoin="round"/>
+  <path d="m205 229 51 37 51-37" fill="none" stroke="#B7FFF2" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

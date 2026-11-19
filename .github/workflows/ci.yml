@@ -1,4 +1,4 @@
-name: Mailx Privacy CI
+name: Mailx Android CI
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     name: "Mailx Rust Core CI"
     runs-on: ubuntu-latest
     steps:
-      - name: "Checkout Mail-Privacy"
+      - name: "Checkout Mailx Android"
         uses: actions/checkout@v5
 
       - name: "Install Rust Toolchain"

@@ -219,7 +219,7 @@ pub fn inspect_pgp_public_key_armor(raw_armor: &str) -> PgpKeyInspection {
 }
 
 pub fn format_totp_backup_codes_document(account_email: &str, raw_codes: &str) -> String {
-    let mut out = String::from("Mailx Privacy - 2FA Backup Recovery Codes\n");
+    let mut out = String::from("Mailx - 2FA Backup Recovery Codes\n");
     if !account_email.trim().is_empty() {
         out.push_str(&format!("Account: {}\n", account_email.trim()));
     }
