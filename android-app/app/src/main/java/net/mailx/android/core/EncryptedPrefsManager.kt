@@ -111,6 +111,18 @@ class EncryptedPrefsManager(context: Context) {
         get() = prefs.getInt(KEY_UNSUBSCRIBE_BEHAVIOUR, 0)
         set(value) = prefs.edit().putInt(KEY_UNSUBSCRIBE_BEHAVIOUR, value).apply()
 
+    var watchedAliasIdsJson: String
+        get() = prefs.getString(KEY_WATCHED_ALIAS_IDS, "[]") ?: "[]"
+        set(value) = prefs.edit().putString(KEY_WATCHED_ALIAS_IDS, value).apply()
+
+    var previousWatchedAliasesJson: String
+        get() = prefs.getString(KEY_PREVIOUS_WATCHED_ALIASES, "[]") ?: "[]"
+        set(value) = prefs.edit().putString(KEY_PREVIOUS_WATCHED_ALIASES, value).apply()
+
+    var aliasWatchEnabled: Boolean
+        get() = prefs.getBoolean(KEY_ALIAS_WATCH_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_ALIAS_WATCH_ENABLED, value).apply()
+
     var cachedAliasesJson: String
         get() = prefs.getString(KEY_CACHED_ALIASES, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CACHED_ALIASES, value).apply()
@@ -269,6 +281,31 @@ class EncryptedPrefsManager(context: Context) {
         }
     }
 
+    fun getWatchedAliasIds(): Set<String> = runCatching {
+        val array = org.json.JSONArray(watchedAliasIdsJson)
+        buildSet { for (i in 0 until array.length()) array.optString(i).takeIf { it.isNotBlank() }?.let(::add) }
+    }.getOrDefault(emptySet())
+
+    fun setAliasWatched(aliasId: String, watched: Boolean): Boolean {
+        if (aliasId.isBlank()) return false
+        val ids = getWatchedAliasIds().toMutableSet()
+        if (watched && ids.size >= 25 && aliasId !in ids) return false
+        if (watched) ids.add(aliasId) else ids.remove(aliasId)
+        watchedAliasIdsJson = org.json.JSONArray().apply { ids.sorted().forEach(::put) }.toString()
+        if (!watched) {
+            previousWatchedAliasesJson = runCatching {
+                val old = org.json.JSONArray(previousWatchedAliasesJson)
+                org.json.JSONArray().apply {
+                    for (i in 0 until old.length()) {
+                        val item = old.optJSONObject(i) ?: continue
+                        if (item.optString("id") != aliasId) put(item)
+                    }
+                }.toString()
+            }.getOrDefault("[]")
+        }
+        return true
+    }
+
     fun clearSession() {
         prefs.edit()
             .remove(KEY_ACCESS_KEY)
@@ -306,6 +343,9 @@ class EncryptedPrefsManager(context: Context) {
         private const val KEY_LOG_ISSUES = "log_issues"
         private const val KEY_UNSUBSCRIBE_BEHAVIOUR = "unsubscribe_behaviour"
         private const val KEY_CACHED_ALIASES = "cached_aliases"
+        private const val KEY_WATCHED_ALIAS_IDS = "watched_alias_ids"
+        private const val KEY_PREVIOUS_WATCHED_ALIASES = "previous_watched_aliases"
+        private const val KEY_ALIAS_WATCH_ENABLED = "alias_watch_enabled"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v6_enabled"
         private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v3_enabled"

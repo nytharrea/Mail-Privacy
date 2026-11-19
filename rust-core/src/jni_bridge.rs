@@ -69,6 +69,30 @@ fn detect_refreshed_token(
         .filter(|current| !current.is_empty() && current != original_token.trim())
 }
 
+pub fn handle_detect_alias_watch_events(
+    previous_aliases_json: &str,
+    current_aliases_json: &str,
+    watched_ids_json: &str,
+) -> String {
+    let previous: serde_json::Value = match serde_json::from_str(previous_aliases_json) {
+        Ok(value) => value,
+        Err(error) => return JniEnvelope::<serde_json::Value>::failure(error),
+    };
+    let current: serde_json::Value = match serde_json::from_str(current_aliases_json) {
+        Ok(value) => value,
+        Err(error) => return JniEnvelope::<serde_json::Value>::failure(error),
+    };
+    let watched: Vec<String> = match serde_json::from_str(watched_ids_json) {
+        Ok(value) => value,
+        Err(error) => return JniEnvelope::<serde_json::Value>::failure(error),
+    };
+
+    match mailx_domain::alias_watch::detect_alias_watch_events(&previous, &current, &watched) {
+        Ok(events) => JniEnvelope::success(events),
+        Err(error) => JniEnvelope::<serde_json::Value>::failure(error),
+    }
+}
+
 pub fn handle_validate_access_key(access_key: &str) -> String {
     match validate_access_key(access_key) {
         Ok(()) => JniEnvelope::success(true),
