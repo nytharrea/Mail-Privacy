@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["network"]
 network = ["mailx-network/network", "mailx-application/network"]
 jni = ["dep:jni"]
+uniffi = ["dep:uniffi"]
 
 [dependencies]
 mailx-domain = { path = "../crates/mailx-domain" }
@@ -24,3 +25,5 @@ mailx-runtime = { path = "../crates/mailx-runtime" }
 serde.workspace = true
 serde_json.workspace = true
 jni = { version = "0.21", optional = true }
+uniffi = { workspace = true, optional = true }
+thiserror.workspace = true

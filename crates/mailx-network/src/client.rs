@@ -56,6 +56,7 @@ struct ApiErrorBody {
 #[derive(Clone)]
 pub struct MailxClient {
     base_url: String,
+    agent: ureq::Agent,
     access_key: Arc<RwLock<Option<SecretString>>>,
     bearer_token: Arc<RwLock<Option<SecretString>>>,
 }
@@ -103,8 +104,14 @@ impl MailxClient {
                 ));
             }
         }
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(std::time::Duration::from_secs(10))
+            .timeout_read(std::time::Duration::from_secs(20))
+            .timeout_write(std::time::Duration::from_secs(20))
+            .build();
         Ok(Self {
             base_url: trimmed,
+            agent,
             access_key: Arc::new(RwLock::new(None)),
             bearer_token: Arc::new(RwLock::new(None)),
         })
@@ -285,7 +292,7 @@ impl MailxClient {
     #[cfg(feature = "network")]
     pub fn check_livez(&self) -> Result<bool, MailxError> {
         let url = format!("{}/livez", self.base_url);
-        let resp = ureq::get(&url)
+        let resp = self.agent.get(&url)
             .timeout(std::time::Duration::from_secs(10))
             .call();
         match resp {
@@ -323,7 +330,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = ureq::post(url)
+            let resp = self.agent.post(&url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15))
@@ -421,7 +428,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = ureq::post(url)
+            let resp = self.agent.post(&url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15))
@@ -488,7 +495,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let mut req = ureq::post(url)
+            let mut req = self.agent.post(&url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15));
@@ -601,7 +608,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = ureq::post(url)
+            let resp = self.agent.post(&url)
                 .set("Accept", "application/json")
                 .set("Cookie", &format!("authn={}", cookie_val))
                 .timeout(std::time::Duration::from_secs(15))
@@ -671,7 +678,7 @@ impl MailxClient {
                 format!("authn={}; authntemp={}", cookie_val, ceremony_cookie.trim())
             };
 
-            let resp = ureq::post(url)
+            let resp = self.agent.post(&url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .set("Cookie", &cookie_header)
@@ -724,7 +731,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let resp = ureq::post(url)
+            let resp = self.agent.post(&url)
                 .set("Content-Type", "application/json")
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15))
@@ -792,7 +799,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let mut req = ureq::request(method, url)
+            let mut req = self.agent.request(method, &url)
                 .set("Accept", "application/json")
                 .timeout(std::time::Duration::from_secs(15));
 
@@ -889,7 +896,7 @@ impl MailxClient {
         let mut last_err: Option<MailxError> = None;
 
         for (idx, url) in candidates.iter().enumerate() {
-            let mut req = ureq::request(method, url)
+            let mut req = self.agent.request(method, &url)
                 .set("Accept", "application/json, text/plain, text/csv, */*")
                 .timeout(std::time::Duration::from_secs(20));
 

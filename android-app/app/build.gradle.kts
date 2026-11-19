@@ -107,10 +107,10 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.animation:animation")
 
-    // Jetpack Compose Material 3 Expressive (1.5.0-rc01 provides public MaterialExpressiveTheme & MotionScheme.expressive())
-    implementation("androidx.compose.material3:material3:1.5.0-rc01")
-    implementation("androidx.compose.material3:material3-window-size-class:1.5.0-rc01")
-    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-rc01")
+    // Jetpack Compose Material 3 Expressive stable release.
+    implementation("androidx.compose.material3:material3:1.5.0")
+    implementation("androidx.compose.material3:material3-window-size-class:1.5.0")
+    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0")
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 

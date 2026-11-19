@@ -30,3 +30,12 @@ pub use mailx_utils::utils::{
 
 pub use mailx_runtime::app_shell::reduce_app_shell_state;
 pub use mailx_runtime::MailxCore;
+
+#[cfg(feature = "uniffi")]
+pub mod uniffi_api;
+
+#[cfg(feature = "uniffi")]
+uniffi::setup_scaffolding!();
+
+#[cfg(feature = "uniffi")]
+pub mod secure_store_port;

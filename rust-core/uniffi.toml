@@ -1,0 +1,3 @@
+[bindings.kotlin]
+package_name = "net.mailx.android.core.uniffi"
+cdylib_name = "mailx_core"
