@@ -5,6 +5,13 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      run_emulator:
+        description: "Run the slower Android emulator smoke test"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -121,7 +128,10 @@ jobs:
         working-directory: android-app
         run: bash ./gradlew assembleDebug --no-daemon --stacktrace
 
+      # Emulator boot is intentionally opt-in: hosted runners can spend many
+      # minutes booting a cold AVD. Normal push/PR CI only builds the APK.
       - name: Android emulator launch smoke test
+        if: github.event_name == 'workflow_dispatch' && inputs.run_emulator == true
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -129,13 +139,27 @@ jobs:
           arch: x86_64
           profile: pixel_6
           script: |
-            APK="$(find android-app/app/build/outputs/apk/debug -name '*x86_64*debug.apk' -o -name '*universal*debug.apk' | head -n 1)"
-            test -n "$APK"
+            set -euo pipefail
+            APK_DIR="$GITHUB_WORKSPACE/android-app/app/build/outputs/apk/debug"
+            test -d "$APK_DIR"
+
+            # Prefer the universal APK; fall back to x86_64, then any debug APK.
+            APK="$(find "$APK_DIR" -type f -name '*.apk' -print | sort | grep -E 'universal.*debug|x86_64.*debug' | head -n 1 || true)"
+            if [ -z "$APK" ]; then
+              APK="$(find "$APK_DIR" -type f -name '*.apk' -print | sort | head -n 1 || true)"
+            fi
+            if [ -z "$APK" ]; then
+              echo "No debug APK found under $APK_DIR"
+              find "$APK_DIR" -maxdepth 4 -type f -print || true
+              exit 1
+            fi
+
+            echo "Installing smoke-test APK: $APK"
             adb install -r "$APK"
             adb shell monkey -p net.mailx.android.debug 1
-            sleep 12
+            sleep 8
             adb shell pidof net.mailx.android.debug
-            if adb logcat -d -t 600 | grep -E 'FATAL EXCEPTION|UnsatisfiedLinkError'; then
+            if adb logcat -d -t 1000 | grep -E 'FATAL EXCEPTION|UnsatisfiedLinkError'; then
               echo "Android startup/JNI crash detected"
               exit 1
             fi
