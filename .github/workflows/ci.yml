@@ -58,10 +58,28 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install Android SDK components
+      - name: Install Android SDK API 37
+        shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-37" "build-tools;36.0.0" "ndk;30.0.16248370"
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install --channel=3 \\
+            "platforms;android-37" \\
+            "build-tools;36.0.0" \\
+            "ndk;30.0.16248370"
+
+          # Normalize an SDK repository android-37.0 directory if necessary.
+          if [ ! -f "${ANDROID_HOME}/platforms/android-37/android.jar" ]; then
+            candidate="$(find "${ANDROID_HOME}/platforms" -mindepth 1 -maxdepth 1 \\
+              -type d -name 'android-37*' -exec sh -c \
+              'for d do [ -f "$d/android.jar" ] && { printf "%s\\n" "$d"; exit 0; }; done; exit 1' sh {} +)"
+            if [ -z "$candidate" ]; then
+              echo "Android SDK API 37 installed package has no android.jar"
+              exit 1
+            fi
+            ln -s "$(basename "$candidate")" "${ANDROID_HOME}/platforms/android-37"
+          fi
+          test -f "${ANDROID_HOME}/platforms/android-37/android.jar"
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/30.0.16248370" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=${ANDROID_HOME}/ndk/30.0.16248370" >> "$GITHUB_ENV"
 
