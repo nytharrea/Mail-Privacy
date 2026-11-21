@@ -24,6 +24,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.security.GeneralSecurityException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -42,15 +44,42 @@ import java.util.concurrent.atomic.AtomicReference
 class SecurePrefsManager(context: Context) {
 
     private val appContext = context.applicationContext
-    private val writeScope = processScope
     private val snapshot = processSnapshot
     private val store: DataStore<JSONObject> = getStore(appContext)
 
+    init {
+        // The manager exposes a synchronous compatibility API to Android
+        // components that cannot yet be converted to suspend/Flow APIs.
+        // Initialize the in-memory snapshot before this instance is exposed.
+        if (snapshotInitialized.compareAndSet(false, true)) {
+            try {
+                runBlocking(Dispatchers.IO) {
+                    snapshot.set(JSONObject(store.data.first().toString()))
+                }
+            } catch (error: Throwable) {
+                snapshotInitializationError.set(error)
+                throw error
+            } finally {
+                snapshotReady.countDown()
+            }
+        } else {
+            snapshotReady.await()
+            snapshotInitializationError.get()?.let { throw it }
+        }
+    }
+
     companion object {
-        private val processScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+        private val processScope =
+            CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
         private val processSnapshot = AtomicReference(JSONObject())
+        private val snapshotInitialized = AtomicBoolean(false)
+        private val snapshotReady = CountDownLatch(1)
+        private val snapshotInitializationError = AtomicReference<Throwable?>(null)
         private val processMutations = Channel<StorageMutation>(Channel.UNLIMITED)
-        @Volatile private var processStore: DataStore<JSONObject>? = null
+        private val storeLock = Any()
+
+        @Volatile
+        private var processStore: DataStore<JSONObject>? = null
 
         private data class StorageMutation(
             val values: Map<String, Any?> = emptyMap(),
@@ -59,44 +88,48 @@ class SecurePrefsManager(context: Context) {
 
         private fun getStore(context: Context): DataStore<JSONObject> {
             processStore?.let { return it }
-            return runBlocking(Dispatchers.IO) {
-                synchronized(this@Companion) {
-                    processStore ?: run {
-                        // This app is intentionally single-user. Remove the previous
-                        // AndroidX Security Crypto file and its Keystore master key;
-                        // no legacy credentials or settings are migrated.
-                        context.deleteSharedPreferences(LEGACY_PREFS_FILE)
-                        runCatching {
-                            java.security.KeyStore.getInstance("AndroidKeyStore").apply {
-                                load(null)
-                                deleteEntry(LEGACY_MASTER_KEY_ALIAS)
-                            }
-                        }.getOrElse {
-                            throw IllegalStateException("Unable to remove legacy storage key.", it)
-                        }
 
-                        val created = createStore(context)
-                        processSnapshot.set(JSONObject(created.data.first().toString()))
-                        processStore = created
-                        processScope.launch {
-                            for (mutation in processMutations) {
-                                created.updateData { current ->
-                                    JSONObject(current.toString()).apply {
-                                        mutation.removals.forEach(::remove)
-                                        mutation.values.forEach { (key, value) ->
-                                            if (value == null) remove(key) else put(key, value)
-                                        }
+            // Never call a suspending API while holding a JVM monitor. The
+            // previous implementation called Flow.first() inside synchronized,
+            // which Kotlin correctly rejects as a critical-section suspension.
+            return synchronized(storeLock) {
+                processStore ?: run {
+                    // This app is intentionally single-user. Remove the previous
+                    // AndroidX Security Crypto file and its Keystore master key;
+                    // no legacy credentials or settings are migrated.
+                    context.deleteSharedPreferences(LEGACY_PREFS_FILE)
+                    runCatching {
+                        java.security.KeyStore.getInstance("AndroidKeyStore").apply {
+                            load(null)
+                            deleteEntry(LEGACY_MASTER_KEY_ALIAS)
+                        }
+                    }.getOrElse {
+                        throw IllegalStateException(
+                            "Unable to remove legacy storage key.",
+                            it
+                        )
+                    }
+
+                    val created = createStore(context)
+                    processStore = created
+                    processScope.launch {
+                        for (mutation in processMutations) {
+                            created.updateData { current ->
+                                JSONObject(current.toString()).apply {
+                                    mutation.removals.forEach(::remove)
+                                    mutation.values.forEach { (key, value) ->
+                                        if (value == null) remove(key) else put(key, value)
                                     }
                                 }
                             }
                         }
-                        created
                     }
+                    created
                 }
             }
         }
 
-        private fun createStore(context: Context): DataStore<JSONObject> {
+    private fun createStore(context: Context): DataStore<JSONObject> {
             val aead = createAead(context)
             return DataStoreFactory.create(
                 serializer = EncryptedJsonSerializer(aead),
@@ -106,30 +139,29 @@ class SecurePrefsManager(context: Context) {
         }
 
         private fun createAead(context: Context): Aead {
-        try {
-            AeadConfig.register()
-            val keyset = AndroidKeysetManager.Builder()
-                .withSharedPref(context, KEYSET_NAME, KEYSET_PREFS_FILE)
-                .withKeyTemplate(KeyTemplates.get("AES256_GCM"))
-                .withMasterKeyUri(MASTER_KEY_URI)
-                .build()
+            try {
+                AeadConfig.register()
+                val keyset = AndroidKeysetManager.Builder()
+                    .withSharedPref(context, KEYSET_NAME, KEYSET_PREFS_FILE)
+                    .withKeyTemplate(KeyTemplates.get("AES256_GCM"))
+                    .withMasterKeyUri(MASTER_KEY_URI)
+                    .build()
 
-            // AndroidKeysetManager can fall back to an unwrapped keyset on
-            // devices where Keystore is unavailable. That is not acceptable
-            // for this app: never silently downgrade to cleartext key storage.
-            check(keyset.isUsingKeystore) {
-                "Android Keystore-backed Tink keyset is unavailable"
+                // Fail closed: never silently downgrade to a cleartext keyset.
+                check(keyset.isUsingKeystore) {
+                    "Android Keystore-backed Tink keyset is unavailable"
+                }
+
+                return keyset.keysetHandle.getPrimitive(
+                    RegistryConfiguration.get(),
+                    Aead::class.java
+                )
+            } catch (error: Exception) {
+                throw IllegalStateException(
+                    "Secure storage initialization failed; refusing insecure fallback.",
+                    error
+                )
             }
-
-            return keyset.keysetHandle.getPrimitive(
-                RegistryConfiguration.get(),
-                Aead::class.java
-            )
-        } catch (error: Exception) {
-            throw IllegalStateException(
-                "Secure storage initialization failed; refusing insecure fallback.",
-                error
-            )
         }
     }
 
