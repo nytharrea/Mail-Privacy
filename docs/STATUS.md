@@ -33,22 +33,32 @@ This is the single current-state summary. Dated working logs are archived in [hi
 
 | Area | What was done | What it does not prove |
 |---|---|---|
-| Rust | `cargo check`, Clippy `-D warnings` (all features and no default features), `cargo fmt --check` and 169 tests (1 ignored live test) on Rust 1.97.0 | Third-party crates were replaced by offline stand-ins (serde, serde_json, ureq, getrandom, hmac, sha1, zeroize, jni, uniffi macros, qrcode). Real dependency resolution, real UniFFI macro expansion and Android cross-compilation have only been exercised by GitHub Actions |
-| Kotlin | Parsed with the Kotlin 2.0.21 compiler: no new syntax diagnostics. `AppShell.kt` compiles with `-Werror` against hand-written stand-ins shaped like UniFFI's generated API | The stand-ins encode UniFFI naming conventions (enum entries in UPPER_SNAKE, data enums as sealed classes, package from `uniffi.toml`). The first CI compile confirms them |
-| Workflows | Parsed as YAML; `scripts/check-elf-alignment.sh` tested on 16 KB-aligned and 4 KB-aligned libraries and on APK, directory and empty inputs | Not executed on GitHub |
+| Rust | Offline against stand-in crates: `cargo check`, Clippy `-D warnings` (all features and no default features), `cargo fmt --check` and 169 tests (1 ignored live test) on Rust 1.97.0. Then on GitHub Actions with the real crates (2026-11-21): the same 169 tests passed, Clippy and rustfmt were clean, `cargo ndk` built `arm64-v8a` and `x86_64` and the 16 KB alignment check passed | Runtime behavior of the cross-compiled library on a device |
+| Kotlin | Parsed with the Kotlin 2.0.21 compiler: no new syntax diagnostics. `AppShell.kt` compiles with `-Werror` against hand-written stand-ins shaped like UniFFI's generated API | The stand-ins encode UniFFI naming conventions (enum entries in UPPER_SNAKE, data enums as sealed classes, package from `uniffi.toml`). The Android job has not yet reached the Kotlin compile, so the real generated names are still unconfirmed |
+| Workflows | Parsed as YAML and executed on GitHub on 2026-11-21: toolchain setup, caching, Rust checks, cross-compilation and the alignment check worked. The binding step failed once and was fixed (see below) | Binding generation, Gradle build, APK checks, emulator test and signed release have not run yet |
 | Device and live account | Not tested | JNA/UniFFI loading at runtime, UI behavior, and real API behavior |
 
 ### Independent review
 
 A separate reviewer went through the network client, the random generation and the app shell and reproduced their findings with throw-away probes. Eight defects were confirmed and fixed with tests: a backslash in the URL authority that bypassed host validation, `.` and `..` ids collapsing the request path, an authentication response without a token being accepted, unbounded JSON error messages, JSON mentioning `<body>` being mistaken for HTML, credentials and bodies appearing in `Debug` output, PUT and DELETE being turned into a GET on 301 and 302, and the emulator alias `10.0.2.2` being accepted as cleartext. Details are in [ADR 0002](adr/0002-network-host-and-credential-policy.md). The reviewer found the redirect handling, the host policy, the random sampling and the app-shell invariants sound.
 
-## First-run checklist
+## First CI run (2026-11-21)
 
-1. Run **Update Cargo.lock** once and keep its commit; later runs then build with `--locked`.
-2. Push and watch **Rust checks** and **Android debug build**. If Kotlin reports unresolved references in `AppShell.kt`, the generated names differ from the assumption above; the error text is enough to fix it.
-3. Run **Mailx Android CI** manually with `run_emulator` enabled. The launch test fails on JNA or UniFFI loading errors and on any crash at startup.
-4. Install the nightly APK and exercise tabs, system Back, sheets, sign-in and sign-out.
-5. Optional: add the secret `MAILX_LIVE_ACCESS_KEY` and run **Live API smoke test** against a dedicated test account.
+Twenty workflow logs were reviewed.
+
+- **Rust checks** were green on the real crates in every run that did not change dependencies.
+- **Android debug build and release** stopped at the step that resolves the `uniffi` version, with `StopIteration`. `cargo metadata` leaves out optional dependencies, and `uniffi` and `jni` sit behind features, so the package list did not contain `uniffi`. The step now passes `--all-features`; the cause was reproduced locally. The same step now prints the generated declarations that `AppShell.kt` depends on, so a naming mismatch is visible in the log.
+- **Dependabot** opened pull requests for `jni 0.22.4` and for several Gradle and Actions updates. `jni 0.22` is a breaking API change (`JNIEnv` is split into `Env` and `EnvUnowned`; the pull request failed with 46 compile errors), so `dependabot.yml` ignores it until it is migrated on purpose. The other pull requests are ordinary version bumps to review one by one.
+- **cargo audit** reported no vulnerabilities and one advisory notice: `basic-toml` is unmaintained and is pulled in by UniFFI's own tooling.
+- **Release** is expected to fail at the keystore step until the signing secrets are configured; it refuses to create a fallback key.
+- **Cargo.lock** was stale as predicted. The **Update Cargo.lock** workflow added 67 packages and committed the result. Zip deliveries do not contain `Cargo.lock`, so unpacking one over the repository cannot revert the refreshed lock.
+
+## Next steps
+
+1. Push and watch **Android debug build**. The next expected stop is the Kotlin compile of `AppShell.kt` against the generated bindings; the error text is enough to fix any naming difference.
+2. Run **Mailx Android CI** manually with `run_emulator` enabled. The launch test fails on JNA or UniFFI loading errors and on any crash at startup.
+3. Install the nightly APK and exercise tabs, system Back, sheets, sign-in and sign-out.
+4. Optional: add the secret `MAILX_LIVE_ACCESS_KEY` and run **Live API smoke test** against a dedicated test account.
 
 ## Deferred
 
@@ -63,6 +73,7 @@ A separate reviewer went through the network client, the random generation and t
 | Glance widgets, Baseline Profile, screenshot tests | Need an Android build environment and a device; AGP 9 compatibility of screenshot tooling unverified | Android-capable environment |
 | LTS JDK in CI | Full build not verified on JDK 21; JDK 27 is documented as deliberate | A verified run |
 | Material 3 `1.5.0-rc01` pin | Kept as is | Move to the stable release when available |
+| `jni` 0.22 migration | Breaking API change in the JNI crate; 46 compile errors in `jni_bridge.rs`, and the offline stand-in cannot validate the new API | A dedicated migration of `jni_bridge.rs` with CI feedback |
 
 ## Decisions that are yours
 

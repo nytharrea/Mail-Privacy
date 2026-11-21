@@ -17,7 +17,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        version="$(cargo metadata --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "uniffi"))')"
+        version="$(cargo metadata --format-version 1 --all-features | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "uniffi"))')"
         test -n "${version}"
         echo "value=${version}" >> "${GITHUB_OUTPUT}"
 
@@ -44,9 +44,15 @@ runs:
         set -euo pipefail
         uniffi-bindgen generate --library "${LIBRARY}" --language kotlin --no-format --out-dir "${OUT_DIR}"
         package_dir="${OUT_DIR}/net/mailx/android/core/uniffi"
-        if ! find "${package_dir}" -maxdepth 1 -name '*.kt' 2>/dev/null | grep -q .; then
+        shopt -s nullglob
+        generated=("${package_dir}"/*.kt)
+        if [ "${#generated[@]}" -eq 0 ]; then
           echo "::error::No generated Kotlin found in ${package_dir}. Check package_name in rust-core/uniffi.toml."
           find "${OUT_DIR}" -name '*.kt' -newer "${LIBRARY}" -print
           exit 1
         fi
-        find "${package_dir}" -maxdepth 1 -name '*.kt' -print
+        printf '%s\n' "${generated[@]}"
+        echo "::group::Generated declarations used by AppShell.kt"
+        grep -hnE '^\s*(open |sealed |data |enum |abstract )*(class|interface|object) (MailxCore|MailxCoreInterface|MailxCoreException|Route|Sheet|AppState|AppEvent|SecureStorePort)\b' "${generated[@]}" || true
+        grep -h -A6 'enum class Route' "${generated[@]}" || true
+        echo "::endgroup::"

@@ -22,7 +22,7 @@ Read next: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/UNIFFI.md](docs/U
 
 ## Current status
 
-[docs/STATUS.md](docs/STATUS.md) lists what is implemented, how it was verified, what is deliberately deferred and why, and the checklist for the first CI run.
+[docs/STATUS.md](docs/STATUS.md) lists what is implemented, how it was verified, what is deliberately deferred and why, the findings of the first CI run, and the next steps.
 
 ## Main source areas
 
