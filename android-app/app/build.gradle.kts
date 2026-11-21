@@ -92,9 +92,9 @@ android {
 
 configurations.configureEach {
     resolutionStrategy.force(
-        "androidx.compose.material3:material3:1.5.0-rc01",
-        "androidx.compose.material3:material3-window-size-class:1.5.0-rc01",
-        "androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-rc01"
+        "androidx.compose.material3:material3:1.5.0",
+        "androidx.compose.material3:material3-window-size-class:1.5.0",
+        "androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0"
     )
 }
 
@@ -116,9 +116,9 @@ dependencies {
     implementation("androidx.compose.animation:animation")
 
     // Jetpack Compose Material 3 Expressive stable release.
-    implementation("androidx.compose.material3:material3:1.5.0-rc01")
-    implementation("androidx.compose.material3:material3-window-size-class:1.5.0-rc01")
-    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-rc01")
+    implementation("androidx.compose.material3:material3:1.5.0")
+    implementation("androidx.compose.material3:material3-window-size-class:1.5.0")
+    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0")
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 
@@ -127,24 +127,24 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // Android Credential Manager for WebAuthn / Passkey support
-    implementation("androidx.credentials:credentials:1.5.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("androidx.credentials:credentials:1.6.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
 
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.security:security-crypto:1.1.0")
     implementation("androidx.biometric:biometric:1.1.0")
-    implementation("androidx.work:work-runtime-ktx:2.11.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("androidx.appsearch:appsearch:1.1.0")
     implementation("androidx.appsearch:appsearch-platform-storage:1.1.0")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // UniFFI's generated Kotlin bindings call the Rust shared library through JNA.
     // Use the Android AAR variant so its native dispatch libraries are packaged.
     implementation("net.java.dev.jna:jna:5.19.1@aar")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 
-    compileOnly("com.google.errorprone:error_prone_annotations:2.36.0")
+    compileOnly("com.google.errorprone:error_prone_annotations:2.53.0")
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 }

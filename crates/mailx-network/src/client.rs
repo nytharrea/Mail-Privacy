@@ -182,13 +182,16 @@ pub struct UreqTransport {
 #[cfg(feature = "network")]
 impl UreqTransport {
     pub fn new() -> Self {
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(Duration::from_secs(10))
-            .timeout_read(Duration::from_secs(20))
-            .timeout_write(Duration::from_secs(20))
-            .redirects(0)
+        let config = ureq::Agent::config_builder()
+            .timeout_connect(Some(Duration::from_secs(10)))
+            .timeout_per_read(Some(Duration::from_secs(20)))
+            .timeout_per_write(Some(Duration::from_secs(20)))
+            .max_redirects(0)
+            .http_status_as_error(false)
             .build();
-        Self { agent }
+        Self {
+            agent: ureq::Agent::new_with_config(config),
+        }
     }
 }
 
@@ -202,39 +205,56 @@ impl Default for UreqTransport {
 #[cfg(feature = "network")]
 impl Transport for UreqTransport {
     fn send(&self, request: &HttpRequest) -> Result<HttpResponse, TransportError> {
-        let mut pending = self
-            .agent
-            .request(&request.method, &request.url)
-            .timeout(request.timeout);
+        let mut builder = ureq::http::Request::builder()
+            .method(request.method.as_str())
+            .uri(request.url.as_str());
         for (name, value) in &request.headers {
-            pending = pending.set(name, value);
+            builder = builder.header(name.as_str(), value.as_str());
         }
-        let outcome = match &request.body {
-            Some(body) => pending.send_bytes(body),
-            None => pending.call(),
-        };
-        match outcome {
-            Ok(response) => read_ureq_response(response),
-            Err(ureq::Error::Status(_, response)) => read_ureq_response(response),
-            Err(error) => Err(TransportError(error.to_string())),
+        let response = match &request.body {
+            Some(body) => {
+                let http_request = builder
+                    .body(body.as_slice())
+                    .map_err(|error| TransportError(error.to_string()))?;
+                let configured = self
+                    .agent
+                    .configure_request(http_request)
+                    .timeout_global(Some(request.timeout))
+                    .build();
+                self.agent.run(configured)
+            }
+            None => {
+                let http_request = builder
+                    .body(())
+                    .map_err(|error| TransportError(error.to_string()))?;
+                let configured = self
+                    .agent
+                    .configure_request(http_request)
+                    .timeout_global(Some(request.timeout))
+                    .build();
+                self.agent.run(configured)
+            }
         }
+        .map_err(|error| TransportError(error.to_string()))?;
+        read_ureq_response(response)
     }
 }
 
 #[cfg(feature = "network")]
-fn read_ureq_response(response: ureq::Response) -> Result<HttpResponse, TransportError> {
-    let status = response.status();
-    let mut names = response.headers_names();
-    names.sort();
-    names.dedup();
+fn read_ureq_response(
+    response: ureq::http::Response<ureq::Body>,
+) -> Result<HttpResponse, TransportError> {
+    let status = response.status().as_u16();
     let mut headers = Vec::new();
-    for name in names {
-        for value in response.all(&name) {
-            headers.push((name.clone(), value.to_string()));
-        }
+    for (name, value) in response.headers() {
+        headers.push((
+            name.as_str().to_string(),
+            String::from_utf8_lossy(value.as_bytes()).into_owned(),
+        ));
     }
     let mut raw = Vec::new();
     response
+        .into_body()
         .into_reader()
         .take(MAX_BODY_BYTES)
         .read_to_end(&mut raw)
