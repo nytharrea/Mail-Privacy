@@ -41,7 +41,7 @@ object MailxBackupRepository {
         }
 
     /** Validate before mutating preferences; do not restore watch counter snapshots. */
-    fun restore(prefs: SecurePrefsManager, payload: JSONObject, restoreSession: Boolean) {
+    suspend fun restore(prefs: SecurePrefsManager, payload: JSONObject, restoreSession: Boolean) {
         require(payload.optString("format") == "mailx-android-settings" &&
             payload.optInt("version") == VERSION) { "Unsupported backup format" }
         val s = payload.optJSONObject("settings") ?: error("Missing settings")
@@ -74,9 +74,13 @@ object MailxBackupRepository {
         // Search index is rebuilt only after an explicit new opt-in on this device.
         prefs.aliasSearchEnabled = false
         if (session != null) {
-            prefs.accessKey = session.optString("accessKey", "")
-            prefs.bearerToken = session.optString("bearerToken", "")
-            prefs.accountEmail = session.optString("accountEmail", "")
+            prefs.setSessionSecretsAndPersist(
+                accessKey = session.optString("accessKey", ""),
+                bearerToken = session.optString("bearerToken", ""),
+                accountEmail = session.optString("accountEmail", "")
+            )
+        } else {
+            prefs.persistPendingWrites()
         }
     }
 }

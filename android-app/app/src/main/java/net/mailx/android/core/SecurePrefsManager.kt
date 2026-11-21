@@ -1,6 +1,11 @@
 package net.mailx.android.core
 
 import android.content.Context
+import android.os.Build
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
+import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.KeyTemplates
 import com.google.crypto.tink.RegistryConfiguration
@@ -17,6 +22,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CompletableDeferred
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -24,6 +30,11 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.security.GeneralSecurityException
+import java.security.KeyStore
+import java.security.ProviderException
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.SecretKeyFactory
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -76,6 +87,7 @@ class SecurePrefsManager(context: Context) {
         private val snapshotReady = CountDownLatch(1)
         private val snapshotInitializationError = AtomicReference<Throwable?>(null)
         private val processMutations = Channel<StorageMutation>(Channel.UNLIMITED)
+        private val storageWriteFailure = AtomicReference<Throwable?>(null)
         private val storeLock = Any()
 
         @Volatile
@@ -83,7 +95,8 @@ class SecurePrefsManager(context: Context) {
 
         private data class StorageMutation(
             val values: Map<String, Any?> = emptyMap(),
-            val removals: Set<String> = emptySet()
+            val removals: Set<String> = emptySet(),
+            val completion: CompletableDeferred<Unit>? = null
         )
 
         private fun getStore(context: Context): DataStore<JSONObject> {
@@ -114,13 +127,21 @@ class SecurePrefsManager(context: Context) {
                     processStore = created
                     processScope.launch {
                         for (mutation in processMutations) {
-                            created.updateData { current ->
-                                JSONObject(current.toString()).apply {
-                                    mutation.removals.forEach(::remove)
-                                    mutation.values.forEach { (key, value) ->
-                                        if (value == null) remove(key) else put(key, value)
+                            try {
+                                created.updateData { current ->
+                                    JSONObject(current.toString()).apply {
+                                        mutation.removals.forEach(::remove)
+                                        mutation.values.forEach { (key, value) ->
+                                            if (value == null) remove(key) else put(key, value)
+                                        }
                                     }
                                 }
+                                mutation.completion?.complete(Unit)
+                            } catch (error: Throwable) {
+                                mutation.completion?.completeExceptionally(error)
+                                // Keep the writer alive so a transient I/O error does
+                                // not permanently disable subsequent storage writes.
+                                storageWriteFailure.set(error)
                             }
                         }
                     }
@@ -141,15 +162,19 @@ class SecurePrefsManager(context: Context) {
         private fun createAead(context: Context): Aead {
             try {
                 AeadConfig.register()
+                ensureHardwareBackedMasterKey()
+
                 val keyset = AndroidKeysetManager.Builder()
                     .withSharedPref(context, KEYSET_NAME, KEYSET_PREFS_FILE)
                     .withKeyTemplate(KeyTemplates.get("AES256_GCM"))
                     .withMasterKeyUri(MASTER_KEY_URI)
                     .build()
 
-                // Fail closed: never silently downgrade to a cleartext keyset.
                 check(keyset.isUsingKeystore) {
                     "Android Keystore-backed Tink keyset is unavailable"
+                }
+                check(masterKeySecurityLevel() != "software") {
+                    "Mailx storage master key is not hardware-backed"
                 }
 
                 return keyset.keysetHandle.getPrimitive(
@@ -164,6 +189,92 @@ class SecurePrefsManager(context: Context) {
             }
         }
 
+        /**
+         * Provision Tink's Android Keystore master key before Tink creates its
+         * encrypted keyset. New installations prefer StrongBox and fall back to
+         * TEE only when StrongBox is unavailable. Existing hardware-backed keys
+         * are preserved so the existing encrypted keyset remains decryptable.
+         */
+        private fun ensureHardwareBackedMasterKey() {
+            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
+                check(masterKeySecurityLevel() != "software") {
+                    "Existing Mailx storage key is not hardware-backed; clear app storage to re-provision it."
+                }
+                return
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                try {
+                    generateMasterKey(strongBox = true)
+                    return
+                } catch (_: StrongBoxUnavailableException) {
+                    // Hardware does not expose StrongBox; use TEE below.
+                } catch (error: ProviderException) {
+                    // Some vendor implementations report unsupported StrongBox
+                    // through ProviderException rather than StrongBoxUnavailableException.
+                    if (!isStrongBoxUnavailable(error)) throw error
+                }
+            }
+
+            generateMasterKey(strongBox = false)
+            check(masterKeySecurityLevel() != "software") {
+                "TEE-backed Android Keystore is required for Mailx secure storage."
+            }
+        }
+
+        private fun isStrongBoxUnavailable(error: ProviderException): Boolean {
+            val message = error.message.orEmpty().lowercase()
+            return message.contains("strongbox") &&
+                (message.contains("unavailable") ||
+                    message.contains("not supported") ||
+                    message.contains("not available"))
+        }
+
+        private fun generateMasterKey(strongBox: Boolean) {
+            val generator = KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore"
+            )
+            val spec = KeyGenParameterSpec.Builder(
+                MASTER_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setKeySize(256)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .apply {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        setIsStrongBoxBacked(strongBox)
+                    }
+                }
+                .build()
+            generator.init(spec)
+            generator.generateKey()
+            check(masterKeySecurityLevel() != "software") {
+                "Android Keystore generated a software-backed master key."
+            }
+        }
+
+        private fun masterKeySecurityLevel(): String {
+            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+            val key = keyStore.getKey(MASTER_KEY_ALIAS, null) as? SecretKey
+                ?: return "missing"
+            val factory = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
+            val info = factory.getKeySpec(key, KeyInfo::class.java) as KeyInfo
+
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                when (info.securityLevel) {
+                    KeyProperties.SECURITY_LEVEL_STRONGBOX -> "strongbox"
+                    KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> "tee"
+                    else -> "software"
+                }
+            } else {
+                if (info.isInsideSecureHardware) "hardware" else "software"
+            }
+        }
+
         const val DEFAULT_API_BASE_URL = "https://api.mailx.net"
         val DEFAULT_SHARED_DOMAINS = listOf(
             "mailx.net", "zeropost.net", "mailshift.net",
@@ -174,6 +285,7 @@ class SecurePrefsManager(context: Context) {
         private const val STORE_FILE_NAME = "mailx_secure_store.bin"
         private const val KEYSET_NAME = "mailx_storage_keyset"
         private const val KEYSET_PREFS_FILE = "mailx_tink_keyset"
+        private const val MASTER_KEY_ALIAS = "mailx_tink_master_key"
         private const val MASTER_KEY_URI = "android-keystore://mailx_tink_master_key"
         private val ASSOCIATED_DATA = "net.mailx.android.secure-store.v1".toByteArray(StandardCharsets.UTF_8)
 
@@ -261,6 +373,29 @@ class SecurePrefsManager(context: Context) {
             }
         }
     }
+
+    /**
+     * Wait until all previously queued writes have reached DataStore's durable
+     * updateData transaction. Call after authentication, token refresh, logout,
+     * and backup restore before reporting success to the user.
+     */
+    suspend fun persistPendingWrites() {
+        val completion = CompletableDeferred<Unit>()
+        check(processMutations.trySend(StorageMutation(completion = completion)).isSuccess) {
+            "Secure storage write queue is unavailable."
+        }
+        completion.await()
+        storageWriteFailure.getAndSet(null)?.let {
+            throw IllegalStateException("A previous secure storage write failed.", it)
+        }
+    }
+
+    /**
+     * Returns the observed Android Keystore security level. API 26-30 can only
+     * distinguish hardware-backed from software-backed keys; API 31+ reports
+     * StrongBox and TEE separately.
+     */
+    fun getMasterKeySecurityLevel(): String = masterKeySecurityLevel()
 
     private fun normalizeApiBaseUrl(raw: String): String {
         val trimmed = raw.trim().trimEnd('/')
@@ -403,6 +538,41 @@ class SecurePrefsManager(context: Context) {
             }
         }
         return result.toList()
+    }
+
+    suspend fun setSessionSecretsAndPersist(
+        accessKey: String,
+        bearerToken: String,
+        accountEmail: String
+    ) {
+        val normalizedAccessKey = accessKey.trim()
+        val normalizedBearerToken = bearerToken.trim()
+        val normalizedEmail = accountEmail.trim()
+
+        synchronized(snapshot) {
+            val next = JSONObject(snapshot.get().toString())
+                .put(KEY_ACCESS_KEY, normalizedAccessKey)
+                .put(KEY_BEARER_TOKEN, normalizedBearerToken)
+                .put(KEY_ACCOUNT_EMAIL, normalizedEmail)
+            snapshot.set(next)
+            check(
+                processMutations.trySend(
+                    StorageMutation(
+                        values = mapOf(
+                            KEY_ACCESS_KEY to normalizedAccessKey,
+                            KEY_BEARER_TOKEN to normalizedBearerToken,
+                            KEY_ACCOUNT_EMAIL to normalizedEmail
+                        )
+                    )
+                ).isSuccess
+            ) { "Secure storage write queue is unavailable." }
+        }
+        persistPendingWrites()
+    }
+
+    suspend fun clearSessionAndPersist() {
+        clearSession()
+        persistPendingWrites()
     }
 
     fun isConfigured(): Boolean = bearerToken.isNotEmpty()

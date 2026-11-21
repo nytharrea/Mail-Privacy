@@ -319,10 +319,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             if (loginRes.optBoolean("ok", false)) {
                 val data = loginRes.optJSONObject("data") ?: JSONObject()
                 prefs.baseUrl = currentAuth.baseUrl
-                prefs.accountEmail = currentAuth.emailInput.trim()
-                prefs.accessKey = ""
-                prefs.bearerToken = data.optString("token")
+                prefs.setSessionSecretsAndPersist(
+                    accessKey = "",
+                    bearerToken = data.optString("token"),
+                    accountEmail = currentAuth.emailInput.trim()
+                )
                 prefs.applyServerDefaults(data)
+                prefs.persistPendingWrites()
                 applyDefaultsJsonToState(data)
                 syncRustAuthentication(true)
 
@@ -406,12 +409,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 val data = finishRes.optJSONObject("data") ?: JSONObject()
                 prefs.baseUrl = currentAuth.baseUrl
                 val resolvedEmail = data.optString("recipient", "").ifBlank { currentAuth.emailInput.trim() }
-                if (resolvedEmail.isNotBlank()) {
-                    prefs.accountEmail = resolvedEmail
-                }
-                prefs.accessKey = ""
-                prefs.bearerToken = data.optString("token")
+                prefs.setSessionSecretsAndPersist(
+                    accessKey = "",
+                    bearerToken = data.optString("token"),
+                    accountEmail = resolvedEmail
+                )
                 prefs.applyServerDefaults(data)
+                prefs.persistPendingWrites()
                 applyDefaultsJsonToState(data)
                 syncRustAuthentication(true)
 
@@ -493,9 +497,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             if (authRes.optBoolean("ok", false)) {
                 val data = authRes.optJSONObject("data") ?: JSONObject()
                 prefs.baseUrl = currentAuth.baseUrl
-                prefs.accessKey = currentAuth.accessKeyInput
-                prefs.bearerToken = data.optString("token")
+                prefs.setSessionSecretsAndPersist(
+                    accessKey = currentAuth.accessKeyInput,
+                    bearerToken = data.optString("token"),
+                    accountEmail = prefs.accountEmail
+                )
                 prefs.applyServerDefaults(data)
+                prefs.persistPendingWrites()
                 applyDefaultsJsonToState(data)
                 syncRustAuthentication(true)
 
@@ -2227,6 +2235,9 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         val oldUrl = prefs.baseUrl
         val oldToken = prefs.bearerToken
         prefs.clearSession()
+        viewModelScope.launch {
+            runCatching { prefs.persistPendingWrites() }
+        }
         syncRustAuthentication(false)
         hasLoadedInitialData = false
         hasLoadedDeletedAliases = false
