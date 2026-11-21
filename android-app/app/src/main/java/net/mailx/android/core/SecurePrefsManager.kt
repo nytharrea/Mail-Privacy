@@ -508,5 +508,4 @@ class SecurePrefsManager(context: Context) {
         )
     }
 
-    }
 }
