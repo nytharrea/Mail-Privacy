@@ -145,6 +145,6 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
 
-    compileOnly("com.google.errorprone:error_prone_annotations:2.36.0")
+    compileOnly("com.google.errorprone:error_prone_annotations:2.53.0")
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
 }
