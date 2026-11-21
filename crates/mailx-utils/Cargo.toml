@@ -6,4 +6,6 @@ edition.workspace = true
 [dependencies]
 mailx-domain = { path = "../mailx-domain" }
 serde_json.workspace = true
+getrandom = "0.3"
+zeroize = "1"
 qrcode-rs = { version = "2.2.0", default-features = false }

@@ -1,5 +1,5 @@
-pub mod alias_watch;
 pub mod alias_engine;
+pub mod alias_watch;
 pub mod catalog;
 pub mod csv_engine;
 pub mod models;

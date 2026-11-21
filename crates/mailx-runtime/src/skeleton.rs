@@ -43,8 +43,8 @@ pub fn filter_and_sort_aliases(
         return Ok(Vec::new());
     }
 
-    let raw_items: Vec<serde_json::Value> = serde_json::from_str(trimmed)
-        .map_err(|e| format!("Invalid aliases JSON array: {}", e))?;
+    let raw_items: Vec<serde_json::Value> =
+        serde_json::from_str(trimmed).map_err(|e| format!("Invalid aliases JSON array: {}", e))?;
 
     if let Ok(mut rt) = runtime_state().write() {
         rt.last_alias_count = raw_items.len();
@@ -86,10 +86,7 @@ pub fn filter_and_sort_aliases(
                     .recipients
                     .to_ascii_lowercase()
                     .contains(&query_lower)
-                || parsed
-                    .from_name
-                    .to_ascii_lowercase()
-                    .contains(&query_lower);
+                || parsed.from_name.to_ascii_lowercase().contains(&query_lower);
             if !matches_query {
                 continue;
             }
@@ -587,7 +584,10 @@ pub fn generate_contextual_aliases(
             let word_part = mailx_security::wordlist::generate_words_local_part();
             let first_word = word_part.split('.').next().unwrap_or("shield");
             let num_suffix = &word_part[word_part.len().saturating_sub(2)..];
-            candidates.push(format!("{}.{}{}@{}", prefix, first_word, num_suffix, clean_domain));
+            candidates.push(format!(
+                "{}.{}{}@{}",
+                prefix, first_word, num_suffix, clean_domain
+            ));
         }
     }
     let passphrase = mailx_security::wordlist::generate_passphrase(4, "-");
@@ -641,7 +641,8 @@ pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
         })
         .collect();
 
-    let portfolio = mailx_domain::offline_audit::audit_alias_portfolio(&aliases, &[], true, true, true);
+    let portfolio =
+        mailx_domain::offline_audit::audit_alias_portfolio(&aliases, &[], true, true, true);
     let grade = match portfolio.hygiene_score {
         90..=100 => "A+",
         80..=89 => "A",
@@ -663,8 +664,7 @@ pub fn audit_alias_hygiene(aliases_json: &str) -> serde_json::Value {
 }
 
 pub fn decode_and_audit_trackers(url_or_fragment: &str) -> Result<serde_json::Value, String> {
-    let report = mailx_utils::decode_trackers_report(url_or_fragment)
-        .map_err(|e| e.to_string())?;
+    let report = mailx_utils::decode_trackers_report(url_or_fragment).map_err(|e| e.to_string())?;
     let audit = mailx_domain::tracker_db::audit_trackers_report(&report);
     Ok(serde_json::json!({
         "total": report.total,
@@ -732,7 +732,8 @@ pub fn evaluate_phishing_and_domain_risk(
         spf_dkim_ok,
         spf_dkim_ok,
     );
-    let domain_trust = mailx_security::disposable_domains::assess_domain_trust(&phishing.sender_domain);
+    let domain_trust =
+        mailx_security::disposable_domains::assess_domain_trust(&phishing.sender_domain);
     serde_json::json!({
         "from_address": decomposed_from.raw,
         "display_name": decomposed_from.display_name,
@@ -757,8 +758,8 @@ pub fn simulate_rule_evaluation(
     rule_json: &str,
     email_context_json: &str,
 ) -> Result<serde_json::Value, String> {
-    let rule: mailx_security::rules_engine::MailxRuleSpec = serde_json::from_str(rule_json)
-        .map_err(|e| format!("Invalid rule JSON: {}", e))?;
+    let rule: mailx_security::rules_engine::MailxRuleSpec =
+        serde_json::from_str(rule_json).map_err(|e| format!("Invalid rule JSON: {}", e))?;
     let ctx: mailx_security::rules_engine::SimulatedEmailContext =
         serde_json::from_str(email_context_json)
             .map_err(|e| format!("Invalid simulated email context JSON: {}", e))?;
@@ -856,8 +857,7 @@ mod tests {
     fn test_rust_skeleton_seven_day_telemetry() {
         let stats_json = r#"{"forwards":10,"blocks":3,"replies":1,"sends":2,"aliases":2,"messages":[{"created_at":"2026-11-17T12:00:00Z","type":1},{"created_at":"2026-11-17T13:00:00Z","type":4}]}"#;
         let aliases_json = r#"[{"id":"1","name":"a@mailx.net","enabled":true,"pinned":true,"wildcard":false,"stats":{"forwards":12,"blocks":3,"replies":1,"sends":2}}]"#;
-        let summary =
-            compute_seven_day_telemetry(stats_json, aliases_json, 1_794_916_800).unwrap();
+        let summary = compute_seven_day_telemetry(stats_json, aliases_json, 1_794_916_800).unwrap();
         assert_eq!(summary.forwards, 12);
         assert_eq!(summary.blocks, 3);
         assert_eq!(summary.active_aliases, 1);
@@ -884,14 +884,16 @@ mod tests {
 
     #[test]
     fn test_privacy_lab_url_sanitizer() {
-        let res = sanitize_tracking_urls("https://example.com/item?id=42&utm_source=news&fbclid=abc123");
+        let res =
+            sanitize_tracking_urls("https://example.com/item?id=42&utm_source=news&fbclid=abc123");
         assert_eq!(res["sanitized_text"], "https://example.com/item?id=42");
         assert_eq!(res["removed_params_count"], 2);
     }
 
     #[test]
     fn test_contextual_service_and_phishing_and_rule_sim() {
-        let ctx_gen = generate_contextual_aliases("https://checkout.stripe.com/pay", "mailx.net", 4);
+        let ctx_gen =
+            generate_contextual_aliases("https://checkout.stripe.com/pay", "mailx.net", 4);
         assert_eq!(ctx_gen["service"], "stripe");
         assert_eq!(ctx_gen["category"], "Finance & Payments");
         assert_eq!(ctx_gen["candidates"].as_array().unwrap().len(), 4);

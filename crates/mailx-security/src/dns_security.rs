@@ -36,7 +36,9 @@ pub fn validate_custom_domain_hostname(raw_domain: &str) -> Result<String, Strin
         return Err("Domain name exceeds maximum RFC 1035 length of 253 characters.".to_string());
     }
     if !clean.contains('.') {
-        return Err("Domain name must include a valid top-level domain (e.g. example.com).".to_string());
+        return Err(
+            "Domain name must include a valid top-level domain (e.g. example.com).".to_string(),
+        );
     }
 
     for label in clean.split('.') {
@@ -244,13 +246,8 @@ mod tests {
         assert!(validate_custom_domain_hostname("privacy.example.org").is_ok());
         assert!(validate_custom_domain_hostname("-bad.com").is_err());
 
-        let tpl = build_dns_setup_template(
-            "privacy.example.org",
-            "tok_abc123",
-            "mailx.net",
-            &[],
-            &[],
-        );
+        let tpl =
+            build_dns_setup_template("privacy.example.org", "tok_abc123", "mailx.net", &[], &[]);
         assert!(tpl.is_valid_hostname);
         assert!(tpl.records.len() >= 7);
     }

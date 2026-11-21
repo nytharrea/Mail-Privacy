@@ -145,6 +145,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (android.os.Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
         pendingAliasId = intent?.getStringExtra(AliasWatchWorker.EXTRA_WATCHED_ALIAS_ID)
         val prefs = EncryptedPrefsManager(this)
         securePrefs = prefs
@@ -249,13 +250,8 @@ fun MailxAppScreen(
         }
     }
 
-    BackHandler(enabled = activeSheet != ActiveSheet.None || currentTab != MainNavTab.HOME) {
-        if (activeSheet != ActiveSheet.None) {
-            vm.closeSheet()
-        } else if (currentTab != MainNavTab.HOME) {
-            vm.selectTab(MainNavTab.HOME)
-        }
-    }
+    val canGoBack by vm.canGoBack.collectAsStateWithLifecycle()
+    BackHandler(enabled = canGoBack) { vm.navigateBack() }
 
     LaunchedEffect(aliases, authState.isLoggedIn) {
         if (authState.isLoggedIn) {

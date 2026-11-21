@@ -1,0 +1,51 @@
+name: Update Cargo.lock
+
+on:
+  workflow_dispatch:
+    inputs:
+      upgrade_all:
+        description: "Upgrade every dependency to the newest compatible version (default: only add or remove entries so the lock matches Cargo.toml)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Refresh Cargo.lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up pinned Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Refresh lockfile
+        env:
+          UPGRADE_ALL: ${{ inputs.upgrade_all }}
+        run: |
+          set -euo pipefail
+          if [ "${UPGRADE_ALL}" = "true" ]; then
+            cargo update
+          else
+            cargo metadata --format-version 1 > /dev/null
+          fi
+          cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Verify the refreshed lockfile builds
+        run: cargo check --locked --workspace --all-targets --all-features
+
+      - name: Commit lockfile
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "Cargo.lock is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "chore: refresh Cargo.lock"
+          git push

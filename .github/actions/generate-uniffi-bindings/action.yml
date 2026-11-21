@@ -1,0 +1,52 @@
+name: Generate UniFFI Kotlin bindings
+description: Installs the uniffi-bindgen release that matches the locked uniffi crate and generates the Kotlin bindings from a compiled library.
+
+inputs:
+  library:
+    description: Path to the compiled libmailx_core.so
+    required: true
+  out-dir:
+    description: Kotlin source root that receives the generated bindings
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve uniffi version
+      id: version
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="$(cargo metadata --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "uniffi"))')"
+        test -n "${version}"
+        echo "value=${version}" >> "${GITHUB_OUTPUT}"
+
+    - name: Cache uniffi-bindgen
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/uniffi-bindgen
+        key: uniffi-bindgen-${{ steps.version.outputs.value }}-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}
+
+    - name: Install uniffi-bindgen
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        UNIFFI_VERSION: ${{ steps.version.outputs.value }}
+      run: cargo install uniffi --version "${UNIFFI_VERSION}" --features cli --locked
+
+    - name: Generate Kotlin bindings
+      shell: bash
+      env:
+        LIBRARY: ${{ inputs.library }}
+        OUT_DIR: ${{ inputs.out-dir }}
+      run: |
+        set -euo pipefail
+        uniffi-bindgen generate --library "${LIBRARY}" --language kotlin --no-format --out-dir "${OUT_DIR}"
+        package_dir="${OUT_DIR}/net/mailx/android/core/uniffi"
+        if ! find "${package_dir}" -maxdepth 1 -name '*.kt' 2>/dev/null | grep -q .; then
+          echo "::error::No generated Kotlin found in ${package_dir}. Check package_name in rust-core/uniffi.toml."
+          find "${OUT_DIR}" -name '*.kt' -newer "${LIBRARY}" -print
+          exit 1
+        fi
+        find "${package_dir}" -maxdepth 1 -name '*.kt' -print

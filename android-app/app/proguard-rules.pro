@@ -15,4 +15,6 @@
 # UniFFI Kotlin bindings use JNA reflection to reach the Rust shared library.
 -keep class com.sun.jna.** { *; }
 -keep class net.java.dev.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.* { public *; }
+-keep class net.mailx.android.core.uniffi.** { *; }
 -dontwarn com.sun.jna.**

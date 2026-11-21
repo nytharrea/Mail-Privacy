@@ -118,11 +118,7 @@ mod tests {
             {"id":"a","email":"a@mailx.net","stats":{"forwards":7}},
             {"id":"b","email":"b@mailx.net","stats":{"forwards":9}}
         ]);
-        let events = detect_alias_watch_events(
-            &previous,
-            &current,
-            &["a".into()],
-        ).unwrap();
+        let events = detect_alias_watch_events(&previous, &current, &["a".into()]).unwrap();
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].alias_id, "a");
@@ -137,7 +133,8 @@ mod tests {
             &json!([]),
             &json!([{"id":"a","name":"a@mailx.net","emails_forwarded":2}]),
             &["a".into()],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(events.is_empty());
     }
@@ -152,11 +149,8 @@ mod tests {
             {"id":"a","stats":{"forwards":1}},
             {"id":"b","deleted_at":"2026-01-01","stats":{"forwards":5}}
         ]);
-        let events = detect_alias_watch_events(
-            &previous,
-            &current,
-            &["a".into(), "b".into()],
-        ).unwrap();
+        let events =
+            detect_alias_watch_events(&previous, &current, &["a".into(), "b".into()]).unwrap();
 
         assert!(events.is_empty());
     }
@@ -167,7 +161,8 @@ mod tests {
             &json!([]),
             &json!([{"id":"a","stats":{"forwards":10}}]),
             &[],
-        ).unwrap();
+        )
+        .unwrap();
         assert!(events.is_empty());
     }
 

@@ -1,4 +1,7 @@
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha1::Sha1;
+use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OtpAuthConfig {
@@ -38,111 +41,12 @@ pub fn decode_base32_rfc4648(input: &str) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
-pub fn sha1_digest(message: &[u8]) -> [u8; 20] {
-    let mut h0: u32 = 0x6745_2301;
-    let mut h1: u32 = 0xEFCD_AB89;
-    let mut h2: u32 = 0x98BA_DCFE;
-    let mut h3: u32 = 0x1032_5476;
-    let mut h4: u32 = 0xC3D2_E1F0;
-
-    let bit_len = (message.len() as u64) * 8;
-    let mut padded = Vec::with_capacity(message.len() + 72);
-    padded.extend_from_slice(message);
-    padded.push(0x80);
-    while (padded.len() % 64) != 56 {
-        padded.push(0x00);
-    }
-    padded.extend_from_slice(&bit_len.to_be_bytes());
-
-    let (blocks, remainder) = padded.as_chunks::<64>();
-    debug_assert!(remainder.is_empty());
-
-    for chunk in blocks {
-        let mut w = [0u32; 80];
-        for (i, word) in w.iter_mut().take(16).enumerate() {
-            let j = i * 4;
-            *word = ((chunk[j] as u32) << 24)
-                | ((chunk[j + 1] as u32) << 16)
-                | ((chunk[j + 2] as u32) << 8)
-                | (chunk[j + 3] as u32);
-        }
-        let mut schedule_index = 16;
-        while schedule_index < 80 {
-            w[schedule_index] = (w[schedule_index - 3]
-                ^ w[schedule_index - 8]
-                ^ w[schedule_index - 14]
-                ^ w[schedule_index - 16])
-                .rotate_left(1);
-            schedule_index += 1;
-        }
-
-        let mut a = h0;
-        let mut b = h1;
-        let mut c = h2;
-        let mut d = h3;
-        let mut e = h4;
-
-        for (i, word) in w.iter().enumerate() {
-            let (f, k) = match i {
-                0..=19 => ((b & c) | ((!b) & d), 0x5A82_7999u32),
-                20..=39 => (b ^ c ^ d, 0x6ED9_EBA1u32),
-                40..=59 => ((b & c) | (b & d) | (c & d), 0x8F1B_BCDCu32),
-                _ => (b ^ c ^ d, 0xCA62_C1D6u32),
-            };
-            let temp = a
-                .rotate_left(5)
-                .wrapping_add(f)
-                .wrapping_add(e)
-                .wrapping_add(k)
-                .wrapping_add(*word);
-            e = d;
-            d = c;
-            c = b.rotate_left(30);
-            b = a;
-            a = temp;
-        }
-
-        h0 = h0.wrapping_add(a);
-        h1 = h1.wrapping_add(b);
-        h2 = h2.wrapping_add(c);
-        h3 = h3.wrapping_add(d);
-        h4 = h4.wrapping_add(e);
-    }
-
-    let mut out = [0u8; 20];
-    out[0..4].copy_from_slice(&h0.to_be_bytes());
-    out[4..8].copy_from_slice(&h1.to_be_bytes());
-    out[8..12].copy_from_slice(&h2.to_be_bytes());
-    out[12..16].copy_from_slice(&h3.to_be_bytes());
-    out[16..20].copy_from_slice(&h4.to_be_bytes());
-    out
-}
-
 pub fn hmac_sha1(key: &[u8], message: &[u8]) -> [u8; 20] {
-    let mut key_block = [0u8; 64];
-    if key.len() > 64 {
-        let hashed = sha1_digest(key);
-        key_block[..20].copy_from_slice(&hashed);
-    } else {
-        key_block[..key.len()].copy_from_slice(key);
-    }
-
-    let mut ipad = [0x36u8; 64];
-    let mut opad = [0x5Cu8; 64];
-    for i in 0..64 {
-        ipad[i] ^= key_block[i];
-        opad[i] ^= key_block[i];
-    }
-
-    let mut inner_input = Vec::with_capacity(64 + message.len());
-    inner_input.extend_from_slice(&ipad);
-    inner_input.extend_from_slice(message);
-    let inner_hash = sha1_digest(&inner_input);
-
-    let mut outer_input = Vec::with_capacity(64 + 20);
-    outer_input.extend_from_slice(&opad);
-    outer_input.extend_from_slice(&inner_hash);
-    sha1_digest(&outer_input)
+    let mut mac = Hmac::<Sha1>::new_from_slice(key).expect("HMAC accepts keys of any length");
+    mac.update(message);
+    let mut out = [0u8; 20];
+    out.copy_from_slice(&mac.finalize().into_bytes());
+    out
 }
 
 pub fn generate_totp_code_at(
@@ -151,10 +55,10 @@ pub fn generate_totp_code_at(
     period_secs: u64,
     digits: u32,
 ) -> Result<String, String> {
-    let key = decode_base32_rfc4648(secret_base32)?;
+    let key = Zeroizing::new(decode_base32_rfc4648(secret_base32)?);
     let step = unix_timestamp_secs / period_secs.max(1);
     let counter_bytes = step.to_be_bytes();
-    let mac = hmac_sha1(&key, &counter_bytes);
+    let mac = hmac_sha1(key.as_slice(), &counter_bytes);
     let offset = (mac[19] & 0x0F) as usize;
     let binary = (((mac[offset] & 0x7F) as u32) << 24)
         | ((mac[offset + 1] as u32) << 16)
@@ -170,11 +74,100 @@ pub fn generate_totp_code_at(
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_totp_rfc6238_vector() {
+    const RFC_SECRET_BASE32: &str = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
-        let code = generate_totp_code_at("JBSWY3DPEHPK3PXP", 1700000000, 30, 6).unwrap();
-        assert_eq!(code.len(), 6);
-        assert!(code.chars().all(|c| c.is_ascii_digit()));
+    fn hex(bytes: &[u8]) -> String {
+        bytes.iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    #[test]
+    fn rfc6238_sha1_reference_vectors() {
+        let vectors = [
+            (59u64, "94287082"),
+            (1_111_111_109, "07081804"),
+            (1_111_111_111, "14050471"),
+            (1_234_567_890, "89005924"),
+            (2_000_000_000, "69279037"),
+            (20_000_000_000, "65353130"),
+        ];
+        for (timestamp, expected) in vectors {
+            let code = generate_totp_code_at(RFC_SECRET_BASE32, timestamp, 30, 8).unwrap();
+            assert_eq!(code, expected, "timestamp {timestamp}");
+        }
+    }
+
+    #[test]
+    fn six_digit_codes_are_the_low_digits_of_the_eight_digit_vector() {
+        let code = generate_totp_code_at(RFC_SECRET_BASE32, 59, 30, 6).unwrap();
+        assert_eq!(code, "287082");
+    }
+
+    #[test]
+    fn hmac_sha1_matches_rfc2202_vectors() {
+        assert_eq!(
+            hex(&hmac_sha1(&[0x0b; 20], b"Hi There")),
+            "b617318655057264e28bc0b6fb378c8ef146be00"
+        );
+        assert_eq!(
+            hex(&hmac_sha1(b"Jefe", b"what do ya want for nothing?")),
+            "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79"
+        );
+        assert_eq!(
+            hex(&hmac_sha1(
+                &[0xaa; 80],
+                b"Test Using Larger Than Block-Size Key - Hash Key First"
+            )),
+            "aa4ae5e15272d00e95705637ce8a3b55ed402112"
+        );
+    }
+
+    #[test]
+    fn code_is_constant_inside_a_period_and_changes_at_the_boundary() {
+        let secret = "JBSWY3DPEHPK3PXP";
+        let first = generate_totp_code_at(secret, 1_699_999_980, 30, 6).unwrap();
+        let middle = generate_totp_code_at(secret, 1_700_000_000, 30, 6).unwrap();
+        let last = generate_totp_code_at(secret, 1_700_000_009, 30, 6).unwrap();
+        let next = generate_totp_code_at(secret, 1_700_000_010, 30, 6).unwrap();
+        assert_eq!(first, "324550");
+        assert_eq!(first, middle);
+        assert_eq!(middle, last);
+        assert_eq!(next, "367665");
+    }
+
+    #[test]
+    fn digits_are_clamped_and_zero_period_is_treated_as_one_second() {
+        assert_eq!(
+            generate_totp_code_at(RFC_SECRET_BASE32, 59, 30, 3).unwrap(),
+            "287082"
+        );
+        assert_eq!(
+            generate_totp_code_at(RFC_SECRET_BASE32, 59, 30, 12).unwrap(),
+            "94287082"
+        );
+        assert_eq!(
+            generate_totp_code_at(RFC_SECRET_BASE32, 59, 0, 6).unwrap(),
+            "083773"
+        );
+    }
+
+    #[test]
+    fn base32_decoder_accepts_common_authenticator_formatting() {
+        let canonical = decode_base32_rfc4648(RFC_SECRET_BASE32).unwrap();
+        assert_eq!(canonical, b"12345678901234567890");
+        let formatted = "gezd gnbv-gy3t qojq gezd gnbv gy3t qojq====";
+        assert_eq!(decode_base32_rfc4648(formatted).unwrap(), canonical);
+        assert_eq!(
+            generate_totp_code_at(formatted, 1_111_111_109, 30, 8).unwrap(),
+            "07081804"
+        );
+    }
+
+    #[test]
+    fn base32_decoder_rejects_invalid_input() {
+        assert!(decode_base32_rfc4648("").is_err());
+        assert!(decode_base32_rfc4648("====").is_err());
+        assert!(decode_base32_rfc4648("ABC1").is_err());
+        assert!(decode_base32_rfc4648("ABC!").is_err());
+        assert!(generate_totp_code_at("not base32 !", 0, 30, 6).is_err());
     }
 }

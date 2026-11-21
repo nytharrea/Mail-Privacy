@@ -77,10 +77,12 @@ pub fn levenshtein_distance(a: &str, b: &str) -> usize {
     for i in 1..=m {
         curr[0] = i;
         for j in 1..=n {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1)
-                .min(curr[j - 1] + 1)
-                .min(prev[j - 1] + cost);
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -173,7 +175,8 @@ mod tests {
 
     #[test]
     fn test_phishing_lookalike_detection() {
-        let r = evaluate_sender_phishing_risk("security@pr0ton.me", "evil@attacker.org", false, true);
+        let r =
+            evaluate_sender_phishing_risk("security@pr0ton.me", "evil@attacker.org", false, true);
         assert!(r.risk_score >= 70);
         assert_eq!(r.lookalike_brand_target.as_deref(), Some("Proton"));
         assert!(r.reply_to_mismatch);

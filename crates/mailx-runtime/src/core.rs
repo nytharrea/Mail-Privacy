@@ -1,15 +1,13 @@
 //! Long-lived Rust application core.
 //!
-//! This object is the stable stateful boundary intended for the future UniFFI
-//! facade. It deliberately contains no Android or JNI types.
+//! The stable stateful boundary behind the UniFFI facade. It contains no
+//! Android, JNI or serialization types.
 
-use crate::app_shell::reduce_app_shell_state;
-use serde_json::{json, Value};
-use std::sync::Mutex;
+use crate::app_shell::{AppError, AppEvent, AppState};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
-/// A process-scoped state owner. Create one instance per signed-in app process.
 pub struct MailxCore {
-    state: Mutex<Value>,
+    state: Mutex<AppState>,
 }
 
 impl Default for MailxCore {
@@ -19,63 +17,91 @@ impl Default for MailxCore {
 }
 
 impl MailxCore {
-    /// Create a fresh unauthenticated application state.
     pub fn new() -> Self {
         Self {
-            state: Mutex::new(json!({
-                "route": "home",
-                "authenticated": false,
-                "active_sheet": null,
-                "revision": 0
-            })),
+            state: Mutex::new(AppState::default()),
         }
     }
 
-    /// Return an immutable JSON snapshot of the current app-shell state.
-    pub fn state_snapshot(&self) -> Result<String, String> {
-        let state = self
-            .state
-            .lock()
-            .map_err(|_| "MailxCore state lock is poisoned".to_string())?;
-        serde_json::to_string(&*state).map_err(|error| error.to_string())
+    pub fn state(&self) -> AppState {
+        *self.lock()
     }
 
-    /// Apply one event atomically and return the committed state snapshot.
-    pub fn dispatch(&self, event_json: &str) -> Result<String, String> {
-        let mut state = self
-            .state
-            .lock()
-            .map_err(|_| "MailxCore state lock is poisoned".to_string())?;
-        let current = serde_json::to_string(&*state).map_err(|error| error.to_string())?;
-        let next = reduce_app_shell_state(&current, event_json)?;
-        *state = next;
-        serde_json::to_string(&*state).map_err(|error| error.to_string())
+    pub fn dispatch(&self, event: AppEvent) -> Result<AppState, AppError> {
+        let mut guard = self.lock();
+        let next = guard.reduce(event)?;
+        *guard = next;
+        Ok(next)
+    }
+
+    fn lock(&self) -> MutexGuard<'_, AppState> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app_shell::{Route, Sheet};
+    use std::sync::Arc;
 
     #[test]
     fn core_keeps_state_between_events() {
         let core = MailxCore::new();
-        core.dispatch(r#"{"type":"authenticate"}"#).unwrap();
-        let state = core
-            .dispatch(r#"{"type":"navigate","route":"aliases"}"#)
-            .unwrap();
-        let parsed: Value = serde_json::from_str(&state).unwrap();
-        assert_eq!(parsed["route"], "aliases");
-        assert_eq!(parsed["revision"], 2);
+        core.dispatch(AppEvent::Authenticate).unwrap();
+        let state = core.dispatch(AppEvent::Navigate(Route::Aliases)).unwrap();
+        assert_eq!(state.route, Route::Aliases);
+        assert_eq!(state.revision, 2);
+        assert_eq!(core.state(), state);
     }
 
     #[test]
     fn rejected_event_does_not_mutate_state() {
         let core = MailxCore::new();
-        assert!(core
-            .dispatch(r#"{"type":"navigate","route":"aliases"}"#)
-            .is_err());
-        let state: Value = serde_json::from_str(&core.state_snapshot().unwrap()).unwrap();
-        assert_eq!(state["revision"], 0);
+        assert_eq!(
+            core.dispatch(AppEvent::Navigate(Route::Aliases)),
+            Err(AppError::AuthenticationRequired)
+        );
+        assert_eq!(core.state(), AppState::default());
+    }
+
+    #[test]
+    fn a_poisoned_lock_still_yields_the_last_committed_state() {
+        let core = Arc::new(MailxCore::new());
+        core.dispatch(AppEvent::Authenticate).unwrap();
+
+        let poisoner = Arc::clone(&core);
+        let _ = std::thread::spawn(move || {
+            let _guard = poisoner.state.lock().unwrap();
+            panic!("poison the lock");
+        })
+        .join();
+
+        assert!(core.state.is_poisoned());
+        assert!(core.state().authenticated);
+        let next = core.dispatch(AppEvent::OpenSheet(Sheet::Account)).unwrap();
+        assert_eq!(next.sheet, Some(Sheet::Account));
+    }
+
+    #[test]
+    fn concurrent_dispatch_never_loses_a_revision() {
+        let core = Arc::new(MailxCore::new());
+        core.dispatch(AppEvent::Authenticate).unwrap();
+
+        let workers: Vec<_> = (0..8)
+            .map(|_| {
+                let core = Arc::clone(&core);
+                std::thread::spawn(move || {
+                    for _ in 0..250 {
+                        core.dispatch(AppEvent::CloseSheet).unwrap();
+                    }
+                })
+            })
+            .collect();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+
+        assert_eq!(core.state().revision, 1 + 8 * 250);
     }
 }

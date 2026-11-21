@@ -19,24 +19,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
-private fun ActiveSheet.toRustSheetKey(): String = when (this) {
-    ActiveSheet.None -> "none"
-    ActiveSheet.CreateAlias -> "create_alias"
-    ActiveSheet.FilterOptions -> "filter_options"
-    ActiveSheet.ProfileMenu -> "profile_menu"
-    ActiveSheet.AppearanceSheet -> "appearance"
-    ActiveSheet.DiagnosticsSheet -> "diagnostics"
-    ActiveSheet.AccountSheet -> "account"
-    ActiveSheet.AnnouncementsSheet -> "announcements"
-    ActiveSheet.TrackersReportSheet -> "trackers_report"
-    ActiveSheet.PrivacyLabSheet -> "privacy_lab"
-    is ActiveSheet.ManageAlias -> "manage_alias"
-    is ActiveSheet.WildcardGen -> "wildcard_gen"
-    is ActiveSheet.ReverseSend -> "reverse_send"
-    is ActiveSheet.ConfirmDelete -> "confirm_delete"
-    ActiveSheet.ConfirmLogout -> "confirm_logout"
-}
-
 class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     /**
@@ -161,13 +143,10 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
-    // Persistent Rust app-shell snapshot. Revision is preserved across events so Rust,
-    // not a Kotlin fallback, remains authoritative for route and sheet transitions.
-    private var rustShellState = JSONObject()
-        .put("route", "home")
-        .put("authenticated", prefs.isConfigured())
-        .put("active_sheet", JSONObject.NULL)
-        .put("revision", 0L)
+    private val shell = AppShell(authenticated = prefs.isConfigured())
+
+    private val _canGoBack = MutableStateFlow(shell.canGoBack)
+    val canGoBack: StateFlow<Boolean> = _canGoBack.asStateFlow()
 
     private var searchJob: Job? = null
     private var hasLoadedInitialData = false
@@ -185,6 +164,11 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
+    override fun onCleared() {
+        shell.close()
+        super.onCleared()
+    }
+
     fun clearToast() {
         _toastMessage.value = null
     }
@@ -195,16 +179,34 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun selectTab(tab: MainNavTab) {
         if (_currentTab.value == tab) return
+        if (!moveToTab(tab)) return
+        onTabEntered(tab)
+    }
 
-        // Rust validates the event and returns the next persistent shell snapshot.
-        // On an error, retain the existing route instead of silently falling back.
-        val accepted = dispatchShellEvent(
-            JSONObject().put("type", "navigate").put("route", tab.name.lowercase())
-        )
-        if (!accepted) return
-        _currentTab.value = MainNavTab.entries.firstOrNull {
-            it.name.equals(rustShellState.optString("route"), ignoreCase = true)
-        } ?: return
+    fun navigateBack() {
+        val previous = shell.tab
+        if (!shell.back()) return
+        mirrorShell()
+        val current = shell.tab
+        if (current != previous) onTabEntered(current)
+    }
+
+    private fun moveToTab(tab: MainNavTab): Boolean {
+        if (!shell.navigate(tab)) {
+            emitToast("Navigation was rejected")
+            return false
+        }
+        mirrorShell()
+        return true
+    }
+
+    private fun mirrorShell() {
+        _currentTab.value = shell.tab
+        _canGoBack.value = shell.canGoBack
+        if (!shell.hasSheet) _activeSheet.value = ActiveSheet.None
+    }
+
+    private fun onTabEntered(tab: MainNavTab) {
         if (!prefs.isConfigured()) return
         when (tab) {
             MainNavTab.HOME -> {
@@ -234,32 +236,17 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
         }
     }
 
-    private fun dispatchShellEvent(event: JSONObject): Boolean {
-        return runCatching {
-            val response = JSONObject(
-                MailxRustBridge.nativeReduceAppShellState(rustShellState.toString(), event.toString())
-            )
-            if (!response.optBoolean("ok", false)) {
-                emitToast(response.optString("error", "Navigation transition rejected"))
-                return false
-            }
-            val next = response.optJSONObject("data") ?: return false
-            rustShellState = next
-            true
-        }.getOrElse {
-            emitToast("Application navigation failed")
-            false
-        }
-    }
-
     private fun syncRustAuthentication(authenticated: Boolean) {
-        dispatchShellEvent(JSONObject().put("type", if (authenticated) "authenticate" else "sign_out"))
+        val accepted = if (authenticated) shell.authenticate() else shell.signOut()
+        if (accepted) mirrorShell()
     }
 
     fun openSheet(sheet: ActiveSheet) {
-        if (sheet != ActiveSheet.None) {
-            if (!dispatchShellEvent(JSONObject().put("type", "open_sheet").put("sheet", sheet.toRustSheetKey()))) return
+        if (!shell.openSheet(sheet)) {
+            emitToast("Navigation was rejected")
+            return
         }
+        mirrorShell()
         _activeSheet.value = sheet
         when (sheet) {
             ActiveSheet.DiagnosticsSheet -> fetchDiagnosticLogs()
@@ -270,7 +257,8 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 
     fun closeSheet() {
-        dispatchShellEvent(JSONObject().put("type", "close_sheet"))
+        shell.closeSheet()
+        mirrorShell()
         _activeSheet.value = ActiveSheet.None
     }
 
@@ -622,7 +610,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
 
     fun navigateToFilteredAliases(chipKey: String) {
         _filterState.update { it.copy(selectedChip = chipKey) }
-        _currentTab.value = MainNavTab.ALIASES
+        moveToTab(MainNavTab.ALIASES)
         if (chipKey == "deleted" && !hasLoadedDeletedAliases) {
             refreshAliases(showIndicator = false)
         }

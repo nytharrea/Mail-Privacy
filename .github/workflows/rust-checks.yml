@@ -1,0 +1,46 @@
+name: Rust checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    name: Rust workspace checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up pinned Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Cargo.lock
+        id: lock
+        run: |
+          if cargo metadata --locked --format-version 1 > /dev/null 2>&1; then
+            echo "flag=--locked" >> "${GITHUB_OUTPUT}"
+          else
+            echo "flag=" >> "${GITHUB_OUTPUT}"
+            echo "::warning title=Cargo.lock is out of date::Run the 'Update Cargo.lock' workflow and keep its commit so CI can build with --locked."
+          fi
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (all features)
+        run: cargo clippy ${{ steps.lock.outputs.flag }} --workspace --all-targets --all-features -- -D warnings
+
+      - name: Clippy (no default features)
+        run: cargo clippy ${{ steps.lock.outputs.flag }} --workspace --all-targets --no-default-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test ${{ steps.lock.outputs.flag }} --workspace --all-features -- --nocapture

@@ -28,7 +28,7 @@ pub use mailx_utils::utils::{
     generate_wildcard_on_the_fly, validate_access_key,
 };
 
-pub use mailx_runtime::app_shell::reduce_app_shell_state;
+pub use mailx_runtime::app_shell;
 pub use mailx_runtime::MailxCore;
 
 #[cfg(feature = "uniffi")]

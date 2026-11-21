@@ -157,7 +157,9 @@ pub fn compare_aliases(a: &Alias, b: &Alias, spec: &AliasQuerySpec) -> Ordering 
 pub fn filter_and_sort_aliases(aliases: &[Alias], spec: &AliasQuerySpec) -> Vec<Alias> {
     let mut filtered: Vec<Alias> = aliases
         .iter()
-        .filter(|a| matches_chip_filter(a, &spec.chip_key) && matches_search_query(a, &spec.search_query))
+        .filter(|a| {
+            matches_chip_filter(a, &spec.chip_key) && matches_search_query(a, &spec.search_query)
+        })
         .cloned()
         .collect();
 
@@ -165,7 +167,10 @@ pub fn filter_and_sort_aliases(aliases: &[Alias], spec: &AliasQuerySpec) -> Vec<
     filtered
 }
 
-pub fn filter_and_sort_alias_ids_json(aliases_json: &str, spec: &AliasQuerySpec) -> Result<Vec<String>, String> {
+pub fn filter_and_sort_alias_ids_json(
+    aliases_json: &str,
+    spec: &AliasQuerySpec,
+) -> Result<Vec<String>, String> {
     let parsed: Vec<Alias> = serde_json::from_str(aliases_json)
         .map_err(|e| format!("Failed to deserialize aliases JSON: {}", e))?;
     let sorted = filter_and_sort_aliases(&parsed, spec);
@@ -210,11 +215,9 @@ pub fn compute_dashboard_metrics(aliases: &[Alias]) -> AliasDashboardMetrics {
         }
     }
 
-    non_deleted.sort_by(|a, b| {
-        match b.pinned.cmp(&a.pinned) {
-            Ordering::Equal => alias_total_activity(b).cmp(&alias_total_activity(a)),
-            other => other,
-        }
+    non_deleted.sort_by(|a, b| match b.pinned.cmp(&a.pinned) {
+        Ordering::Equal => alias_total_activity(b).cmp(&alias_total_activity(a)),
+        other => other,
     });
 
     metrics.spotlight_ids = non_deleted
@@ -300,6 +303,9 @@ mod tests {
         assert_eq!(metrics.pinned_count, 1);
         assert_eq!(metrics.wildcard_count, 1);
         assert_eq!(metrics.total_forwards, 10);
-        assert_eq!(metrics.spotlight_ids, vec!["1".to_string(), "2".to_string()]);
+        assert_eq!(
+            metrics.spotlight_ids,
+            vec!["1".to_string(), "2".to_string()]
+        );
     }
 }

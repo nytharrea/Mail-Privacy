@@ -10,9 +10,6 @@ object MailxRustBridge {
     }
 
     @JvmStatic
-    external fun nativeReduceAppShellState(stateJson: String, eventJson: String): String
-
-    @JvmStatic
     external fun nativeDetectAliasWatchEvents(
         previousAliasesJson: String,
         currentAliasesJson: String,

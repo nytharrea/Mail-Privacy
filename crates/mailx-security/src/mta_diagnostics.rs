@@ -196,7 +196,8 @@ pub const RFC3463_STATUS_CATALOG: &[Rfc3463CodeEntry] = &[
     Rfc3463CodeEntry {
         code: "4.7.28",
         title: "Gmail / Workspace Rate Limit Deferral",
-        explanation: "Destination mailbox is receiving mail at a rate that prevents immediate delivery.",
+        explanation:
+            "Destination mailbox is receiving mail at a rate that prevents immediate delivery.",
         remediation: "Reduce burst volume to this recipient.",
     },
     Rfc3463CodeEntry {
@@ -457,7 +458,9 @@ pub fn extract_smtp_and_enhanced_codes(raw_message: &str) -> (String, String) {
             let parts: Vec<&str> = clean.split('.').collect();
             if parts.len() == 3
                 && matches!(parts[0], "2" | "4" | "5")
-                && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+                && parts
+                    .iter()
+                    .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
             {
                 enhanced_status = clean.to_string();
             }
@@ -467,7 +470,11 @@ pub fn extract_smtp_and_enhanced_codes(raw_message: &str) -> (String, String) {
     (smtp_code, enhanced_status)
 }
 
-pub fn analyze_mta_diagnostic_log(status: &str, message: &str, remote_mta: &str) -> MtaBounceAnalysis {
+pub fn analyze_mta_diagnostic_log(
+    status: &str,
+    message: &str,
+    remote_mta: &str,
+) -> MtaBounceAnalysis {
     let (smtp_code, enhanced_status) = extract_smtp_and_enhanced_codes(message);
     let lower_msg = message.to_ascii_lowercase();
     let lower_status = status.to_ascii_lowercase();

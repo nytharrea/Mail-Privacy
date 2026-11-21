@@ -1,8 +1,11 @@
 #[cfg(feature = "network")]
-use mailx_network::client::{MailxClient, MailxError};
 use mailx_domain::csv_engine::parse_aliases_csv_import;
+#[cfg(feature = "network")]
 use mailx_domain::models::CustomDomain;
 use mailx_domain::telemetry::{civil_from_days, current_utc_epoch_days};
+#[cfg(feature = "network")]
+use mailx_network::client::{MailxClient, MailxError};
+use mailx_utils::encode_path_segment;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -22,7 +25,10 @@ pub fn build_expiry_iso_from_days(days: i32) -> Option<String> {
     Some(format!("{:04}-{:02}-{:02}T23:59:59Z", y, m, d))
 }
 
-pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, String, Option<String>), String> {
+pub fn build_action_endpoint(
+    action: &str,
+    params: &Value,
+) -> Result<(String, String, Option<String>), String> {
     let str_param = |key: &str| -> String {
         params
             .get(key)
@@ -32,10 +38,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             .to_string()
     };
     let bool_param = |key: &str, default: bool| -> bool {
-        params
-            .get(key)
-            .and_then(|v| v.as_bool())
-            .unwrap_or(default)
+        params.get(key).and_then(|v| v.as_bool()).unwrap_or(default)
     };
     let int_param = |key: &str, default: i64| -> i64 {
         params.get(key).and_then(|v| v.as_i64()).unwrap_or(default)
@@ -45,7 +48,11 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
         "set_default_domain" => {
             let domain = str_param("domain");
             let body = json!({ "domain": domain }).to_string();
-            Ok(("PUT".to_string(), "/v1/settings/domain".to_string(), Some(body)))
+            Ok((
+                "PUT".to_string(),
+                "/v1/settings/domain".to_string(),
+                Some(body),
+            ))
         }
         "set_default_recipient" => {
             let recipient = str_param("recipient");
@@ -117,7 +124,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let body = json!({ "value": value, "unit": unit }).to_string();
             Ok((
                 "PUT".to_string(),
-                format!("/v1/alias/{}/pause", alias_id),
+                format!("/v1/alias/{}/pause", encode_path_segment(&alias_id)),
                 Some(body),
             ))
         }
@@ -125,7 +132,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let alias_id = str_param("alias_id");
             Ok((
                 "DELETE".to_string(),
-                format!("/v1/alias/{}/pause", alias_id),
+                format!("/v1/alias/{}/pause", encode_path_segment(&alias_id)),
                 None,
             ))
         }
@@ -133,7 +140,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let alias_id = str_param("alias_id");
             Ok((
                 "POST".to_string(),
-                format!("/v1/alias/restore/{}", alias_id),
+                format!("/v1/alias/restore/{}", encode_path_segment(&alias_id)),
                 None,
             ))
         }
@@ -141,7 +148,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let alias_id = str_param("alias_id");
             Ok((
                 "DELETE".to_string(),
-                format!("/v1/alias/forget/{}", alias_id),
+                format!("/v1/alias/forget/{}", encode_path_segment(&alias_id)),
                 None,
             ))
         }
@@ -201,7 +208,10 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let recipient_id = str_param("recipient_id");
             Ok((
                 "POST".to_string(),
-                format!("/v1/recipient/sendotp/{}", recipient_id),
+                format!(
+                    "/v1/recipient/sendotp/{}",
+                    encode_path_segment(&recipient_id)
+                ),
                 None,
             ))
         }
@@ -211,7 +221,10 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let body = json!({ "otp": otp }).to_string();
             Ok((
                 "POST".to_string(),
-                format!("/v1/recipient/activate/{}", recipient_id),
+                format!(
+                    "/v1/recipient/activate/{}",
+                    encode_path_segment(&recipient_id)
+                ),
                 Some(body),
             ))
         }
@@ -235,7 +248,10 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let body = json!({ "recipients": recipients }).to_string();
             Ok((
                 "PUT".to_string(),
-                format!("/v1/recipient/delete/{}", recipient_id),
+                format!(
+                    "/v1/recipient/delete/{}",
+                    encode_path_segment(&recipient_id)
+                ),
                 Some(body),
             ))
         }
@@ -248,7 +264,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let domain_id = str_param("domain_id");
             Ok((
                 "POST".to_string(),
-                format!("/v1/domain/{}/verify-dns", domain_id),
+                format!("/v1/domain/{}/verify-dns", encode_path_segment(&domain_id)),
                 None,
             ))
         }
@@ -266,7 +282,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             .to_string();
             Ok((
                 "PUT".to_string(),
-                format!("/v1/domain/{}", id),
+                format!("/v1/domain/{}", encode_path_segment(&id)),
                 Some(body),
             ))
         }
@@ -274,7 +290,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let domain_id = str_param("domain_id");
             Ok((
                 "DELETE".to_string(),
-                format!("/v1/domain/{}", domain_id),
+                format!("/v1/domain/{}", encode_path_segment(&domain_id)),
                 None,
             ))
         }
@@ -288,7 +304,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let id = str_param("id");
             Ok((
                 "DELETE".to_string(),
-                format!("/v1/blocklist/{}", id),
+                format!("/v1/blocklist/{}", encode_path_segment(&id)),
                 None,
             ))
         }
@@ -298,7 +314,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let body = json!({ "active": active }).to_string();
             Ok((
                 "PUT".to_string(),
-                format!("/v1/rule/{}/active", rule_id),
+                format!("/v1/rule/{}/active", encode_path_segment(&rule_id)),
                 Some(body),
             ))
         }
@@ -309,7 +325,11 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
         }
         "delete_rule" => {
             let rule_id = str_param("rule_id");
-            Ok(("DELETE".to_string(), format!("/v1/rule/{}", rule_id), None))
+            Ok((
+                "DELETE".to_string(),
+                format!("/v1/rule/{}", encode_path_segment(&rule_id)),
+                None,
+            ))
         }
         "send_account_otp" => Ok(("POST".to_string(), "/v1/user/sendotp".to_string(), None)),
         "verify_account_otp" => {
@@ -325,7 +345,10 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let credential_id = str_param("credential_id");
             Ok((
                 "DELETE".to_string(),
-                format!("/v1/user/credential/{}", credential_id),
+                format!(
+                    "/v1/user/credential/{}",
+                    encode_path_segment(&credential_id)
+                ),
                 None,
             ))
         }
@@ -388,7 +411,7 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
             let id = str_param("id");
             Ok((
                 "DELETE".to_string(),
-                format!("/v1/accesskeys/{}", id),
+                format!("/v1/accesskeys/{}", encode_path_segment(&id)),
                 None,
             ))
         }
@@ -418,7 +441,11 @@ pub fn build_action_endpoint(action: &str, params: &Value) -> Result<(String, St
                 .and_then(|v| v.as_str())
                 .unwrap_or_default();
             let body = json!({ "otp": otp, "password": password }).to_string();
-            Ok(("PUT".to_string(), "/v1/resetpassword".to_string(), Some(body)))
+            Ok((
+                "PUT".to_string(),
+                "/v1/resetpassword".to_string(),
+                Some(body),
+            ))
         }
         _ => Err(format!("Unsupported controller action: {}", action)),
     }
@@ -445,7 +472,8 @@ pub fn execute_controller_action(
                 .unwrap_or_default();
             if !current_password.is_empty() {
                 let step_body = json!({ "password": current_password }).to_string();
-                let _ = client.execute_raw_json("POST", "/v1/user/stepup/password", Some(&step_body));
+                let _ =
+                    client.execute_raw_json("POST", "/v1/user/stepup/password", Some(&step_body));
             }
             let email = params
                 .get("email")
@@ -462,7 +490,8 @@ pub fn execute_controller_action(
                 .unwrap_or_default();
             if !current_password.is_empty() {
                 let step_body = json!({ "password": current_password }).to_string();
-                let _ = client.execute_raw_json("POST", "/v1/user/stepup/password", Some(&step_body));
+                let _ =
+                    client.execute_raw_json("POST", "/v1/user/stepup/password", Some(&step_body));
             }
             client.execute_raw_json("POST", "/v1/user/delete/request", None)
         }
@@ -498,8 +527,8 @@ pub fn execute_controller_action(
             }))
         }
         _ => {
-            let (method, path, body_opt) = build_action_endpoint(action, &params)
-                .map_err(MailxError::SerializationError)?;
+            let (method, path, body_opt) =
+                build_action_endpoint(action, &params).map_err(MailxError::SerializationError)?;
             client.execute_raw_json(&method, &path, body_opt.as_deref())
         }
     }
@@ -522,5 +551,24 @@ mod tests {
         assert_eq!(m2, "POST");
         assert_eq!(p2, "/v1/aliases/bulk/pin");
         assert!(b2.unwrap().contains("pinned"));
+    }
+
+    #[test]
+    fn test_ids_are_encoded_into_one_path_segment() {
+        let (_, path, _) =
+            build_action_endpoint("delete_access_key", &json!({ "id": "../x" })).unwrap();
+        assert_eq!(path, "/v1/accesskeys/..%2Fx");
+
+        let (_, path, _) = build_action_endpoint(
+            "pause_alias",
+            &json!({ "alias_id": "a?b#c", "value": 1, "unit": "hours" }),
+        )
+        .unwrap();
+        assert_eq!(path, "/v1/alias/a%3Fb%23c/pause");
+
+        let (_, path, _) =
+            build_action_endpoint("delete_blocklist_item", &json!({ "id": "plain-id-42" }))
+                .unwrap();
+        assert_eq!(path, "/v1/blocklist/plain-id-42");
     }
 }

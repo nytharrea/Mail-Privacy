@@ -1,10 +1,11 @@
+use crate::random::{entropy_bits_floor, random_index};
 use mailx_domain::models::{
     AliasFilter, PhoneticToken, PrivacyPostureReport, QrMatrix, RemovedTrackerItem, TrackersReport,
 };
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
-static ENTROPY_COUNTER: AtomicU64 = AtomicU64::new(0x9E37_79B9_7F4A_7C15);
+const SUFFIX_ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+const SUFFIX_MIN_LEN: usize = 6;
+const SUFFIX_MAX_LEN: usize = 12;
 
 pub fn validate_access_key(access_key: &str) -> Result<(), String> {
     let trimmed = access_key.trim();
@@ -54,15 +55,12 @@ pub fn generate_wildcard_on_the_fly(wildcard_alias: &str, prefix: &str) -> Resul
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err(
-            "Prefix may only contain letters, digits, '-' or '_'.".to_string(),
-        );
+        return Err("Prefix may only contain letters, digits, '-' or '_'.".to_string());
     }
 
     if !wildcard_alias.starts_with("*+") && !wildcard_alias.starts_with("*.") {
         return Err(
-            "Selected address is not a Wildcard alias (must start with '*+' or '*.')."
-                .to_string(),
+            "Selected address is not a Wildcard alias (must start with '*+' or '*.').".to_string(),
         );
     }
 
@@ -70,26 +68,15 @@ pub fn generate_wildcard_on_the_fly(wildcard_alias: &str, prefix: &str) -> Resul
 }
 
 pub fn generate_random_suffix(length: usize) -> String {
-    let clamped = length.clamp(6, 12);
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0x517C_C1B7_2722_0A95);
-    let seq = ENTROPY_COUNTER.fetch_add(0x9E37_79B9_7F4A_7C15, Ordering::Relaxed);
-    let mut state = nanos ^ seq.rotate_left(17) ^ 0xBF58_476D_1CE4_E5B9;
-    if state == 0 {
-        state = 0x94D0_49BB_1331_11EB;
-    }
-    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-    let mut out = String::with_capacity(clamped);
-    for _ in 0..clamped {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        let idx = (state as usize) % CHARSET.len();
-        out.push(CHARSET[idx] as char);
-    }
-    out
+    let clamped = length.clamp(SUFFIX_MIN_LEN, SUFFIX_MAX_LEN);
+    (0..clamped)
+        .map(|_| SUFFIX_ALPHABET[random_index(SUFFIX_ALPHABET.len())] as char)
+        .collect()
+}
+
+pub fn random_suffix_entropy_bits(length: usize) -> u32 {
+    let clamped = length.clamp(SUFFIX_MIN_LEN, SUFFIX_MAX_LEN);
+    entropy_bits_floor(std::iter::repeat_n(SUFFIX_ALPHABET.len(), clamped))
 }
 
 pub fn encode_nato_phonetic(input: &str) -> Vec<PhoneticToken> {
@@ -157,11 +144,9 @@ pub fn encode_qr_matrix(payload: &str) -> Result<QrMatrix, String> {
     if trimmed.is_empty() {
         return Err("QR payload is empty".to_string());
     }
-    let code = qrcode_rs::QrCode::with_error_correction_level(
-        trimmed.as_bytes(),
-        qrcode_rs::EcLevel::M,
-    )
-    .map_err(|e| format!("QR encoding error: {:?}", e))?;
+    let code =
+        qrcode_rs::QrCode::with_error_correction_level(trimmed.as_bytes(), qrcode_rs::EcLevel::M)
+            .map_err(|e| format!("QR encoding error: {:?}", e))?;
     let width = code.width();
     let colors = code.to_colors();
     let mut rows = Vec::with_capacity(width);
@@ -366,6 +351,14 @@ pub fn url_encode(input: &str) -> String {
     encoded
 }
 
+pub fn encode_path_segment(segment: &str) -> String {
+    match segment {
+        "." => "%2E".to_string(),
+        ".." => "%2E%2E".to_string(),
+        other => url_encode(other),
+    }
+}
+
 pub fn build_aliases_query_path(filter: &AliasFilter) -> String {
     let limit = filter.limit.clamp(1, 1000);
     let page = filter.page.max(1);
@@ -400,6 +393,44 @@ mod tests {
         assert_eq!(valid_key.len(), 85);
         assert!(validate_access_key(&valid_key).is_ok());
         assert!(validate_access_key("short_key").is_err());
+    }
+
+    #[test]
+    fn path_segments_cannot_escape_their_position() {
+        assert_eq!(
+            encode_path_segment("550e8400-e29b-41d4"),
+            "550e8400-e29b-41d4"
+        );
+        assert_eq!(encode_path_segment("a/b?c#d"), "a%2Fb%3Fc%23d");
+        assert_eq!(encode_path_segment(".."), "%2E%2E");
+        assert_eq!(encode_path_segment("."), "%2E");
+        assert_eq!(encode_path_segment("a b"), "a%20b");
+        assert_eq!(encode_path_segment(""), "");
+    }
+
+    #[test]
+    fn random_suffix_is_clamped_and_uses_the_alphabet() {
+        assert_eq!(generate_random_suffix(0).len(), 6);
+        assert_eq!(generate_random_suffix(10).len(), 10);
+        assert_eq!(generate_random_suffix(500).len(), 12);
+        for _ in 0..200 {
+            let suffix = generate_random_suffix(12);
+            assert!(suffix
+                .bytes()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+        }
+        assert_ne!(generate_random_suffix(12), generate_random_suffix(12));
+    }
+
+    #[test]
+    fn random_suffix_entropy_matches_alphabet_size() {
+        assert_eq!(random_suffix_entropy_bits(10), 51);
+        assert_eq!(random_suffix_entropy_bits(8), 41);
+        assert_eq!(random_suffix_entropy_bits(1), random_suffix_entropy_bits(6));
+        assert_eq!(
+            random_suffix_entropy_bits(99),
+            random_suffix_entropy_bits(12)
+        );
     }
 
     #[test]

@@ -139,22 +139,10 @@ pub fn aggregate_user_stats_json(
         })
         .collect();
 
-    let forwards = data
-        .get("forwards")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-    let blocks = data
-        .get("blocks")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-    let replies = data
-        .get("replies")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
-    let sends = data
-        .get("sends")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as usize;
+    let forwards = data.get("forwards").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let blocks = data.get("blocks").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let replies = data.get("replies").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let sends = data.get("sends").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let aliases = data
         .get("aliases")
         .and_then(|v| v.as_u64())

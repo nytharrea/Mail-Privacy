@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt;
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
@@ -207,7 +208,7 @@ pub struct CustomDomain {
     pub send_verified_at: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuthResponse {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub token: String,
@@ -233,6 +234,28 @@ pub struct AuthResponse {
     pub list_unsubscribe_behaviour: i32,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub block_trackers: bool,
+}
+
+impl fmt::Debug for AuthResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuthResponse")
+            .field("token", &"<redacted>")
+            .field("domain", &self.domain)
+            .field("domains", &self.domains)
+            .field("custom_domains", &self.custom_domains)
+            .field("recipient", &self.recipient)
+            .field("recipients", &self.recipients)
+            .field("alias_format", &self.alias_format)
+            .field("from_name", &self.from_name)
+            .field("log_issues", &self.log_issues)
+            .field("remove_header", &self.remove_header)
+            .field(
+                "list_unsubscribe_behaviour",
+                &self.list_unsubscribe_behaviour,
+            )
+            .field("block_trackers", &self.block_trackers)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -374,4 +397,19 @@ pub struct OfflineCache {
     pub defaults: Option<DefaultsResponse>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub aliases: Vec<Alias>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_response_debug_output_hides_the_token() {
+        let auth: AuthResponse =
+            serde_json::from_str(r#"{"token":"super-secret-token","domain":"mailx.net"}"#).unwrap();
+        let rendered = format!("{auth:?}");
+        assert!(!rendered.contains("super-secret-token"));
+        assert!(rendered.contains("<redacted>"));
+        assert!(rendered.contains("mailx.net"));
+    }
 }

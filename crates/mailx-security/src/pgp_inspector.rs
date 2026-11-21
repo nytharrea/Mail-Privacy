@@ -51,10 +51,7 @@ fn decode_standard_base64(input: &str) -> Result<Vec<u8>, String> {
         }
     }
 
-    let clean: Vec<u8> = input
-        .bytes()
-        .filter(|b| !b.is_ascii_whitespace())
-        .collect();
+    let clean: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
     if clean.is_empty() || !clean.len().is_multiple_of(4) {
         return Err("Invalid base64 length".to_string());
     }
@@ -205,7 +202,8 @@ pub fn parse_openpgp_armored_public_key(armored: &str) -> Result<OpenPgpKeyringR
             match len_type {
                 0 if offset < raw_bytes.len() => (tag, raw_bytes[offset] as usize, 1usize),
                 1 if offset + 1 < raw_bytes.len() => {
-                    let len = ((raw_bytes[offset] as usize) << 8) | (raw_bytes[offset + 1] as usize);
+                    let len =
+                        ((raw_bytes[offset] as usize) << 8) | (raw_bytes[offset + 1] as usize);
                     (tag, len, 2usize)
                 }
                 2 if offset + 3 < raw_bytes.len() => {
@@ -286,8 +284,142 @@ mod tests {
 
     #[test]
     fn oversized_packet_length_is_rejected_without_panicking() {
-        let armored = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nxv//////\n-----END PGP PUBLIC KEY BLOCK-----";
+        let armored =
+            "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nxv//////\n-----END PGP PUBLIC KEY BLOCK-----";
         let report = parse_openpgp_armored_public_key(armored).unwrap();
         assert!(report.packets.is_empty());
+    }
+
+    fn encode_base64(bytes: &[u8]) -> String {
+        const ALPHABET: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        for chunk in bytes.chunks(3) {
+            let b0 = chunk[0] as u32;
+            let b1 = *chunk.get(1).unwrap_or(&0) as u32;
+            let b2 = *chunk.get(2).unwrap_or(&0) as u32;
+            let n = (b0 << 16) | (b1 << 8) | b2;
+            out.push(ALPHABET[((n >> 18) & 63) as usize] as char);
+            out.push(ALPHABET[((n >> 12) & 63) as usize] as char);
+            out.push(if chunk.len() > 1 {
+                ALPHABET[((n >> 6) & 63) as usize] as char
+            } else {
+                '='
+            });
+            out.push(if chunk.len() > 2 {
+                ALPHABET[(n & 63) as usize] as char
+            } else {
+                '='
+            });
+        }
+        out
+    }
+
+    fn armor(bytes: &[u8], crc: u32) -> String {
+        let crc_bytes = [(crc >> 16) as u8, (crc >> 8) as u8, crc as u8];
+        format!(
+            "-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: test\n\n{}\n={}\n-----END PGP PUBLIC KEY BLOCK-----",
+            encode_base64(bytes),
+            encode_base64(&crc_bytes)
+        )
+    }
+
+    fn sample_key_bytes() -> Vec<u8> {
+        let mut bytes = vec![0xC6, 6, 4, 0x65, 0x00, 0x00, 0x00, 22];
+        let user_id = b"Alice <alice@example.org>";
+        bytes.push(0xCD);
+        bytes.push(user_id.len() as u8);
+        bytes.extend_from_slice(user_id);
+        bytes.extend_from_slice(&[0xCE, 6, 4, 0x65, 0x00, 0x00, 0x01, 18]);
+        bytes.extend_from_slice(&[0xC2, 3, 0xAA, 0xBB, 0xCC]);
+        bytes
+    }
+
+    #[test]
+    fn parses_a_structured_key_and_verifies_its_checksum() {
+        let bytes = sample_key_bytes();
+        let report =
+            parse_openpgp_armored_public_key(&armor(&bytes, compute_openpgp_crc24(&bytes)))
+                .unwrap();
+        assert!(report.valid_armor);
+        assert!(report.crc24_verified);
+        assert_eq!(report.primary_algorithm_id, 22);
+        assert_eq!(report.creation_timestamp_unix, 0x6500_0000);
+        assert_eq!(
+            report.user_ids,
+            vec!["Alice <alice@example.org>".to_string()]
+        );
+        assert_eq!(report.subkey_count, 1);
+        assert_eq!(report.signature_count, 1);
+        assert_eq!(report.packets.len(), 4);
+        assert_eq!(report.packets[0].tag_name, "Public-Key Packet");
+    }
+
+    #[test]
+    fn detects_a_corrupted_checksum() {
+        let bytes = sample_key_bytes();
+        let wrong = compute_openpgp_crc24(&bytes) ^ 0x0000_0001;
+        let report = parse_openpgp_armored_public_key(&armor(&bytes, wrong)).unwrap();
+        assert!(!report.crc24_verified);
+        assert_ne!(report.expected_crc24, report.computed_crc24);
+    }
+
+    #[test]
+    fn rejects_input_without_armor_boundaries() {
+        assert!(parse_openpgp_armored_public_key("").is_err());
+        assert!(parse_openpgp_armored_public_key("not a key").is_err());
+        assert!(parse_openpgp_armored_public_key(
+            "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n!!!!\n-----END PGP PUBLIC KEY BLOCK-----"
+        )
+        .is_err());
+    }
+
+    struct Xorshift(u64);
+
+    impl Xorshift {
+        fn next(&mut self) -> u64 {
+            let mut x = self.0;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.0 = x;
+            x
+        }
+    }
+
+    #[test]
+    fn arbitrary_packet_streams_never_panic() {
+        let mut rng = Xorshift(0x9E37_79B9_7F4A_7C15);
+        for round in 0..6000u32 {
+            let len = (rng.next() % 96) as usize;
+            let mut bytes: Vec<u8> = (0..len).map(|_| rng.next() as u8).collect();
+            if round % 2 == 0 {
+                if let Some(first) = bytes.first_mut() {
+                    *first |= 0x80;
+                }
+            }
+            if round % 5 == 0 && bytes.len() > 2 {
+                bytes[0] = 0xC0 | ((rng.next() % 20) as u8);
+                bytes[1] = 0xFF;
+            }
+            let crc = compute_openpgp_crc24(&bytes);
+            let _ = parse_openpgp_armored_public_key(&armor(&bytes, crc));
+        }
+    }
+
+    #[test]
+    fn arbitrary_armor_text_never_panics() {
+        let mut rng = Xorshift(0xD1B5_4A32_D192_ED03);
+        let alphabet: Vec<char> = "ABCxyz019+/=-:\n \r\t!é".chars().collect();
+        for _ in 0..4000 {
+            let len = (rng.next() % 80) as usize;
+            let body: String = (0..len)
+                .map(|_| alphabet[(rng.next() % alphabet.len() as u64) as usize])
+                .collect();
+            let armored = format!(
+                "-----BEGIN PGP PUBLIC KEY BLOCK-----\n{body}\n-----END PGP PUBLIC KEY BLOCK-----"
+            );
+            let _ = parse_openpgp_armored_public_key(&armored);
+        }
     }
 }

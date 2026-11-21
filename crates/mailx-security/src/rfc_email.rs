@@ -138,17 +138,18 @@ pub fn parse_mailto_uri(raw_uri: &str) -> Result<ParsedMailtoUri, String> {
 
 pub fn decompose_email_address(raw_input: &str) -> DecomposedEmailAddress {
     let trimmed = raw_input.trim();
-    let (display_name, addr_spec) = if let (Some(lt), Some(gt)) = (trimmed.find('<'), trimmed.rfind('>')) {
-        if lt < gt {
-            let disp = trimmed[..lt].trim().trim_matches('"').trim().to_string();
-            let inner = trimmed[lt + 1..gt].trim();
-            (disp, inner)
+    let (display_name, addr_spec) =
+        if let (Some(lt), Some(gt)) = (trimmed.find('<'), trimmed.rfind('>')) {
+            if lt < gt {
+                let disp = trimmed[..lt].trim().trim_matches('"').trim().to_string();
+                let inner = trimmed[lt + 1..gt].trim();
+                (disp, inner)
+            } else {
+                (String::new(), trimmed)
+            }
         } else {
             (String::new(), trimmed)
-        }
-    } else {
-        (String::new(), trimmed)
-    };
+        };
 
     let (local_part, domain_raw) = match addr_spec.split_once('@') {
         Some((l, d)) => (l.trim().to_string(), d.trim().to_ascii_lowercase()),
@@ -160,19 +161,20 @@ pub fn decompose_email_address(raw_input: &str) -> DecomposedEmailAddress {
         None => (local_part.clone(), String::new()),
     };
 
-    let (is_reverse_alias, reverse_alias_target) = if !subaddress_tag.is_empty() && subaddress_tag.contains('=') {
-        if let Some((target_local, target_dom)) = subaddress_tag.split_once('=') {
-            if !target_local.is_empty() && target_dom.contains('.') {
-                (true, Some(format!("{}@{}", target_local, target_dom)))
+    let (is_reverse_alias, reverse_alias_target) =
+        if !subaddress_tag.is_empty() && subaddress_tag.contains('=') {
+            if let Some((target_local, target_dom)) = subaddress_tag.split_once('=') {
+                if !target_local.is_empty() && target_dom.contains('.') {
+                    (true, Some(format!("{}@{}", target_local, target_dom)))
+                } else {
+                    (false, None)
+                }
             } else {
                 (false, None)
             }
         } else {
             (false, None)
-        }
-    } else {
-        (false, None)
-    };
+        };
 
     let tld = domain_raw
         .rsplit_once('.')
@@ -237,7 +239,9 @@ pub fn analyze_raw_email_headers(raw_headers: &str) -> EmailHeaderSecuritySummar
         match name.as_str() {
             "from" => summary.from_address = value.to_string(),
             "reply-to" => summary.reply_to_address = value.to_string(),
-            "return-path" => summary.return_path_address = value.trim_matches(&['<', '>'][..]).to_string(),
+            "return-path" => {
+                summary.return_path_address = value.trim_matches(&['<', '>'][..]).to_string()
+            }
             "subject" => summary.subject = value.to_string(),
             "message-id" => summary.message_id = value.to_string(),
             "authentication-results" => {
@@ -260,14 +264,21 @@ pub fn analyze_raw_email_headers(raw_headers: &str) -> EmailHeaderSecuritySummar
             "list-unsubscribe" => {
                 summary.has_list_unsubscribe = true;
                 for part in value.split(',') {
-                    let clean = part.trim().trim_start_matches('<').trim_end_matches('>').trim();
+                    let clean = part
+                        .trim()
+                        .trim_start_matches('<')
+                        .trim_end_matches('>')
+                        .trim();
                     if !clean.is_empty() {
                         summary.unsubscribe_targets.push(clean.to_string());
                     }
                 }
             }
             "list-unsubscribe-post" => {
-                if value.to_ascii_lowercase().contains("list-unsubscribe=one-click") {
+                if value
+                    .to_ascii_lowercase()
+                    .contains("list-unsubscribe=one-click")
+                {
                     summary.one_click_unsubscribe = true;
                 }
             }
@@ -287,15 +298,21 @@ mod tests {
 
     #[test]
     fn test_parse_mailto_and_decompose_reverse_alias() {
-        let parsed = parse_mailto_uri("mailto:support@github.com?subject=Account%20Help&cc=sec@github.com").unwrap();
+        let parsed =
+            parse_mailto_uri("mailto:support@github.com?subject=Account%20Help&cc=sec@github.com")
+                .unwrap();
         assert_eq!(parsed.primary_to, "support@github.com");
         assert_eq!(parsed.subject, "Account Help");
         assert_eq!(parsed.cc, vec!["sec@github.com".to_string()]);
 
-        let decomp = decompose_email_address("Mailx User <quiet.fox15+support=github.com@mailx.net>");
+        let decomp =
+            decompose_email_address("Mailx User <quiet.fox15+support=github.com@mailx.net>");
         assert!(decomp.is_valid_syntax);
         assert!(decomp.is_reverse_alias);
-        assert_eq!(decomp.reverse_alias_target.as_deref(), Some("support@github.com"));
+        assert_eq!(
+            decomp.reverse_alias_target.as_deref(),
+            Some("support@github.com")
+        );
     }
 
     #[test]

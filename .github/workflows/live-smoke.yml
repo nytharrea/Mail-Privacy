@@ -1,0 +1,46 @@
+name: Live API smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_mutation:
+        description: "Also create, pin and delete a throw-away alias on the live account"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  live-smoke:
+    name: Mailx live account smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up pinned Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run live smoke test
+        env:
+          MAILX_LIVE_ACCESS_KEY: ${{ secrets.MAILX_LIVE_ACCESS_KEY }}
+          MAILX_LIVE_BASE_URL: ${{ vars.MAILX_LIVE_BASE_URL }}
+          ALLOW_MUTATION: ${{ inputs.allow_mutation }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MAILX_LIVE_ACCESS_KEY}" ]; then
+            echo "::error::Repository secret MAILX_LIVE_ACCESS_KEY is not configured."
+            exit 1
+          fi
+          if [ "${ALLOW_MUTATION}" = "true" ]; then
+            export MAILX_LIVE_ALLOW_MUTATION=1
+          fi
+          cargo test -p mailx-network --test live_smoke -- --ignored --nocapture

@@ -10,8 +10,7 @@ use mailx_runtime::skeleton::{
 };
 use mailx_utils::utils::{
     compute_privacy_posture, encode_nato_phonetic, encode_qr_matrix, generate_random_suffix,
-    generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key,
-    PrivacyPostureInput,
+    generate_reverse_alias, generate_wildcard_on_the_fly, validate_access_key, PrivacyPostureInput,
 };
 use serde::Serialize;
 
@@ -266,7 +265,9 @@ pub fn handle_generate_passphrase_and_candidate(
     domain: &str,
     word_count: usize,
 ) -> String {
-    JniEnvelope::success(generate_passphrase_and_candidate(format, domain, word_count))
+    JniEnvelope::success(generate_passphrase_and_candidate(
+        format, domain, word_count,
+    ))
 }
 
 #[cfg(feature = "network")]
@@ -321,7 +322,12 @@ pub fn handle_passkey_login_finish(
         Ok(c) => c,
         Err(e) => return JniEnvelope::<serde_json::Value>::failure(e),
     };
-    match client.passkey_login_finish(ceremony_cookie, credential_json, discoverable, fallback_email) {
+    match client.passkey_login_finish(
+        ceremony_cookie,
+        credential_json,
+        discoverable,
+        fallback_email,
+    ) {
         Ok(res) => JniEnvelope::success(res),
         Err(e) => JniEnvelope::<serde_json::Value>::failure_with_code(&e, e.error_code()),
     }
@@ -410,7 +416,9 @@ pub fn handle_import_aliases_csv(
             let refreshed = detect_refreshed_token(&client, bearer_token);
             JniEnvelope::success_with_token(data, refreshed)
         }
-        Err(error) => JniEnvelope::<serde_json::Value>::failure_with_code(&error, error.error_code()),
+        Err(error) => {
+            JniEnvelope::<serde_json::Value>::failure_with_code(&error, error.error_code())
+        }
     }
 }
 
@@ -580,13 +588,6 @@ pub fn handle_logout(base_url: &str, bearer_token: &str) -> String {
     }
 }
 
-pub fn handle_reduce_app_shell_state(state_json: &str, event_json: &str) -> String {
-    match mailx_runtime::app_shell::reduce_app_shell_state(state_json, event_json) {
-        Ok(state) => JniEnvelope::success(state),
-        Err(error) => JniEnvelope::<serde_json::Value>::failure(error),
-    }
-}
-
 #[cfg(feature = "jni")]
 mod android_exports {
     use super::*;
@@ -619,20 +620,6 @@ mod android_exports {
             Err(_) => JniEnvelope::<serde_json::Value>::failure("Internal native panic recovered"),
         };
         rust_to_jstring(&mut env, payload)
-    }
-
-    #[no_mangle]
-    pub extern "system" fn Java_net_mailx_android_core_MailxRustBridge_nativeReduceAppShellState(
-        env: JNIEnv,
-        _class: JClass,
-        state_json: JString,
-        event_json: JString,
-    ) -> jstring {
-        run_jni_safely(env, |env| {
-            let state = jstring_to_rust(env, state_json);
-            let event = jstring_to_rust(env, event_json);
-            handle_reduce_app_shell_state(&state, &event)
-        })
     }
 
     #[no_mangle]

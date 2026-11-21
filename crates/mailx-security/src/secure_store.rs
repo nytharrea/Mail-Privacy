@@ -1,19 +1,11 @@
-//! Platform-backed secret storage contract.
-//!
-//! The Rust core never persists secrets itself. Android supplies an adapter
-//! backed by Android Keystore (and an authenticated-encryption primitive).
-
-use mailx_utils::SecretString;
 use std::fmt;
 
-/// Errors returned by a platform secure-store implementation.
+const KEY_MAX_LEN: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SecureStoreError {
-    /// The requested key is malformed or outside the supported namespace.
     InvalidKey,
-    /// The platform storage operation failed.
     Backend(String),
-    /// Stored data could not be authenticated or decoded.
     CorruptData,
 }
 
@@ -29,21 +21,9 @@ impl fmt::Display for SecureStoreError {
 
 impl std::error::Error for SecureStoreError {}
 
-/// Platform port for credentials and other sensitive values.
-///
-/// Implementations must use authenticated encryption, must not log values,
-/// and should make `delete` idempotent. `get` returns a zeroizing
-/// [`SecretString`] wrapper rather than a plain `String`.
-pub trait SecureStore: Send + Sync {
-    fn get(&self, key: &str) -> Result<Option<SecretString>, SecureStoreError>;
-    fn put(&self, key: &str, value: &SecretString) -> Result<(), SecureStoreError>;
-    fn delete(&self, key: &str) -> Result<(), SecureStoreError>;
-}
-
-/// Validate the stable key namespace before calling a platform adapter.
 pub fn validate_secure_store_key(key: &str) -> Result<(), SecureStoreError> {
     let valid = !key.is_empty()
-        && key.len() <= 128
+        && key.len() <= KEY_MAX_LEN
         && key
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'));
@@ -61,10 +41,12 @@ mod tests {
     #[test]
     fn accepts_stable_namespaced_keys() {
         assert!(validate_secure_store_key("auth.refresh_token").is_ok());
+        assert!(validate_secure_store_key("a-b_c.D9").is_ok());
+        assert!(validate_secure_store_key(&"k".repeat(KEY_MAX_LEN)).is_ok());
     }
 
     #[test]
-    fn rejects_empty_or_path_like_keys() {
+    fn rejects_empty_oversized_or_path_like_keys() {
         assert_eq!(
             validate_secure_store_key(""),
             Err(SecureStoreError::InvalidKey)
@@ -73,5 +55,28 @@ mod tests {
             validate_secure_store_key("../token"),
             Err(SecureStoreError::InvalidKey)
         );
+        assert_eq!(
+            validate_secure_store_key("a/b"),
+            Err(SecureStoreError::InvalidKey)
+        );
+        assert_eq!(
+            validate_secure_store_key("white space"),
+            Err(SecureStoreError::InvalidKey)
+        );
+        assert_eq!(
+            validate_secure_store_key(&"k".repeat(KEY_MAX_LEN + 1)),
+            Err(SecureStoreError::InvalidKey)
+        );
+    }
+
+    #[test]
+    fn errors_render_readable_messages() {
+        assert_eq!(
+            SecureStoreError::Backend("disk".into()).to_string(),
+            "Secure-store backend error: disk"
+        );
+        assert!(SecureStoreError::CorruptData
+            .to_string()
+            .contains("corrupt"));
     }
 }

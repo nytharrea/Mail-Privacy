@@ -26,4 +26,3 @@ serde.workspace = true
 serde_json.workspace = true
 jni = { version = "0.21", optional = true }
 uniffi = { workspace = true, optional = true }
-thiserror.workspace = true
