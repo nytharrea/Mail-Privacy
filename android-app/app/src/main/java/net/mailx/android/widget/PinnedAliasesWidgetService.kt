@@ -5,7 +5,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import net.mailx.android.R
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import org.json.JSONArray
 
 class PinnedAliasesWidgetService : RemoteViewsService() {
@@ -34,7 +34,7 @@ private class PinnedAliasesRemoteFactory(
     }
 
     private fun loadFromCache() {
-        val prefs = EncryptedPrefsManager(context)
+        val prefs = SecurePrefsManager(context)
         val parsed = mutableListOf<Triple<Boolean, Int, WidgetAliasRow>>()
 
         runCatching {

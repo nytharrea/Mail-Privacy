@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.core.PasskeyManager
 import net.mailx.android.ui.model.*
@@ -19,7 +19,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
-class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
+class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
 
     /**
      * Central API request path for ViewModel operations.
@@ -781,7 +781,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
                 if (cd.name.isNotEmpty() && cd.enabled) domSet.add(cd.name)
             }
         }
-        EncryptedPrefsManager.DEFAULT_SHARED_DOMAINS.forEach { domSet.add(it) }
+        SecurePrefsManager.DEFAULT_SHARED_DOMAINS.forEach { domSet.add(it) }
 
         val recSet = linkedSetOf<String>()
         defRec.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { recSet.add(it) }
@@ -2258,7 +2258,7 @@ class MailxViewModel(val prefs: EncryptedPrefsManager) : ViewModel() {
     }
 }
 
-class MailxViewModelFactory(private val prefs: EncryptedPrefsManager) : ViewModelProvider.Factory {
+class MailxViewModelFactory(private val prefs: SecurePrefsManager) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return MailxViewModel(prefs) as T

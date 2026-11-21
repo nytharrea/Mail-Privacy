@@ -17,7 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.mailx.android.R
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.MainActivity
 import org.json.JSONArray
@@ -42,7 +42,7 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
     }
 
     private fun handleCopyLast(context: Context) {
-        val prefs = EncryptedPrefsManager(context)
+        val prefs = SecurePrefsManager(context)
         val lastAlias = loadLastAlias(context, prefs)
         if (lastAlias.isBlank()) {
             Toast.makeText(context, "Create an alias first", Toast.LENGTH_SHORT).show()
@@ -54,7 +54,7 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
     }
 
     private fun handleCreateAlias(context: Context) {
-        val prefs = EncryptedPrefsManager(context)
+        val prefs = SecurePrefsManager(context)
         if (!prefs.isConfigured()) {
             Toast.makeText(context, "Please sign in to Mailx first", Toast.LENGTH_SHORT).show()
             return
@@ -136,7 +136,7 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
                 .apply()
         }
 
-        private fun loadLastAlias(context: Context, prefs: EncryptedPrefsManager): String {
+        private fun loadLastAlias(context: Context, prefs: SecurePrefsManager): String {
             val saved = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_LAST_ALIAS, "")
                 .orEmpty()
@@ -152,7 +152,7 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetIds: IntArray
         ) {
-            val prefs = EncryptedPrefsManager(context)
+            val prefs = SecurePrefsManager(context)
             val configured = prefs.isConfigured()
             val lastAlias = if (configured) loadLastAlias(context, prefs) else ""
 

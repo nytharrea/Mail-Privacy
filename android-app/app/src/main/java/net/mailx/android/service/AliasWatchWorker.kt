@@ -12,7 +12,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import net.mailx.android.R
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.MainActivity
 import org.json.JSONArray
@@ -31,7 +31,7 @@ class AliasWatchWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val prefs = runCatching { EncryptedPrefsManager(applicationContext) }
+        val prefs = runCatching { SecurePrefsManager(applicationContext) }
             .getOrElse { return Result.retry() }
 
         if (!prefs.isConfigured() || !prefs.aliasWatchEnabled) return Result.success()

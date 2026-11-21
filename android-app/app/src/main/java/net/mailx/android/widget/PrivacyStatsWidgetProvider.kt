@@ -15,7 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.mailx.android.R
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.MainActivity
 import org.json.JSONArray
@@ -38,7 +38,7 @@ class PrivacyStatsWidgetProvider : AppWidgetProvider() {
     }
 
     private fun refreshFromServer(context: Context) {
-        val prefs = EncryptedPrefsManager(context)
+        val prefs = SecurePrefsManager(context)
         if (!prefs.isConfigured()) {
             Toast.makeText(context, "Sign in to Mailx first", Toast.LENGTH_SHORT).show()
             return
@@ -86,7 +86,7 @@ class PrivacyStatsWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetIds: IntArray
         ) {
-            val prefs = EncryptedPrefsManager(context)
+            val prefs = SecurePrefsManager(context)
             val configured = prefs.isConfigured()
 
             var totalAliases = 0

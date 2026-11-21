@@ -15,7 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.mailx.android.ui.MainActivity
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.security.EncryptedBackupCodec
 import net.mailx.android.security.MailxBackupRepository
 
@@ -40,7 +40,7 @@ fun SecurityBackupDialog(onDismiss: () -> Unit) {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val prefs = EncryptedPrefsManager(context)
+                    val prefs = SecurePrefsManager(context)
                     if (restore) {
                         val bytes = context.contentResolver.openInputStream(uri)?.use {
                             // Reject excessive input before decoding, even from untrusted providers.

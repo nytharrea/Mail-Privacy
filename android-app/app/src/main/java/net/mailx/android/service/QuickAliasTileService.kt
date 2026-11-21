@@ -11,7 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import org.json.JSONObject
 
@@ -21,7 +21,7 @@ class QuickAliasTileService : TileService() {
 
     override fun onStartListening() {
         super.onStartListening()
-        val prefs = EncryptedPrefsManager(applicationContext)
+        val prefs = SecurePrefsManager(applicationContext)
         qsTile?.apply {
             state = if (prefs.isConfigured()) Tile.STATE_INACTIVE else Tile.STATE_UNAVAILABLE
             subtitle = if (prefs.isConfigured()) prefs.defaultDomain else "Not signed in"
@@ -31,7 +31,7 @@ class QuickAliasTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val prefs = EncryptedPrefsManager(applicationContext)
+        val prefs = SecurePrefsManager(applicationContext)
         if (!prefs.isConfigured()) {
             Toast.makeText(
                 this,

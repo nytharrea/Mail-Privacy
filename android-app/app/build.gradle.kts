@@ -130,7 +130,9 @@ dependencies {
     implementation("androidx.credentials:credentials:1.6.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
 
-    implementation("androidx.security:security-crypto:1.1.0")
+    // Encrypted DataStore: JSON payload protected by Tink AES-256-GCM.
+    implementation("androidx.datastore:datastore-core:1.2.1")
+    implementation("com.google.crypto.tink:tink-android:1.24.0")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("androidx.appsearch:appsearch:1.1.0")

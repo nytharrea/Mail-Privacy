@@ -16,7 +16,7 @@ import androidx.core.graphics.drawable.IconCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.mailx.android.R
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.ui.MainActivity
 import net.mailx.android.ui.model.UiAlias
 
@@ -27,7 +27,7 @@ object AliasSearchIndex {
     private const val TYPE = "Alias"
 
     suspend fun replace(context: Context, aliases: List<UiAlias>) = withContext(Dispatchers.IO) {
-        if (!EncryptedPrefsManager(context).aliasSearchEnabled) return@withContext
+        if (!SecurePrefsManager(context).aliasSearchEnabled) return@withContext
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching {
                 val searchContext = PlatformStorage.SearchContext.Builder(context, DB).build()

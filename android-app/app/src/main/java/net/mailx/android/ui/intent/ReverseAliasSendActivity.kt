@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.theme.MailxTheme
 import org.json.JSONArray
@@ -42,7 +42,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val initialTarget = extractTargetEmail(intent)
-        val prefs = EncryptedPrefsManager(this)
+        val prefs = SecurePrefsManager(this)
         val cachedAliases = loadCachedAliasNames(prefs.cachedAliasesJson)
         val defaultAlias = cachedAliases.firstOrNull() ?: "example.alias@${prefs.defaultDomain}"
 

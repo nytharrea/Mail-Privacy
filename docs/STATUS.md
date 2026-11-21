@@ -65,7 +65,7 @@ Twenty workflow logs were reviewed.
 | Item | Why it is not done | Needed to proceed |
 |---|---|---|
 | Platform trust store, certificate pinning | A wrong pin or incomplete chain locks every user out; cannot be verified offline | Device test plan and a pin-rotation strategy |
-| Keystore + Tink + DataStore replacing `EncryptedSharedPreferences` | Credential migration risks data loss | Tested one-way migration on real devices, including upgrades |
+| Keystore-wrapped Tink AES-256-GCM + encrypted DataStore | Implemented in Android storage layer; existing app data is intentionally discarded for this single-user install | Needs Android build and real-device verification |
 | Rust-owned session (credentials still passed per JNI call) | Touches about 66 call sites | Do together with typed UniFFI methods for API calls |
 | Request cancellation | Client is blocking with timeouts | Async UniFFI gateway after the session work |
 | Localization (English and Turkish) | Several hundred hard-coded strings, many outside composable scope; a bulk rewrite without a compiler risks a broken or half-translated UI | Batches with CI compile feedback |

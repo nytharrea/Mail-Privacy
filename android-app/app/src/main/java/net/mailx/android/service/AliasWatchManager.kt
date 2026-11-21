@@ -1,15 +1,15 @@
 package net.mailx.android.service
 
 import android.content.Context
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 
 /**
  * Application-facing API for alias watch-list management.
- * The watch list and baseline are stored in EncryptedSharedPreferences.
+ * The watch list and baseline are stored in encrypted DataStore.
  */
 class AliasWatchManager(context: Context) {
     private val appContext = context.applicationContext
-    private val prefs = EncryptedPrefsManager(appContext)
+    private val prefs = SecurePrefsManager(appContext)
 
     fun watchedIds(): Set<String> = prefs.getWatchedAliasIds()
 

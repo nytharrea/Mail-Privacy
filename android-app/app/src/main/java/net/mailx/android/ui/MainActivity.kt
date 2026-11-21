@@ -56,7 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.MailxGroupDivider
 import net.mailx.android.ui.components.MailxModernDialog
@@ -83,7 +83,7 @@ class MainActivity : FragmentActivity() {
     private var externalDocumentFlow = false
     private var pendingAliasId by mutableStateOf<String?>(null)
     fun setExternalDocumentFlow(active: Boolean) { externalDocumentFlow = active }
-    private lateinit var securePrefs: EncryptedPrefsManager
+    private lateinit var securePrefs: SecurePrefsManager
 
     private fun authenticate(afterSuccess: () -> Unit = { appLocked = false }) {
         if (promptShowing) return
@@ -147,7 +147,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         if (android.os.Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
         pendingAliasId = intent?.getStringExtra(AliasWatchWorker.EXTRA_WATCHED_ALIAS_ID)
-        val prefs = EncryptedPrefsManager(this)
+        val prefs = SecurePrefsManager(this)
         securePrefs = prefs
         biometricEnabled = prefs.biometricEnabled
         appLocked = biometricEnabled && prefs.isConfigured()

@@ -1,13 +1,13 @@
 package net.mailx.android.security
 
-import net.mailx.android.core.EncryptedPrefsManager
+import net.mailx.android.core.SecurePrefsManager
 import org.json.JSONObject
 
 /** Local preferences only by default. Optional session secrets are explicitly requested. */
 object MailxBackupRepository {
     private const val VERSION = 1
 
-    fun export(prefs: EncryptedPrefsManager, includeSession: Boolean): JSONObject =
+    fun export(prefs: SecurePrefsManager, includeSession: Boolean): JSONObject =
         JSONObject().apply {
             put("format", "mailx-android-settings")
             put("version", VERSION)
@@ -41,7 +41,7 @@ object MailxBackupRepository {
         }
 
     /** Validate before mutating preferences; do not restore watch counter snapshots. */
-    fun restore(prefs: EncryptedPrefsManager, payload: JSONObject, restoreSession: Boolean) {
+    fun restore(prefs: SecurePrefsManager, payload: JSONObject, restoreSession: Boolean) {
         require(payload.optString("format") == "mailx-android-settings" &&
             payload.optInt("version") == VERSION) { "Unsupported backup format" }
         val s = payload.optJSONObject("settings") ?: error("Missing settings")

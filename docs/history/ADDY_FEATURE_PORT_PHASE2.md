@@ -14,7 +14,7 @@ the existing JNI handlers and uses the existing `JniEnvelope` response contract.
 
 ### Alias Watch runtime
 - Encrypted watch-list IDs and previous baseline are stored in the existing
-  `EncryptedPrefsManager` (which uses Android EncryptedSharedPreferences).
+  `SecurePrefsManager` (Tink AES-256-GCM encrypted DataStore).
 - Maximum watch list is capped at 25 IDs, matching the Addy watcher limit.
 - `AliasWatchManager` exposes add/remove/query/enable operations.
 - WorkManager periodic worker checks the Mailx aliases endpoint no more often
