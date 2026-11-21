@@ -163,6 +163,45 @@ class SecurePrefsManager(context: Context) {
                 )
             }
         }
+
+        const val DEFAULT_API_BASE_URL = "https://api.mailx.net"
+        val DEFAULT_SHARED_DOMAINS = listOf(
+            "mailx.net", "zeropost.net", "mailshift.net",
+            "layermail.net", "ambox.net", "spotsend.com"
+        )
+        private const val LEGACY_PREFS_FILE = "mailx_encrypted_prefs"
+        private const val LEGACY_MASTER_KEY_ALIAS = "_androidx_security_master_key_"
+        private const val STORE_FILE_NAME = "mailx_secure_store.bin"
+        private const val KEYSET_NAME = "mailx_storage_keyset"
+        private const val KEYSET_PREFS_FILE = "mailx_tink_keyset"
+        private const val MASTER_KEY_URI = "android-keystore://mailx_tink_master_key"
+        private val ASSOCIATED_DATA = "net.mailx.android.secure-store.v1".toByteArray(StandardCharsets.UTF_8)
+
+        private const val KEY_BASE_URL = "base_url"
+        private const val KEY_ACCESS_KEY = "access_key"
+        private const val KEY_BEARER_TOKEN = "bearer_token"
+        private const val KEY_ACCOUNT_EMAIL = "account_email"
+        private const val KEY_DEFAULT_DOMAIN = "default_domain"
+        private const val KEY_DEFAULT_RECIPIENT = "default_recipient"
+        private const val KEY_DEFAULT_FORMAT = "default_format"
+        private const val KEY_DEFAULT_FROM_NAME = "default_from_name"
+        private const val KEY_AVAILABLE_DOMAINS = "available_domains"
+        private const val KEY_AVAILABLE_RECIPIENTS = "available_recipients"
+        private const val KEY_BLOCK_TRACKERS = "block_trackers"
+        private const val KEY_REMOVE_HEADER = "remove_header"
+        private const val KEY_LOG_ISSUES = "log_issues"
+        private const val KEY_UNSUBSCRIBE_BEHAVIOUR = "unsubscribe_behaviour"
+        private const val KEY_CACHED_ALIASES = "cached_aliases"
+        private const val KEY_WATCHED_ALIAS_IDS = "watched_alias_ids"
+        private const val KEY_PREVIOUS_WATCHED_ALIASES = "previous_watched_aliases"
+        private const val KEY_ALIAS_WATCH_ENABLED = "alias_watch_enabled"
+        private const val KEY_ALIAS_SEARCH_ENABLED = "alias_search_enabled"
+        private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v6_enabled"
+        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v3_enabled"
+        private const val KEY_EXPRESSIVE_MOTION_ENABLED = "expressive_motion_v6_enabled"
+        private const val KEY_REDUCED_MOTION_ENABLED = "reduced_motion_v1_enabled"
+        private const val KEY_DARK_MODE_MODE = "dark_mode_v3_mode"
     }
 
     private class EncryptedJsonSerializer(
@@ -469,43 +508,5 @@ class SecurePrefsManager(context: Context) {
         )
     }
 
-        const val DEFAULT_API_BASE_URL = "https://api.mailx.net"
-        val DEFAULT_SHARED_DOMAINS = listOf(
-            "mailx.net", "zeropost.net", "mailshift.net",
-            "layermail.net", "ambox.net", "spotsend.com"
-        )
-        private const val LEGACY_PREFS_FILE = "mailx_encrypted_prefs"
-        private const val LEGACY_MASTER_KEY_ALIAS = "_androidx_security_master_key_"
-        private const val STORE_FILE_NAME = "mailx_secure_store.bin"
-        private const val KEYSET_NAME = "mailx_storage_keyset"
-        private const val KEYSET_PREFS_FILE = "mailx_tink_keyset"
-        private const val MASTER_KEY_URI = "android-keystore://mailx_tink_master_key"
-        private val ASSOCIATED_DATA = "net.mailx.android.secure-store.v1".toByteArray(StandardCharsets.UTF_8)
-
-        private const val KEY_BASE_URL = "base_url"
-        private const val KEY_ACCESS_KEY = "access_key"
-        private const val KEY_BEARER_TOKEN = "bearer_token"
-        private const val KEY_ACCOUNT_EMAIL = "account_email"
-        private const val KEY_DEFAULT_DOMAIN = "default_domain"
-        private const val KEY_DEFAULT_RECIPIENT = "default_recipient"
-        private const val KEY_DEFAULT_FORMAT = "default_format"
-        private const val KEY_DEFAULT_FROM_NAME = "default_from_name"
-        private const val KEY_AVAILABLE_DOMAINS = "available_domains"
-        private const val KEY_AVAILABLE_RECIPIENTS = "available_recipients"
-        private const val KEY_BLOCK_TRACKERS = "block_trackers"
-        private const val KEY_REMOVE_HEADER = "remove_header"
-        private const val KEY_LOG_ISSUES = "log_issues"
-        private const val KEY_UNSUBSCRIBE_BEHAVIOUR = "unsubscribe_behaviour"
-        private const val KEY_CACHED_ALIASES = "cached_aliases"
-        private const val KEY_WATCHED_ALIAS_IDS = "watched_alias_ids"
-        private const val KEY_PREVIOUS_WATCHED_ALIASES = "previous_watched_aliases"
-        private const val KEY_ALIAS_WATCH_ENABLED = "alias_watch_enabled"
-        private const val KEY_ALIAS_SEARCH_ENABLED = "alias_search_enabled"
-        private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
-        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_v6_enabled"
-        private const val KEY_AMOLED_DARK_ENABLED = "amoled_dark_v3_enabled"
-        private const val KEY_EXPRESSIVE_MOTION_ENABLED = "expressive_motion_v6_enabled"
-        private const val KEY_REDUCED_MOTION_ENABLED = "reduced_motion_v1_enabled"
-        private const val KEY_DARK_MODE_MODE = "dark_mode_v3_mode"
     }
 }
