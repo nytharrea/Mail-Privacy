@@ -132,7 +132,7 @@ dependencies {
 
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.1.0")
-    implementation("androidx.work:work-runtime-ktx:2.11.0")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("androidx.appsearch:appsearch:1.1.0")
     implementation("androidx.appsearch:appsearch-platform-storage:1.1.0")
     implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
