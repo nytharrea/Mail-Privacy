@@ -329,7 +329,6 @@ fun MailxAppScreen(
 
     LaunchedEffect(authState.isLoggedIn) {
         if (!authState.isLoggedIn) {
-            aliasSearchEnabled = false
             net.mailx.android.service.AliasSearchIndex.clear(context)
             AliasWatchWorker.schedule(context, false)
         }
