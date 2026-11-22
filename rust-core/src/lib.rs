@@ -11,7 +11,6 @@ pub use mailx_security::{
 };
 pub use mailx_utils::{secret, utils, SecretString};
 
-
 pub use mailx_domain::models::*;
 pub use mailx_runtime::skeleton::{
     analyze_email_headers, analyze_mta_bounce_log, audit_alias_hygiene,
