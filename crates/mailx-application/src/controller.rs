@@ -574,11 +574,9 @@ mod tests {
 
     #[test]
     fn test_build_action_endpoint_domains_recipients_and_rules() {
-        let (m, path, body) = build_action_endpoint(
-            "add_custom_domain",
-            &json!({ "name": "  EXAMPLE.ORG  " }),
-        )
-        .unwrap();
+        let (m, path, body) =
+            build_action_endpoint("add_custom_domain", &json!({ "name": "  EXAMPLE.ORG  " }))
+                .unwrap();
         assert_eq!(m, "POST");
         assert_eq!(path, "/v1/domain");
         assert_eq!(body.unwrap(), r#"{"name":"example.org"}"#);

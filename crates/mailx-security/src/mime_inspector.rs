@@ -405,21 +405,13 @@ Content-Disposition: attachment; filename="invoice.scr"
     #[test]
     fn test_pgp_mime_signed_and_inline_pgp_detection() {
         let sample = concat!(
-            "Content-Type: multipart/signed; protocol="application/pgp-signature"; ",
-            "boundary="sig_bnd"
-",
-            "--sig_bnd
-",
-            "-----BEGIN PGP MESSAGE-----
-abc
------END PGP MESSAGE-----
-",
-            "--sig_bnd
-",
-            "Content-Type: application/pgp-signature
-",
-            "--sig_bnd--
-"
+            "Content-Type: multipart/signed; protocol=\"application/pgp-signature\"; ",
+            "boundary=\"sig_bnd\"\n",
+            "--sig_bnd\n",
+            "-----BEGIN PGP MESSAGE-----\nabc\n-----END PGP MESSAGE-----\n",
+            "--sig_bnd\n",
+            "Content-Type: application/pgp-signature\n",
+            "--sig_bnd--\n"
         );
         let rep = inspect_mime_message(sample);
         assert!(rep.is_pgp_mime_signed);
@@ -431,18 +423,12 @@ abc
     #[test]
     fn test_safe_and_dangerous_attachments_classification() {
         let sample = concat!(
-            "Content-Type: multipart/mixed; boundary="mix"
-",
-            "--mix
-",
-            "Content-Disposition: attachment; filename="report.pdf"
-",
-            "--mix
-",
-            "Content-Disposition: attachment; filename="payload.apk"
-",
-            "--mix--
-"
+            "Content-Type: multipart/mixed; boundary=\"mix\"\n",
+            "--mix\n",
+            "Content-Disposition: attachment; filename=\"report.pdf\"\n",
+            "--mix\n",
+            "Content-Disposition: attachment; filename=\"payload.apk\"\n",
+            "--mix--\n"
         );
         let rep = inspect_mime_message(sample);
         assert_eq!(rep.attachment_filenames.len(), 2);
@@ -453,9 +439,7 @@ abc
 
     #[test]
     fn test_plain_text_message_defaults_to_single_part() {
-        let rep = inspect_mime_message("Subject: Hi
-
-Plain body");
+        let rep = inspect_mime_message("Subject: Hi\n\nPlain body");
         assert_eq!(rep.content_type, "text/plain");
         assert_eq!(rep.detected_part_count, 1);
         assert!(rep.attachment_filenames.is_empty());

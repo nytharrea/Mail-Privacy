@@ -157,8 +157,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_csv_cell_strips_commas_and_newlines() {
-        let cleaned = sanitize_csv_cell("  hello, world
-next line  ");
+        let cleaned = sanitize_csv_cell("  hello, world\r\nnext line  ");
         assert_eq!(cleaned, "hello  world  next line");
     }
 
@@ -173,8 +172,7 @@ next line  ");
             ..Default::default()
         }];
         let csv = export_aliases_to_csv(&aliases);
-        assert!(csv.starts_with("alias,description,enabled,recipients
-"));
+        assert!(csv.starts_with("alias,description,enabled,recipients\n"));
         let plan = parse_aliases_csv_import(&csv, "fallback@example.com", &[], 500);
         assert_eq!(plan.skipped_count, 0);
         assert_eq!(plan.requests.len(), 1);
@@ -185,14 +183,11 @@ next line  ");
 
     #[test]
     fn test_parse_csv_empty_and_fallback_recipient() {
-        let empty = parse_aliases_csv_import("   
-
-  ", "me@example.com", &[], 500);
+        let empty = parse_aliases_csv_import("   \n\n  ", "me@example.com", &[], 500);
         assert!(empty.requests.is_empty());
         assert_eq!(empty.skipped_count, 0);
 
-        let csv = "shop@mailx.net,Store,false,
-";
+        let csv = "shop@mailx.net,Store,false,\n";
         let plan = parse_aliases_csv_import(csv, "fallback@example.com", &[], 500);
         assert_eq!(plan.requests.len(), 1);
         assert!(!plan.requests[0].enabled);
@@ -202,18 +197,12 @@ next line  ");
     #[test]
     fn test_parse_csv_skips_malformed_and_respects_row_limit() {
         let csv = concat!(
-            "alias,description,enabled,recipients
-",
-            "no-at-sign,d,true,r@e.com
-",
-            "@missinglocal.com,d,true,r@e.com
-",
-            "a@mailx.net,d1,true,r@e.com
-",
-            "b@mailx.net,d2,true,r@e.com
-",
-            "c@mailx.net,d3,true,r@e.com
-"
+            "alias,description,enabled,recipients\n",
+            "no-at-sign,d,true,r@e.com\n",
+            "@missinglocal.com,d,true,r@e.com\n",
+            "a@mailx.net,d1,true,r@e.com\n",
+            "b@mailx.net,d2,true,r@e.com\n",
+            "c@mailx.net,d3,true,r@e.com\n"
         );
         let plan = parse_aliases_csv_import(csv, "", &[], 4);
         assert_eq!(plan.skipped_count, 2);
