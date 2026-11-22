@@ -1,13 +1,15 @@
 package net.mailx.android.ui.viewmodel
 
 import android.util.Log
-import net.mailx.android.ui.model.ActiveSheet
-import net.mailx.android.ui.model.MainNavTab
 import net.mailx.android.core.uniffi.AppEvent
 import net.mailx.android.core.uniffi.AppState
 import net.mailx.android.core.uniffi.MailxCore
 import net.mailx.android.core.uniffi.Route
+import net.mailx.android.core.uniffi.SecureStorePort
+import net.mailx.android.core.uniffi.SessionSnapshot
 import net.mailx.android.core.uniffi.Sheet
+import net.mailx.android.ui.model.ActiveSheet
+import net.mailx.android.ui.model.MainNavTab
 
 internal class AppShell(authenticated: Boolean) : AutoCloseable {
     private val core = MailxCore()
@@ -26,6 +28,38 @@ internal class AppShell(authenticated: Boolean) : AutoCloseable {
 
     init {
         if (authenticated) authenticate()
+    }
+
+    fun attachSecureStore(store: SecureStorePort) {
+        core.attachSecureStore(store)
+    }
+
+    fun sessionSnapshot(): SessionSnapshot = core.sessionSnapshot()
+
+    fun restoreSession(): SessionSnapshot {
+        val snapshot = core.restoreSession()
+        state = core.state()
+        return snapshot
+    }
+
+    fun saveSession(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        accountEmail: String
+    ): SessionSnapshot {
+        val snapshot = core.saveSession(baseUrl, accessKey, bearerToken, accountEmail)
+        state = core.state()
+        return snapshot
+    }
+
+    fun rotateSessionToken(expectedToken: String, newToken: String): Boolean =
+        core.rotateSessionToken(expectedToken, newToken)
+
+    fun clearSession(): SessionSnapshot {
+        val snapshot = core.clearSession()
+        state = core.state()
+        return snapshot
     }
 
     fun authenticate(): Boolean = send(AppEvent.Authenticate)

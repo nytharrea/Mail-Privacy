@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import net.mailx.android.core.AndroidSecureStoreAdapter
 import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.core.PasskeyManager
@@ -324,6 +325,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     private var hasLoadedDeletedAliases = false
 
     init {
+        shell.attachSecureStore(AndroidSecureStoreAdapter(prefs))
         viewModelScope.launch {
             prefs.dataFlow.collect { raw ->
                 val snapshot = parseStoredPrefs(raw)

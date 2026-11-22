@@ -7,6 +7,7 @@
 use crate::secure_store_port::{SecureStorePort, SecureStorePortError};
 use mailx_runtime::app_shell as shell;
 use mailx_security::secure_store::validate_secure_store_key;
+use mailx_utils::SecretString;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
@@ -174,10 +175,64 @@ impl From<shell::AppError> for MailxCoreError {
 }
 
 /// Process-scoped Rust state owner exposed to Kotlin as a UniFFI object.
+const KEY_BASE_URL: &str = "base_url";
+const KEY_ACCESS_KEY: &str = "access_key";
+const KEY_BEARER_TOKEN: &str = "bearer_token";
+const KEY_ACCOUNT_EMAIL: &str = "account_email";
+const DEFAULT_API_BASE_URL: &str = "https://api.mailx.net";
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct SessionSnapshot {
+    pub authenticated: bool,
+    pub is_web_session: bool,
+    pub base_url: String,
+    pub account_email: String,
+}
+
+#[derive(Clone)]
+struct ActiveSession {
+    base_url: String,
+    access_key: Option<SecretString>,
+    bearer_token: SecretString,
+    account_email: String,
+}
+
+impl ActiveSession {
+    fn snapshot(&self) -> SessionSnapshot {
+        let token = self.bearer_token.expose();
+        SessionSnapshot {
+            authenticated: !token.is_empty(),
+            is_web_session: token.starts_with("cookie:"),
+            base_url: self.base_url.clone(),
+            account_email: self.account_email.clone(),
+        }
+    }
+}
+
+fn normalize_base_url(raw: &str) -> String {
+    let trimmed = raw.trim().trim_end_matches('/');
+    match trimmed.to_ascii_lowercase().as_str() {
+        "" | "https://mailx.net" | "https://www.mailx.net" | "https://app.mailx.net" => {
+            DEFAULT_API_BASE_URL.to_string()
+        }
+        _ => trimmed.to_string(),
+    }
+}
+
+fn empty_session_snapshot(base_url: String) -> SessionSnapshot {
+    SessionSnapshot {
+        authenticated: false,
+        is_web_session: false,
+        base_url,
+        account_email: String::new(),
+    }
+}
+
 #[derive(uniffi::Object)]
 pub struct MailxCore {
     inner: mailx_runtime::MailxCore,
     secure_store: Mutex<Option<Arc<dyn SecureStorePort>>>,
+    session: Mutex<Option<ActiveSession>>,
 }
 
 #[uniffi::export]
@@ -187,6 +242,7 @@ impl MailxCore {
         Arc::new(Self {
             inner: mailx_runtime::MailxCore::new(),
             secure_store: Mutex::new(None),
+            session: Mutex::new(None),
         })
     }
 
@@ -222,6 +278,120 @@ impl MailxCore {
         validate_secure_store_key(&key)?;
         self.attached_store()?.delete(key)
     }
+
+    pub fn session_snapshot(&self) -> SessionSnapshot {
+        let guard = self.session_slot();
+        match guard.as_ref() {
+            Some(active) => active.snapshot(),
+            None => empty_session_snapshot(DEFAULT_API_BASE_URL.to_string()),
+        }
+    }
+
+    pub fn restore_session(&self) -> Result<SessionSnapshot, SecureStorePortError> {
+        let store = self.attached_store()?;
+        let base_url = normalize_base_url(&read_utf8_key(&store, KEY_BASE_URL)?);
+        let access_key = read_utf8_key(&store, KEY_ACCESS_KEY)?.trim().to_string();
+        let bearer_token = read_utf8_key(&store, KEY_BEARER_TOKEN)?.trim().to_string();
+        let account_email = read_utf8_key(&store, KEY_ACCOUNT_EMAIL)?.trim().to_string();
+
+        if bearer_token.is_empty() {
+            *self.session_slot() = None;
+            let _ = self.inner.dispatch(shell::AppEvent::SignOut);
+            return Ok(empty_session_snapshot(base_url));
+        }
+
+        let active = ActiveSession {
+            base_url,
+            access_key: (!access_key.is_empty()).then(|| SecretString::new(access_key)),
+            bearer_token: SecretString::new(bearer_token),
+            account_email,
+        };
+        let snapshot = active.snapshot();
+        *self.session_slot() = Some(active);
+        let _ = self.inner.dispatch(shell::AppEvent::Authenticate);
+        Ok(snapshot)
+    }
+
+    pub fn save_session(
+        &self,
+        base_url: String,
+        access_key: String,
+        bearer_token: String,
+        account_email: String,
+    ) -> Result<SessionSnapshot, SecureStorePortError> {
+        let store = self.attached_store()?;
+        let normalized_url = normalize_base_url(&base_url);
+        let trimmed_key = access_key.trim().to_string();
+        let trimmed_token = bearer_token.trim().to_string();
+        let trimmed_email = account_email.trim().to_string();
+
+        store.put(KEY_BASE_URL.to_string(), normalized_url.as_bytes().to_vec())?;
+        store.put(KEY_ACCESS_KEY.to_string(), trimmed_key.as_bytes().to_vec())?;
+        store.put(
+            KEY_BEARER_TOKEN.to_string(),
+            trimmed_token.as_bytes().to_vec(),
+        )?;
+        store.put(
+            KEY_ACCOUNT_EMAIL.to_string(),
+            trimmed_email.as_bytes().to_vec(),
+        )?;
+
+        if trimmed_token.is_empty() {
+            *self.session_slot() = None;
+            let _ = self.inner.dispatch(shell::AppEvent::SignOut);
+            return Ok(empty_session_snapshot(normalized_url));
+        }
+
+        let active = ActiveSession {
+            base_url: normalized_url,
+            access_key: (!trimmed_key.is_empty()).then(|| SecretString::new(trimmed_key)),
+            bearer_token: SecretString::new(trimmed_token),
+            account_email: trimmed_email,
+        };
+        let snapshot = active.snapshot();
+        *self.session_slot() = Some(active);
+        let _ = self.inner.dispatch(shell::AppEvent::Authenticate);
+        Ok(snapshot)
+    }
+
+    pub fn rotate_session_token(
+        &self,
+        expected_token: String,
+        new_token: String,
+    ) -> Result<bool, SecureStorePortError> {
+        let trimmed_new = new_token.trim().to_string();
+        if trimmed_new.is_empty() {
+            return Ok(false);
+        }
+        let store = self.attached_store()?;
+        let mut guard = self.session_slot();
+        let Some(active) = guard.as_mut() else {
+            return Ok(false);
+        };
+        let expected_secret = SecretString::new(expected_token.trim());
+        let next_secret = SecretString::new(trimmed_new.clone());
+        if active.bearer_token != expected_secret || active.bearer_token == next_secret {
+            return Ok(false);
+        }
+        store.put(KEY_BEARER_TOKEN.to_string(), trimmed_new.into_bytes())?;
+        active.bearer_token = next_secret;
+        Ok(true)
+    }
+
+    pub fn clear_session(&self) -> Result<SessionSnapshot, SecureStorePortError> {
+        let store = self.attached_store()?;
+        let base_url = self
+            .session_slot()
+            .as_ref()
+            .map(|s| s.base_url.clone())
+            .unwrap_or_else(|| DEFAULT_API_BASE_URL.to_string());
+        store.delete(KEY_ACCESS_KEY.to_string())?;
+        store.delete(KEY_BEARER_TOKEN.to_string())?;
+        store.delete(KEY_ACCOUNT_EMAIL.to_string())?;
+        *self.session_slot() = None;
+        let _ = self.inner.dispatch(shell::AppEvent::SignOut);
+        Ok(empty_session_snapshot(base_url))
+    }
 }
 
 impl MailxCore {
@@ -231,10 +401,26 @@ impl MailxCore {
             .unwrap_or_else(PoisonError::into_inner)
     }
 
+    fn session_slot(&self) -> MutexGuard<'_, Option<ActiveSession>> {
+        self.session
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
     fn attached_store(&self) -> Result<Arc<dyn SecureStorePort>, SecureStorePortError> {
         self.store_slot()
             .clone()
             .ok_or(SecureStorePortError::NotAttached)
+    }
+}
+
+fn read_utf8_key(
+    store: &Arc<dyn SecureStorePort>,
+    key: &str,
+) -> Result<String, SecureStorePortError> {
+    match store.get(key.to_string())? {
+        Some(bytes) => String::from_utf8(bytes).map_err(|_| SecureStorePortError::CorruptData),
+        None => Ok(String::new()),
     }
 }
 
@@ -463,5 +649,76 @@ mod tests {
 
         assert_eq!(core.secure_store_get("auth.token".into()), Ok(None));
         assert_eq!(store.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn session_save_restore_and_clear_round_trip_through_secure_store() {
+        let store = Arc::new(MemoryStore::default());
+        let core = MailxCore::new();
+        core.attach_secure_store(store.clone());
+
+        let saved = core
+            .save_session(
+                "https://mailx.net".into(),
+                "ak_test".into(),
+                "tok_initial".into(),
+                "user@example.com".into(),
+            )
+            .unwrap();
+        assert!(saved.authenticated);
+        assert!(!saved.is_web_session);
+        assert_eq!(saved.base_url, DEFAULT_API_BASE_URL);
+        assert_eq!(saved.account_email, "user@example.com");
+        assert!(core.state().authenticated);
+
+        let restarted = MailxCore::new();
+        restarted.attach_secure_store(store);
+        let restored = restarted.restore_session().unwrap();
+        assert_eq!(restored, saved);
+        assert!(restarted.state().authenticated);
+
+        let cleared = restarted.clear_session().unwrap();
+        assert!(!cleared.authenticated);
+        assert!(!restarted.state().authenticated);
+        assert_eq!(
+            restarted.secure_store_get(KEY_BEARER_TOKEN.into()),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn session_token_rotation_prevents_stale_token_overwrite() {
+        let store = Arc::new(MemoryStore::default());
+        let core = MailxCore::new();
+        core.attach_secure_store(store);
+
+        core.save_session(
+            "https://api.mailx.net".into(),
+            String::new(),
+            "cookie:sess_1".into(),
+            "web@example.com".into(),
+        )
+        .unwrap();
+        assert!(core.session_snapshot().is_web_session);
+
+        assert_eq!(
+            core.rotate_session_token("cookie:sess_1".into(), "cookie:sess_2".into()),
+            Ok(true)
+        );
+        assert_eq!(
+            core.rotate_session_token("cookie:sess_1".into(), "cookie:stale".into()),
+            Ok(false)
+        );
+        assert_eq!(
+            core.secure_store_get(KEY_BEARER_TOKEN.into()),
+            Ok(Some(b"cookie:sess_2".to_vec()))
+        );
+    }
+
+    #[test]
+    fn session_operations_require_attached_secure_store() {
+        let core = MailxCore::new();
+        assert_eq!(core.restore_session(), Err(SecureStorePortError::NotAttached));
+        assert_eq!(core.clear_session(), Err(SecureStorePortError::NotAttached));
     }
 }
