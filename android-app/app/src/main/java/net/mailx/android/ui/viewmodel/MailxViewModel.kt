@@ -19,14 +19,187 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
+private data class StoredPrefsSnapshot(
+    val baseUrl: String = SecurePrefsManager.DEFAULT_API_BASE_URL,
+    val accessKey: String = "",
+    val bearerToken: String = "",
+    val accountEmail: String = "",
+    val defaultDomain: String = "mailx.net",
+    val defaultRecipient: String = "",
+    val defaultFormat: String = "words",
+    val defaultFromName: String = "",
+    val availableDomains: List<String> = SecurePrefsManager.DEFAULT_SHARED_DOMAINS,
+    val availableRecipients: List<String> = emptyList(),
+    val blockTrackers: Boolean = false,
+    val removeHeader: Boolean = false,
+    val logIssues: Boolean = false,
+    val unsubscribeBehaviour: Int = 0,
+    val cachedAliasesJson: String = "",
+    val darkModeMode: Int = 1,
+    val dynamicColorEnabled: Boolean = false,
+    val amoledDarkEnabled: Boolean = false,
+    val expressiveMotionEnabled: Boolean = true,
+    val reducedMotionEnabled: Boolean = false
+) {
+    val isConfigured: Boolean
+        get() = bearerToken.isNotEmpty()
+    val isWebSession: Boolean
+        get() = bearerToken.startsWith("cookie:")
+}
+
 class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
 
-    /**
-     * Central API request path for ViewModel operations.
-     *
-     * Persist server-issued token rotations consistently, instead of relying on
-     * every individual screen/action to remember the synchronization call.
-     */
+    @Volatile
+    private var storedPrefs = StoredPrefsSnapshot()
+    private var hasHydratedFromStore = false
+
+    private fun normalizeApiBaseUrl(raw: String): String {
+        val trimmed = raw.trim().trimEnd('/')
+        return when (trimmed.lowercase()) {
+            "", "https://mailx.net", "https://www.mailx.net", "https://app.mailx.net" ->
+                SecurePrefsManager.DEFAULT_API_BASE_URL
+            else -> trimmed
+        }
+    }
+
+    private fun parseStoredPrefs(raw: JSONObject): StoredPrefsSnapshot {
+        fun str(key: String, default: String = ""): String =
+            raw.optString(key, default).takeUnless { it == "null" } ?: default
+
+        val defaultDomain = str("default_domain", "mailx.net").trim().ifEmpty { "mailx.net" }
+        val defaultRecipient = str("default_recipient").trim()
+        val availableDomainsJson = str("available_domains")
+        val availableRecipientsJson = str("available_recipients")
+
+        val domains = linkedSetOf<String>()
+        if (defaultDomain.isNotEmpty()) domains.add(defaultDomain)
+        if (availableDomainsJson.isNotEmpty()) {
+            runCatching {
+                val arr = JSONArray(availableDomainsJson)
+                for (i in 0 until arr.length()) {
+                    arr.optString(i).trim().takeIf(String::isNotEmpty)?.let(domains::add)
+                }
+            }
+        }
+        SecurePrefsManager.DEFAULT_SHARED_DOMAINS.forEach(domains::add)
+
+        val recipients = linkedSetOf<String>()
+        defaultRecipient.split(",").map(String::trim).filter(String::isNotEmpty).forEach(recipients::add)
+        if (availableRecipientsJson.isNotEmpty()) {
+            runCatching {
+                val arr = JSONArray(availableRecipientsJson)
+                for (i in 0 until arr.length()) {
+                    arr.optString(i).trim().takeIf(String::isNotEmpty)?.let(recipients::add)
+                }
+            }
+        }
+
+        return StoredPrefsSnapshot(
+            baseUrl = normalizeApiBaseUrl(str("base_url", SecurePrefsManager.DEFAULT_API_BASE_URL)),
+            accessKey = str("access_key").trim(),
+            bearerToken = str("bearer_token").trim(),
+            accountEmail = str("account_email").trim(),
+            defaultDomain = defaultDomain,
+            defaultRecipient = defaultRecipient,
+            defaultFormat = str("default_format", "words").trim().ifEmpty { "words" },
+            defaultFromName = str("default_from_name").trim(),
+            availableDomains = domains.toList(),
+            availableRecipients = recipients.toList(),
+            blockTrackers = raw.optBoolean("block_trackers", false),
+            removeHeader = raw.optBoolean("remove_header", false),
+            logIssues = raw.optBoolean("log_issues", false),
+            unsubscribeBehaviour = raw.optInt("unsubscribe_behaviour", 0),
+            cachedAliasesJson = str("cached_aliases"),
+            darkModeMode = if (raw.has("dark_mode_v3_mode")) raw.optInt("dark_mode_v3_mode", 1) else 1,
+            dynamicColorEnabled = raw.optBoolean("dynamic_color_v6_enabled", false),
+            amoledDarkEnabled = raw.optBoolean("amoled_dark_v3_enabled", false),
+            expressiveMotionEnabled = if (raw.has("expressive_motion_v6_enabled")) {
+                raw.optBoolean("expressive_motion_v6_enabled", true)
+            } else {
+                true
+            },
+            reducedMotionEnabled = raw.optBoolean("reduced_motion_v1_enabled", false)
+        )
+    }
+
+    private suspend fun persistValues(
+        values: Map<String, Any?>,
+        removals: Set<String> = emptySet()
+    ) {
+        prefs.writeValuesAndPersist(values, removals)
+        storedPrefs = parseStoredPrefs(prefs.readDurableSnapshot())
+    }
+
+    private suspend fun persistRefreshedTokenIfPresent(
+        response: JSONObject,
+        expectedToken: String? = null
+    ) {
+        val newToken = response.optString("refreshed_token", "").trim()
+        if (newToken.isEmpty() || newToken == storedPrefs.bearerToken) return
+        if (expectedToken != null && expectedToken != storedPrefs.bearerToken) return
+        persistValues(mapOf("bearer_token" to newToken))
+    }
+
+    private suspend fun persistServerDefaults(data: JSONObject) {
+        val current = storedPrefs
+        val domainsSet = linkedSetOf<String>()
+        data.optJSONArray("domains")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                arr.optString(i, "").trim().takeIf(String::isNotEmpty)?.let(domainsSet::add)
+            }
+        }
+        data.optJSONArray("custom_domains")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val item = arr.optJSONObject(i) ?: continue
+                val name = item.optString("name", "").trim()
+                if (name.isNotEmpty() && item.optBoolean("enabled", true)) domainsSet.add(name)
+            }
+        }
+        domainsSet.addAll(SecurePrefsManager.DEFAULT_SHARED_DOMAINS)
+
+        val updates = mutableMapOf<String, Any?>()
+        val domain = data.optString("domain", "").trim()
+            .ifEmpty { domainsSet.firstOrNull() ?: current.defaultDomain }
+        if (domain.isNotEmpty()) {
+            updates["default_domain"] = domain
+            domainsSet.add(domain)
+        }
+        if (domainsSet.isNotEmpty()) {
+            updates["available_domains"] = JSONArray().apply { domainsSet.forEach(::put) }.toString()
+        }
+
+        val recipients = linkedSetOf<String>()
+        data.optJSONArray("recipients")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                arr.optString(i, "").trim().takeIf(String::isNotEmpty)?.let(recipients::add)
+            }
+        }
+        val recipient = data.optString("recipient", "").trim()
+            .ifEmpty { recipients.firstOrNull() ?: current.defaultRecipient }
+        if (recipient.isNotEmpty()) {
+            updates["default_recipient"] = recipient
+            recipient.split(",").map(String::trim).filter(String::isNotEmpty).forEach(recipients::add)
+        }
+        if (recipients.isNotEmpty()) {
+            updates["available_recipients"] = JSONArray().apply { recipients.forEach(::put) }.toString()
+        }
+
+        data.optString("alias_format", "").trim().takeIf(String::isNotEmpty)?.let {
+            updates["default_format"] = it
+        }
+        if (data.has("from_name")) updates["default_from_name"] = data.optString("from_name", "").trim()
+        if (data.has("block_trackers")) updates["block_trackers"] = data.optBoolean("block_trackers", false)
+        if (data.has("remove_header")) updates["remove_header"] = data.optBoolean("remove_header", false)
+        if (data.has("log_issues")) updates["log_issues"] = data.optBoolean("log_issues", false)
+        if (data.has("list_unsubscribe_behaviour")) {
+            updates["unsubscribe_behaviour"] = data.optInt("list_unsubscribe_behaviour", 0)
+        }
+
+        if (updates.isNotEmpty()) {
+            persistValues(updates)
+        }
+    }
+
     private suspend fun requestApi(
         baseUrl: String,
         accessKey: String,
@@ -38,18 +211,18 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         val response = MailxRustBridge.apiRequest(
             baseUrl, accessKey, bearerToken, method, path, bodyJson
         )
-        if (bearerToken.isNotBlank() && bearerToken == prefs.bearerToken) {
-            prefs.syncRefreshedTokenIfPresent(response)
+        if (bearerToken.isNotBlank()) {
+            persistRefreshedTokenIfPresent(response, expectedToken = bearerToken)
         }
         return response
     }
 
     private val _authState = MutableStateFlow(
         AuthUiState(
-            isLoggedIn = prefs.isConfigured(),
-            isWebSession = prefs.isWebSession(),
-            baseUrl = prefs.baseUrl,
-            emailInput = prefs.accountEmail
+            isLoggedIn = false,
+            isWebSession = false,
+            baseUrl = SecurePrefsManager.DEFAULT_API_BASE_URL,
+            emailInput = ""
         )
     )
     val authState: StateFlow<AuthUiState> = _authState.asStateFlow()
@@ -68,27 +241,27 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
 
     private val _defaultsState = MutableStateFlow(
         DefaultsUiState(
-            defaultDomain = prefs.defaultDomain.ifEmpty { "mailx.net" },
-            defaultRecipient = prefs.defaultRecipient,
-            defaultFormat = prefs.defaultFormat.ifEmpty { "words" },
-            defaultFromName = prefs.defaultFromName,
-            availableDomains = prefs.getAvailableDomains(),
-            availableRecipients = prefs.getAvailableRecipients(),
-            blockTrackers = prefs.blockTrackers,
-            removeHeader = prefs.removeHeader,
-            logIssues = prefs.logIssues,
-            unsubscribeBehaviour = prefs.unsubscribeBehaviour
+            defaultDomain = "mailx.net",
+            defaultRecipient = "",
+            defaultFormat = "words",
+            defaultFromName = "",
+            availableDomains = SecurePrefsManager.DEFAULT_SHARED_DOMAINS,
+            availableRecipients = emptyList(),
+            blockTrackers = false,
+            removeHeader = false,
+            logIssues = false,
+            unsubscribeBehaviour = 0
         )
     )
     val defaultsState: StateFlow<DefaultsUiState> = _defaultsState.asStateFlow()
 
     private val _themeState = MutableStateFlow(
         ThemeUiState(
-            darkModeMode = prefs.darkModeMode,
-            dynamicColorEnabled = prefs.dynamicColorEnabled,
-            amoledDarkEnabled = prefs.amoledDarkEnabled,
-            expressiveMotionEnabled = prefs.expressiveMotionEnabled,
-            reducedMotionEnabled = prefs.reducedMotionEnabled
+            darkModeMode = 1,
+            dynamicColorEnabled = false,
+            amoledDarkEnabled = false,
+            expressiveMotionEnabled = true,
+            reducedMotionEnabled = false
         )
     )
     val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
@@ -129,9 +302,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     private val _passkeys = MutableStateFlow<List<UiPasskeyCredential>>(emptyList())
     val passkeys: StateFlow<List<UiPasskeyCredential>> = _passkeys.asStateFlow()
 
-    private val _userAccount = MutableStateFlow(
-        UiUserAccount(email = prefs.accountEmail.ifBlank { prefs.defaultRecipient })
-    )
+    private val _userAccount = MutableStateFlow(UiUserAccount())
     val userAccount: StateFlow<UiUserAccount> = _userAccount.asStateFlow()
 
     private val _announcements = MutableStateFlow<List<UiAnnouncement>>(emptyList())
@@ -143,7 +314,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
-    private val shell = AppShell(authenticated = prefs.isConfigured())
+    private val shell = AppShell(authenticated = false)
 
     private val _canGoBack = MutableStateFlow(shell.canGoBack)
     val canGoBack: StateFlow<Boolean> = _canGoBack.asStateFlow()
@@ -153,14 +324,63 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     private var hasLoadedDeletedAliases = false
 
     init {
-        if (prefs.cachedAliasesJson.isNotEmpty()) {
-            runCatching {
-                _aliases.value = UiAlias.listFromJsonArray(JSONArray(prefs.cachedAliasesJson))
+        viewModelScope.launch {
+            prefs.dataFlow.collect { raw ->
+                val snapshot = parseStoredPrefs(raw)
+                val firstEmission = !hasHydratedFromStore
+                hasHydratedFromStore = true
+                storedPrefs = snapshot
+
+                _themeState.value = ThemeUiState(
+                    darkModeMode = snapshot.darkModeMode,
+                    dynamicColorEnabled = snapshot.dynamicColorEnabled,
+                    amoledDarkEnabled = snapshot.amoledDarkEnabled,
+                    expressiveMotionEnabled = snapshot.expressiveMotionEnabled,
+                    reducedMotionEnabled = snapshot.reducedMotionEnabled
+                )
+                _defaultsState.update { prev ->
+                    prev.copy(
+                        defaultDomain = snapshot.defaultDomain,
+                        defaultRecipient = snapshot.defaultRecipient,
+                        defaultFormat = snapshot.defaultFormat,
+                        defaultFromName = snapshot.defaultFromName,
+                        availableDomains = snapshot.availableDomains,
+                        availableRecipients = snapshot.availableRecipients,
+                        blockTrackers = snapshot.blockTrackers,
+                        removeHeader = snapshot.removeHeader,
+                        logIssues = snapshot.logIssues,
+                        unsubscribeBehaviour = snapshot.unsubscribeBehaviour
+                    )
+                }
+                val resolvedEmail = snapshot.accountEmail.ifBlank { snapshot.defaultRecipient }
+                if (resolvedEmail.isNotBlank()) {
+                    _userAccount.update { prev ->
+                        if (prev.email.isBlank()) prev.copy(email = resolvedEmail) else prev
+                    }
+                }
+                _authState.update { prev ->
+                    prev.copy(
+                        isLoggedIn = snapshot.isConfigured,
+                        isWebSession = snapshot.isWebSession,
+                        baseUrl = if (firstEmission || snapshot.isConfigured) snapshot.baseUrl else prev.baseUrl,
+                        emailInput = if (firstEmission && prev.emailInput.isBlank()) snapshot.accountEmail else prev.emailInput
+                    )
+                }
+                if (firstEmission) {
+                    if (snapshot.cachedAliasesJson.isNotEmpty()) {
+                        runCatching {
+                            _aliases.value = UiAlias.listFromJsonArray(JSONArray(snapshot.cachedAliasesJson))
+                        }
+                    }
+                    if (snapshot.isConfigured) {
+                        syncRustAuthentication(true)
+                        if (!hasLoadedInitialData) {
+                            hasLoadedInitialData = true
+                            refreshAllData(showIndicator = _aliases.value.isEmpty())
+                        }
+                    }
+                }
             }
-        }
-        if (prefs.isConfigured()) {
-            hasLoadedInitialData = true
-            refreshAllData(showIndicator = _aliases.value.isEmpty())
         }
     }
 
@@ -207,7 +427,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     private fun onTabEntered(tab: MainNavTab) {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         when (tab) {
             MainNavTab.HOME -> {
                 if (!hasLoadedInitialData) {
@@ -318,14 +538,14 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             )
             if (loginRes.optBoolean("ok", false)) {
                 val data = loginRes.optJSONObject("data") ?: JSONObject()
-                prefs.baseUrl = currentAuth.baseUrl
+                persistValues(mapOf("base_url" to normalizeApiBaseUrl(currentAuth.baseUrl)))
                 prefs.setSessionSecretsAndPersist(
                     accessKey = "",
                     bearerToken = data.optString("token"),
                     accountEmail = currentAuth.emailInput.trim()
                 )
-                prefs.applyServerDefaults(data)
-                prefs.persistPendingWrites()
+                storedPrefs = parseStoredPrefs(prefs.readDurableSnapshot())
+                persistServerDefaults(data)
                 applyDefaultsJsonToState(data)
                 syncRustAuthentication(true)
 
@@ -333,7 +553,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                     it.copy(
                         isLoggedIn = true,
                         isWebSession = true,
-                        baseUrl = prefs.baseUrl,
+                        baseUrl = storedPrefs.baseUrl,
                         passwordInput = "",
                         otpInput = "",
                         totpRequired = false,
@@ -407,15 +627,15 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
 
             if (finishRes.optBoolean("ok", false)) {
                 val data = finishRes.optJSONObject("data") ?: JSONObject()
-                prefs.baseUrl = currentAuth.baseUrl
+                persistValues(mapOf("base_url" to normalizeApiBaseUrl(currentAuth.baseUrl)))
                 val resolvedEmail = data.optString("recipient", "").ifBlank { currentAuth.emailInput.trim() }
                 prefs.setSessionSecretsAndPersist(
                     accessKey = "",
                     bearerToken = data.optString("token"),
                     accountEmail = resolvedEmail
                 )
-                prefs.applyServerDefaults(data)
-                prefs.persistPendingWrites()
+                storedPrefs = parseStoredPrefs(prefs.readDurableSnapshot())
+                persistServerDefaults(data)
                 applyDefaultsJsonToState(data)
                 syncRustAuthentication(true)
 
@@ -423,8 +643,8 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                     it.copy(
                         isLoggedIn = true,
                         isWebSession = true,
-                        baseUrl = prefs.baseUrl,
-                        emailInput = prefs.accountEmail,
+                        baseUrl = storedPrefs.baseUrl,
+                        emailInput = storedPrefs.accountEmail,
                         passwordInput = "",
                         otpInput = "",
                         totpRequired = false,
@@ -449,8 +669,8 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun registerPasskeyCredential(activityContext: Context) {
         viewModelScope.launch {
             val beginRes = MailxRustBridge.passkeyRegisterBegin(
-                baseUrl = prefs.baseUrl,
-                bearerToken = prefs.bearerToken
+                baseUrl = storedPrefs.baseUrl,
+                bearerToken = storedPrefs.bearerToken
             )
             if (!beginRes.optBoolean("ok", false)) {
                 emitToast(beginRes.optString("error", "Could not start passkey registration"))
@@ -468,12 +688,12 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             }
 
             val finishRes = MailxRustBridge.passkeyRegisterFinish(
-                baseUrl = prefs.baseUrl,
-                bearerToken = prefs.bearerToken,
+                baseUrl = storedPrefs.baseUrl,
+                bearerToken = storedPrefs.bearerToken,
                 ceremonyCookie = ceremonyCookie,
                 credentialJson = registrationJson
             )
-            prefs.syncRefreshedTokenIfPresent(finishRes)
+            persistRefreshedTokenIfPresent(finishRes)
             if (finishRes.optBoolean("ok", false)) {
                 emitToast("Passkey added to your account")
                 fetchAccountAndSubscription()
@@ -496,14 +716,14 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             val authRes = MailxRustBridge.authenticate(currentAuth.baseUrl, currentAuth.accessKeyInput)
             if (authRes.optBoolean("ok", false)) {
                 val data = authRes.optJSONObject("data") ?: JSONObject()
-                prefs.baseUrl = currentAuth.baseUrl
+                persistValues(mapOf("base_url" to normalizeApiBaseUrl(currentAuth.baseUrl)))
                 prefs.setSessionSecretsAndPersist(
                     accessKey = currentAuth.accessKeyInput,
                     bearerToken = data.optString("token"),
-                    accountEmail = prefs.accountEmail
+                    accountEmail = storedPrefs.accountEmail
                 )
-                prefs.applyServerDefaults(data)
-                prefs.persistPendingWrites()
+                storedPrefs = parseStoredPrefs(prefs.readDurableSnapshot())
+                persistServerDefaults(data)
                 applyDefaultsJsonToState(data)
                 syncRustAuthentication(true)
 
@@ -511,7 +731,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                     it.copy(
                         isLoggedIn = true,
                         isWebSession = false,
-                        baseUrl = prefs.baseUrl,
+                        baseUrl = storedPrefs.baseUrl,
                         accessKeyInput = "",
                         isLoading = false,
                         errorMessage = null
@@ -600,9 +820,9 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             if (query.isNotEmpty()) {
                 delay(300)
                 loadAliasesInternal(showIndicator = false)
-            } else if (_aliases.value.isEmpty() && prefs.cachedAliasesJson.isNotEmpty()) {
+            } else if (_aliases.value.isEmpty() && storedPrefs.cachedAliasesJson.isNotEmpty()) {
                 runCatching {
-                    _aliases.value = UiAlias.listFromJsonArray(JSONArray(prefs.cachedAliasesJson))
+                    _aliases.value = UiAlias.listFromJsonArray(JSONArray(storedPrefs.cachedAliasesJson))
                 }
             }
         }
@@ -656,7 +876,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     private suspend fun loadAliasesInternal(showIndicator: Boolean = false) {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         if (showIndicator) {
             _isLoadingAliases.value = true
         }
@@ -677,15 +897,15 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             var pagesFetched = 0
             while (seenAliasIds.size < total && pagesFetched < 1000) {
                 val res = MailxRustBridge.fetchAliases(
-                    baseUrl = prefs.baseUrl,
-                    accessKey = prefs.accessKey,
-                    bearerToken = prefs.bearerToken,
+                    baseUrl = storedPrefs.baseUrl,
+                    accessKey = storedPrefs.accessKey,
+                    bearerToken = storedPrefs.bearerToken,
                     search = filter.searchQuery,
                     status = serverStatus,
                     wildcard = "",
                     page = page
                 )
-                prefs.syncRefreshedTokenIfPresent(res)
+                persistRefreshedTokenIfPresent(res)
                 if (!res.optBoolean("ok", false)) {
                     fetchError = res.optString("error", "Failed to fetch aliases")
                     break
@@ -732,7 +952,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                     val deletedItems = _aliases.value.filter { it.deletedAt.isNotBlank() }
                     if (filter.searchQuery.isEmpty()) {
                         _aliases.value = (parsed + deletedItems).distinctBy { it.id }
-                        prefs.cachedAliasesJson = allAliasesJson.toString()
+                        persistValues(mapOf("cached_aliases" to allAliasesJson.toString()))
                     } else {
                         _aliases.value = (parsed + _aliases.value).distinctBy { it.id }
                     }
@@ -755,14 +975,14 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun syncServerDefaults(silent: Boolean = false) {
         viewModelScope.launch {
             val res = MailxRustBridge.fetchDefaults(
-                baseUrl = prefs.baseUrl,
-                accessKey = prefs.accessKey,
-                bearerToken = prefs.bearerToken
+                baseUrl = storedPrefs.baseUrl,
+                accessKey = storedPrefs.accessKey,
+                bearerToken = storedPrefs.bearerToken
             )
-            prefs.syncRefreshedTokenIfPresent(res)
+            persistRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
                 res.optJSONObject("data")?.let { defObj ->
-                    prefs.applyServerDefaults(defObj)
+                    persistServerDefaults(defObj)
                     applyDefaultsJsonToState(defObj)
                     if (!silent) emitToast("Server settings synchronized")
                 }
@@ -773,9 +993,9 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     private fun applyDefaultsJsonToState(defObj: JSONObject) {
-        val defDomain = prefs.defaultDomain.ifEmpty { "mailx.net" }
-        val defRec = prefs.defaultRecipient
-        val defFmt = prefs.defaultFormat.ifEmpty { "words" }
+        val defDomain = storedPrefs.defaultDomain.ifEmpty { "mailx.net" }
+        val defRec = storedPrefs.defaultRecipient
+        val defFmt = storedPrefs.defaultFormat.ifEmpty { "words" }
 
         val domSet = linkedSetOf<String>()
         if (defDomain.isNotEmpty()) domSet.add(defDomain)
@@ -836,12 +1056,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateDefaultDomain(domain: String) {
-        prefs.defaultDomain = domain
+        storedPrefs = storedPrefs.copy(defaultDomain = domain.trim())
         _defaultsState.update { it.copy(defaultDomain = domain) }
         viewModelScope.launch {
+            persistValues(mapOf("default_domain" to domain.trim()))
             val body = JSONObject().put("domain", domain).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/domain", body
             )
             if (res.optBoolean("ok", false)) {
@@ -853,12 +1074,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateDefaultRecipient(recipient: String) {
-        prefs.defaultRecipient = recipient
+        storedPrefs = storedPrefs.copy(defaultRecipient = recipient.trim())
         _defaultsState.update { it.copy(defaultRecipient = recipient) }
         viewModelScope.launch {
+            persistValues(mapOf("default_recipient" to recipient.trim()))
             val body = JSONObject().put("recipient", recipient).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/recipient", body
             )
             if (res.optBoolean("ok", false)) {
@@ -870,12 +1092,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateDefaultFormat(format: String) {
-        prefs.defaultFormat = format
+        storedPrefs = storedPrefs.copy(defaultFormat = format.trim())
         _defaultsState.update { it.copy(defaultFormat = format) }
         viewModelScope.launch {
+            persistValues(mapOf("default_format" to format.trim()))
             val body = JSONObject().put("alias_format", format).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/alias-format", body
             )
             if (res.optBoolean("ok", false)) {
@@ -888,12 +1111,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
 
     fun updateDefaultFromName(fromName: String) {
         val clean = fromName.trim()
-        prefs.defaultFromName = clean
+        storedPrefs = storedPrefs.copy(defaultFromName = clean)
         _defaultsState.update { it.copy(defaultFromName = clean) }
         viewModelScope.launch {
+            persistValues(mapOf("default_from_name" to clean))
             val body = JSONObject().put("from_name", clean).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/from-name", body
             )
             if (res.optBoolean("ok", false)) {
@@ -906,12 +1130,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
 
     fun updateIncludeMailxHeader(includeHeader: Boolean) {
         val removeHeader = !includeHeader
-        prefs.removeHeader = removeHeader
+        storedPrefs = storedPrefs.copy(removeHeader = removeHeader)
         _defaultsState.update { it.copy(removeHeader = removeHeader) }
         viewModelScope.launch {
+            persistValues(mapOf("remove_header" to removeHeader))
             val body = JSONObject().put("remove_header", removeHeader).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/remove-header", body
             )
             if (res.optBoolean("ok", false)) {
@@ -923,12 +1148,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateBlockTrackers(block: Boolean) {
-        prefs.blockTrackers = block
+        storedPrefs = storedPrefs.copy(blockTrackers = block)
         _defaultsState.update { it.copy(blockTrackers = block) }
         viewModelScope.launch {
+            persistValues(mapOf("block_trackers" to block))
             val body = JSONObject().put("block_trackers", block).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/block-trackers", body
             )
             if (res.optBoolean("ok", false)) {
@@ -940,12 +1166,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateUnsubscribeBehaviour(behaviour: Int) {
-        prefs.unsubscribeBehaviour = behaviour
+        storedPrefs = storedPrefs.copy(unsubscribeBehaviour = behaviour)
         _defaultsState.update { it.copy(unsubscribeBehaviour = behaviour) }
         viewModelScope.launch {
+            persistValues(mapOf("unsubscribe_behaviour" to behaviour))
             val body = JSONObject().put("list_unsubscribe_behaviour", behaviour).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/list-unsubscribe-behaviour", body
             )
             if (res.optBoolean("ok", false)) {
@@ -957,12 +1184,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateLogIssues(enable: Boolean) {
-        prefs.logIssues = enable
+        storedPrefs = storedPrefs.copy(logIssues = enable)
         _defaultsState.update { it.copy(logIssues = enable) }
         viewModelScope.launch {
+            persistValues(mapOf("log_issues" to enable))
             val body = JSONObject().put("log_issues", enable).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/settings/log-issues", body
             )
             if (res.optBoolean("ok", false)) {
@@ -974,35 +1202,40 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun updateDarkModeMode(mode: Int) {
-        prefs.darkModeMode = mode
+        storedPrefs = storedPrefs.copy(darkModeMode = mode)
         _themeState.update { it.copy(darkModeMode = mode) }
+        viewModelScope.launch { runCatching { persistValues(mapOf("dark_mode_v3_mode" to mode)) } }
     }
 
     fun toggleDynamicColor(enabled: Boolean) {
-        prefs.dynamicColorEnabled = enabled
+        storedPrefs = storedPrefs.copy(dynamicColorEnabled = enabled)
         _themeState.update { it.copy(dynamicColorEnabled = enabled) }
+        viewModelScope.launch { runCatching { persistValues(mapOf("dynamic_color_v6_enabled" to enabled)) } }
     }
 
     fun toggleAmoledDark(enabled: Boolean) {
-        prefs.amoledDarkEnabled = enabled
+        storedPrefs = storedPrefs.copy(amoledDarkEnabled = enabled)
         _themeState.update { it.copy(amoledDarkEnabled = enabled) }
+        viewModelScope.launch { runCatching { persistValues(mapOf("amoled_dark_v3_enabled" to enabled)) } }
     }
 
     fun toggleExpressiveMotion(enabled: Boolean) {
-        prefs.expressiveMotionEnabled = enabled
+        storedPrefs = storedPrefs.copy(expressiveMotionEnabled = enabled)
         _themeState.update { it.copy(expressiveMotionEnabled = enabled) }
+        viewModelScope.launch { runCatching { persistValues(mapOf("expressive_motion_v6_enabled" to enabled)) } }
     }
 
     fun toggleReducedMotion(enabled: Boolean) {
-        prefs.reducedMotionEnabled = enabled
+        storedPrefs = storedPrefs.copy(reducedMotionEnabled = enabled)
         _themeState.update { it.copy(reducedMotionEnabled = enabled) }
+        viewModelScope.launch { runCatching { persistValues(mapOf("reduced_motion_v1_enabled" to enabled)) } }
     }
 
     fun fetchWildcardDomainInfo(domainParam: String) {
-        if (!prefs.isConfigured() || domainParam.isBlank()) return
+        if (!storedPrefs.isConfigured || domainParam.isBlank()) return
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/alias/wildcard-domain-info?domain=$domainParam"
             )
             if (res.optBoolean("ok", false)) {
@@ -1016,12 +1249,12 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun createAlias(requestJson: String, onCreated: (String) -> Unit) {
         viewModelScope.launch {
             val res = MailxRustBridge.createAlias(
-                prefs.baseUrl,
-                prefs.accessKey,
-                prefs.bearerToken,
+                storedPrefs.baseUrl,
+                storedPrefs.accessKey,
+                storedPrefs.bearerToken,
                 requestJson
             )
-            prefs.syncRefreshedTokenIfPresent(res)
+            persistRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
                 val aliasObj = res.optJSONObject("data")?.optJSONObject("alias")
                 val newName = aliasObj?.optString("name", "") ?: ""
@@ -1052,13 +1285,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("domain", alias.domainPart)
             }.toString()
             val res = MailxRustBridge.updateAlias(
-                prefs.baseUrl,
-                prefs.accessKey,
-                prefs.bearerToken,
+                storedPrefs.baseUrl,
+                storedPrefs.accessKey,
+                storedPrefs.bearerToken,
                 alias.id,
                 req
             )
-            prefs.syncRefreshedTokenIfPresent(res)
+            persistRefreshedTokenIfPresent(res)
             if (!res.optBoolean("ok", false)) {
                 emitToast(res.optString("error", "Failed to update alias status"))
             }
@@ -1072,13 +1305,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         }
         viewModelScope.launch {
             val res = MailxRustBridge.pinAlias(
-                prefs.baseUrl,
-                prefs.accessKey,
-                prefs.bearerToken,
+                storedPrefs.baseUrl,
+                storedPrefs.accessKey,
+                storedPrefs.bearerToken,
                 alias.id,
                 newPinned
             )
-            prefs.syncRefreshedTokenIfPresent(res)
+            persistRefreshedTokenIfPresent(res)
             if (!res.optBoolean("ok", false)) {
                 emitToast(res.optString("error", "Failed to update pin status"))
             }
@@ -1106,13 +1339,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("domain", alias.domainPart)
             }.toString()
             val res = MailxRustBridge.updateAlias(
-                prefs.baseUrl,
-                prefs.accessKey,
-                prefs.bearerToken,
+                storedPrefs.baseUrl,
+                storedPrefs.accessKey,
+                storedPrefs.bearerToken,
                 alias.id,
                 req
             )
-            prefs.syncRefreshedTokenIfPresent(res)
+            persistRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias updated")
                 loadAliasesInternal(showIndicator = false)
@@ -1129,7 +1362,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("unit", unit)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/alias/$aliasId/pause", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1144,7 +1377,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun unpauseAlias(aliasId: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/alias/$aliasId/pause"
             )
             if (res.optBoolean("ok", false)) {
@@ -1162,7 +1395,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         }
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/alias/restore/${alias.id}"
             )
             if (res.optBoolean("ok", false)) {
@@ -1179,7 +1412,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         _aliases.update { list -> list.filterNot { it.id == alias.id } }
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/alias/forget/${alias.id}"
             )
             if (res.optBoolean("ok", false)) {
@@ -1197,12 +1430,12 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         _aliases.update { list -> list.filterNot { it.id == alias.id } }
         viewModelScope.launch {
             val res = MailxRustBridge.deleteAlias(
-                prefs.baseUrl,
-                prefs.accessKey,
-                prefs.bearerToken,
+                storedPrefs.baseUrl,
+                storedPrefs.accessKey,
+                storedPrefs.bearerToken,
                 alias.id
             )
-            prefs.syncRefreshedTokenIfPresent(res)
+            persistRefreshedTokenIfPresent(res)
             if (res.optBoolean("ok", false)) {
                 emitToast("Alias deleted: ${alias.name}")
                 hasLoadedDeletedAliases = false
@@ -1227,7 +1460,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("enabled", enabled)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/aliases/bulk/enable", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1252,7 +1485,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("pinned", pinned)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/aliases/bulk/pin", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1272,7 +1505,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/aliases/bulk/delete", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1295,7 +1528,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/aliases/bulk/restore", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1315,7 +1548,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             val idsArr = JSONArray().apply { ids.forEach { put(it) } }
             val body = JSONObject().put("ids", idsArr).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/aliases/bulk/forget", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1328,10 +1561,10 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchRecipients() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/recipients"
             )
             if (res.optBoolean("ok", false)) {
@@ -1354,7 +1587,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("email", clean).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/recipient", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1369,7 +1602,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun sendRecipientOtp(recipientId: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/recipient/sendotp/$recipientId"
             )
             if (res.optBoolean("ok", false)) {
@@ -1384,7 +1617,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/recipient/activate/$recipientId", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1411,7 +1644,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("pgp_inline", pgpInline)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/recipient", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1427,7 +1660,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("recipients", fallbackRecipients.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/recipient/delete/$recipientId", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1441,10 +1674,10 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchDomains() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/domains"
             )
             if (res.optBoolean("ok", false)) {
@@ -1454,7 +1687,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 }
             }
             val cfgRes = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/domains/dns-config"
             )
             if (cfgRes.optBoolean("ok", false)) {
@@ -1469,7 +1702,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("name", clean).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/domain", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1487,7 +1720,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun verifyDomainDns(domainId: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/domain/$domainId/verify-dns"
             )
             val dataObj = res.optJSONObject("data")
@@ -1538,7 +1771,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("create_alias", createAlias)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/domain/${domain.id}", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1554,7 +1787,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun deleteCustomDomain(domainId: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/domain/$domainId"
             )
             if (res.optBoolean("ok", false)) {
@@ -1568,7 +1801,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchBlocklist() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             // The official API caps blocklist pages at 100 items and reports the
             // full matching count in `total`. Load all pages before replacing UI state.
@@ -1581,7 +1814,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             var pagesFetched = 0
             while (seenBlocklistIds.size < total && pagesFetched < 1000) {
                 val res = requestApi(
-                    prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                    storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                     "GET", "/v1/blocklist?limit=100&page=$page"
                 )
                 if (!res.optBoolean("ok", false)) {
@@ -1634,7 +1867,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("value", clean)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/blocklist", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1649,7 +1882,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun deleteBlocklistItem(id: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/blocklist/$id"
             )
             if (res.optBoolean("ok", false)) {
@@ -1662,10 +1895,10 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchRules() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/rules"
             )
             if (res.optBoolean("ok", false)) {
@@ -1705,7 +1938,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             val method = if (isUpdate) "PUT" else "POST"
             val path = if (isUpdate) "/v1/rule/$ruleId" else "/v1/rule"
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 method, path, body
             )
             if (res.optBoolean("ok", false)) {
@@ -1722,7 +1955,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("active", active).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/rule/${rule.id}/active", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1749,7 +1982,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             val idsArr = JSONArray().apply { current.forEach { put(it.id) } }
             val body = JSONObject().put("ids", idsArr).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/rules/order", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1763,7 +1996,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun deleteRule(ruleId: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/rule/$ruleId"
             )
             if (res.optBoolean("ok", false)) {
@@ -1776,10 +2009,10 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchUserStats() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/user/stats"
             )
             if (res.optBoolean("ok", false)) {
@@ -1836,11 +2069,11 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             _serverHealthStatus.value = "Checking server health..."
             val liveRes = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/livez"
             )
             if (liveRes.optBoolean("ok", false)) {
-                _serverHealthStatus.value = "Online (HTTP 200 OK - ${prefs.baseUrl})"
+                _serverHealthStatus.value = "Online (HTTP 200 OK - ${storedPrefs.baseUrl})"
                 emitToast("Server is online and healthy")
             } else {
                 val err = liveRes.optString("error", "Unreachable")
@@ -1851,10 +2084,10 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchDiagnosticLogs() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/logs"
             )
             if (res.optBoolean("ok", false)) {
@@ -1867,7 +2100,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun fetchBounceLogFile(logId: String, onLoaded: (String) -> Unit) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/log/file/$logId"
             )
             if (res.optBoolean("ok", false)) {
@@ -1883,7 +2116,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun deleteAllDiagnosticLogs() {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/logs"
             )
             if (res.optBoolean("ok", false)) {
@@ -1896,17 +2129,17 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun fetchAccountAndSubscription() {
-        if (!prefs.isConfigured()) return
+        if (!storedPrefs.isConfigured) return
         viewModelScope.launch {
             val userRes = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/user"
             )
             if (userRes.optBoolean("ok", false)) {
                 val u = userRes.optJSONObject("data")
                 if (u != null) {
-                    val em: String = u.optString("email", "").ifBlank { prefs.accountEmail }
-                    if (em.isNotBlank()) prefs.accountEmail = em
+                    val em: String = u.optString("email", "").ifBlank { storedPrefs.accountEmail }
+                    if (em.isNotBlank()) persistValues(mapOf("account_email" to em.trim()))
                     _userAccount.update { prev ->
                         prev.copy(
                             id = u.optString("id", prev.id),
@@ -1921,7 +2154,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             }
 
             val subRes = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/sub"
             )
             if (subRes.optBoolean("ok", false)) {
@@ -1938,7 +2171,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             }
 
             val keysRes = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/accesskeys"
             )
             if (keysRes.optBoolean("ok", false)) {
@@ -1946,7 +2179,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             }
 
             val credsRes = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/user/credentials"
             )
             if (credsRes.optBoolean("ok", false)) {
@@ -1958,7 +2191,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun sendAccountVerificationOtp() {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/user/sendotp"
             )
             if (res.optBoolean("ok", false)) {
@@ -1973,7 +2206,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/user/activate", body
             )
             if (res.optBoolean("ok", false)) {
@@ -1988,7 +2221,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun deletePasskeyCredential(credentialId: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/user/credential/$credentialId"
             )
             if (res.optBoolean("ok", false)) {
@@ -2003,7 +2236,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun fetchAnnouncements() {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/announcements"
             )
             if (res.optBoolean("ok", false)) {
@@ -2019,7 +2252,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("password", newPassword)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/user/changepassword", body
             )
             if (res.optBoolean("ok", false)) {
@@ -2035,13 +2268,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             if (currentPassword.isNotEmpty()) {
                 val stepBody = JSONObject().put("password", currentPassword).toString()
                 requestApi(
-                    prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                    storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                     "POST", "/v1/user/stepup/password", stepBody
                 )
             }
             val body = JSONObject().put("email", newEmail.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/user/changeemail", body
             )
             if (res.optBoolean("ok", false)) {
@@ -2056,7 +2289,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun initiateTotpSetup() {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/user/totp/enable"
             )
             if (res.optBoolean("ok", false)) {
@@ -2077,7 +2310,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/user/totp/enable/confirm", body
             )
             if (res.optBoolean("ok", false)) {
@@ -2101,7 +2334,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "PUT", "/v1/user/totp/disable", body
             )
             if (res.optBoolean("ok", false)) {
@@ -2122,7 +2355,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 put("expires_at", expIso)
             }.toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/accesskeys", body
             )
             if (res.optBoolean("ok", false)) {
@@ -2143,7 +2376,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun deleteAccessKey(id: String) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "DELETE", "/v1/accesskeys/$id"
             )
             if (res.optBoolean("ok", false)) {
@@ -2158,7 +2391,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun exportAliasesCsv(onCsvReady: (String) -> Unit) {
         viewModelScope.launch {
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "GET", "/v1/aliases/export"
             )
             if (res.optBoolean("ok", false)) {
@@ -2181,9 +2414,9 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     fun importAliasesFromCsvText(csvText: String) {
         viewModelScope.launch {
             val res = MailxRustBridge.importAliasesCsv(
-                prefs.baseUrl,
-                prefs.accessKey,
-                prefs.bearerToken,
+                storedPrefs.baseUrl,
+                storedPrefs.accessKey,
+                storedPrefs.bearerToken,
                 csvText
             )
             if (res.optBoolean("ok", false)) {
@@ -2203,12 +2436,12 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             if (currentPassword.isNotEmpty()) {
                 val stepBody = JSONObject().put("password", currentPassword).toString()
                 requestApi(
-                    prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                    storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                     "POST", "/v1/user/stepup/password", stepBody
                 )
             }
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/user/delete/request"
             )
             if (res.optBoolean("ok", false)) {
@@ -2224,7 +2457,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         viewModelScope.launch {
             val body = JSONObject().put("otp", otp.trim()).toString()
             val res = requestApi(
-                prefs.baseUrl, prefs.accessKey, prefs.bearerToken,
+                storedPrefs.baseUrl, storedPrefs.accessKey, storedPrefs.bearerToken,
                 "POST", "/v1/user/delete", body
             )
             if (res.optBoolean("ok", false)) {
@@ -2237,11 +2470,18 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
     }
 
     fun logoutConfirmed() {
-        val oldUrl = prefs.baseUrl
-        val oldToken = prefs.bearerToken
-        prefs.clearSession()
+        val oldUrl = storedPrefs.baseUrl
+        val oldToken = storedPrefs.bearerToken
+        storedPrefs = storedPrefs.copy(
+            accessKey = "",
+            bearerToken = "",
+            accountEmail = "",
+            cachedAliasesJson = "",
+            availableDomains = SecurePrefsManager.DEFAULT_SHARED_DOMAINS,
+            availableRecipients = emptyList()
+        )
         viewModelScope.launch {
-            runCatching { prefs.persistPendingWrites() }
+            runCatching { prefs.clearSessionAndPersist() }
         }
         syncRustAuthentication(false)
         hasLoadedInitialData = false
