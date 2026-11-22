@@ -2,8 +2,11 @@ package net.mailx.android.widget
 
 import android.content.Context
 import android.content.Intent
+import android.os.Binder
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import net.mailx.android.R
 import net.mailx.android.core.SecurePrefsManager
 import org.json.JSONArray
@@ -23,26 +26,45 @@ private class PinnedAliasesRemoteFactory(
     private val context: Context
 ) : RemoteViewsService.RemoteViewsFactory {
 
+    @Volatile
     private var rows: List<WidgetAliasRow> = emptyList()
 
     override fun onCreate() {
-        loadFromCache()
+        // Avoid reading encrypted storage on the main thread; Android invokes
+        // onDataSetChanged() on a binder worker thread immediately after onCreate().
     }
 
     override fun onDataSetChanged() {
-        loadFromCache()
+        val identityToken = Binder.clearCallingIdentity()
+        try {
+            loadFromDurableStore()
+        } finally {
+            Binder.restoreCallingIdentity(identityToken)
+        }
     }
 
-    private fun loadFromCache() {
-        val prefs = SecurePrefsManager(context)
+    private fun loadFromDurableStore() {
+        val stored = runCatching {
+            runBlocking(Dispatchers.IO) {
+                SecurePrefsManager(context).readDurableSnapshot()
+            }
+        }.getOrNull()
+
+        if (stored == null || stored.optString("bearer_token", "").trim().isEmpty()) {
+            rows = emptyList()
+            return
+        }
+
         val parsed = mutableListOf<Triple<Boolean, Int, WidgetAliasRow>>()
 
         runCatching {
-            val arr = JSONArray(prefs.cachedAliasesJson)
+            val arr = JSONArray(stored.optString("cached_aliases", ""))
             for (i in 0 until arr.length()) {
                 val obj = arr.optJSONObject(i) ?: continue
                 val deletedRaw = obj.opt("deleted_at")
-                val isDeleted = deletedRaw != null && deletedRaw.toString() != "null" && deletedRaw.toString().isNotBlank()
+                val isDeleted = deletedRaw != null &&
+                    deletedRaw.toString() != "null" &&
+                    deletedRaw.toString().isNotBlank()
                 if (isDeleted) continue
                 val enabled = obj.optBoolean("enabled", true)
                 if (!enabled) continue
@@ -54,7 +76,9 @@ private class PinnedAliasesRemoteFactory(
                 val stats = obj.optJSONObject("stats")
                 val fwds = stats?.optInt("forwards", 0) ?: 0
                 val blks = stats?.optInt("blocks", 0) ?: 0
-                val activity = fwds + blks + (stats?.optInt("replies", 0) ?: 0) + (stats?.optInt("sends", 0) ?: 0)
+                val activity = fwds + blks +
+                    (stats?.optInt("replies", 0) ?: 0) +
+                    (stats?.optInt("sends", 0) ?: 0)
 
                 val meta = buildString {
                     if (pinned) append("Pinned • ")
@@ -69,7 +93,10 @@ private class PinnedAliasesRemoteFactory(
         }
 
         rows = parsed
-            .sortedWith(compareByDescending<Triple<Boolean, Int, WidgetAliasRow>> { it.first }.thenByDescending { it.second })
+            .sortedWith(
+                compareByDescending<Triple<Boolean, Int, WidgetAliasRow>> { it.first }
+                    .thenByDescending { it.second }
+            )
             .take(12)
             .map { it.third }
     }
@@ -81,7 +108,8 @@ private class PinnedAliasesRemoteFactory(
     override fun getCount(): Int = rows.size
 
     override fun getViewAt(position: Int): RemoteViews {
-        val row = rows.getOrNull(position) ?: return RemoteViews(context.packageName, R.layout.widget_pinned_alias_item)
+        val row = rows.getOrNull(position)
+            ?: return RemoteViews(context.packageName, R.layout.widget_pinned_alias_item)
         val views = RemoteViews(context.packageName, R.layout.widget_pinned_alias_item)
         views.setTextViewText(R.id.widget_item_email, row.name)
         views.setTextViewText(R.id.widget_item_meta, row.meta)

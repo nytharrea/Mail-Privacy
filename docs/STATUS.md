@@ -49,13 +49,13 @@ A separate reviewer went through the network client, the random generation and t
 |---|---|---|
 | `MailxBackupRepository.kt` | Migrated | Uses `readDurableSnapshot` and `writeValuesAndPersist` |
 | `AliasWatchManager.kt` | Migrated (except ctor) | Uses durable watched-alias methods |
-| `QuickAliasTileService.kt` | Migrated (Phase 1 / Increment 5) | Pending CI verification |
+| `QuickAliasTileService.kt` | Migrated (Phase 1 / Increment 5) | Verified in Debug & Release CI |
 | `AliasWatchWorker.kt` | Hybrid | Replace remaining `syncRefreshedTokenIfPresent` with `writeValuesAndPersist` |
 | `MainActivity.kt` | Hybrid | 4 synchronous reads remain (`aliasSearchEnabled`, `aliasWatchEnabled`, `biometricEnabled`, `isConfigured`) |
 | `MailxViewModel.kt` | Hybrid | 25 synchronous property/method calls remain |
-| `QuickAliasWidgetProvider.kt` | Pending (Phase 2.1) | 9 synchronous calls |
-| `PrivacyStatsWidgetProvider.kt` | Pending (Phase 2.2) | 6 synchronous calls |
-| `PinnedAliasesWidgetService.kt` | Pending (Phase 2.3) | 1 synchronous call (`cachedAliasesJson`) |
+| `QuickAliasWidgetProvider.kt` | Migrated (Phase 2.1) | Durable snapshot + atomic `writeValuesAndPersist`; pending CI |
+| `PrivacyStatsWidgetProvider.kt` | Migrated (Phase 2.2) | Durable snapshot + atomic `writeValuesAndPersist`; pending CI |
+| `PinnedAliasesWidgetService.kt` | Migrated (Phase 2.3) | Durable snapshot on binder thread (`onDataSetChanged`); pending CI |
 | `AliasSearchIndex.kt` | Pending (Phase 2.4) | Direct synchronous `aliasSearchEnabled` read |
 | `ReverseAliasSendActivity.kt` | Pending (Phase 2.7) | 5 synchronous calls |
 | `SecurityBackupDialog.kt` | Pending (Phase 2.9) | Direct `SecurePrefsManager(context)` instantiation in UI |
