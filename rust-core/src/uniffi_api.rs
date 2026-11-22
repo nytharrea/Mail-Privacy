@@ -330,8 +330,14 @@ impl MailxCore {
 
         store.put(KEY_BASE_URL.to_string(), normalized_url.as_bytes().to_vec())?;
         store.put(KEY_ACCESS_KEY.to_string(), trimmed_key.as_bytes().to_vec())?;
-        store.put(KEY_BEARER_TOKEN.to_string(), trimmed_token.as_bytes().to_vec())?;
-        store.put(KEY_ACCOUNT_EMAIL.to_string(), trimmed_email.as_bytes().to_vec())?;
+        store.put(
+            KEY_BEARER_TOKEN.to_string(),
+            trimmed_token.as_bytes().to_vec(),
+        )?;
+        store.put(
+            KEY_ACCOUNT_EMAIL.to_string(),
+            trimmed_email.as_bytes().to_vec(),
+        )?;
 
         if trimmed_token.is_empty() {
             *self.session_slot() = None;
@@ -675,7 +681,10 @@ mod tests {
         let cleared = restarted.clear_session().unwrap();
         assert!(!cleared.authenticated);
         assert!(!restarted.state().authenticated);
-        assert_eq!(restarted.secure_store_get(KEY_BEARER_TOKEN.into()), Ok(None));
+        assert_eq!(
+            restarted.secure_store_get(KEY_BEARER_TOKEN.into()),
+            Ok(None)
+        );
     }
 
     #[test]
