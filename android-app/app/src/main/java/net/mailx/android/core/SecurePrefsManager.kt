@@ -375,6 +375,16 @@ class SecurePrefsManager(context: Context) {
     }
 
     /**
+     * Return the durable encrypted-store contents after all queued mutations
+     * have completed. Callers must use this from a coroutine; it never reads
+     * the synchronous in-memory compatibility snapshot.
+     */
+    suspend fun readDurableSnapshot(): JSONObject {
+        persistPendingWrites()
+        return JSONObject(store.data.first().toString())
+    }
+
+    /**
      * Wait until all previously queued writes have reached DataStore's durable
      * updateData transaction. Call after authentication, token refresh, logout,
      * and backup restore before reporting success to the user.

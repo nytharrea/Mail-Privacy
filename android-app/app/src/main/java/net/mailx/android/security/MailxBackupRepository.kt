@@ -7,38 +7,40 @@ import org.json.JSONObject
 object MailxBackupRepository {
     private const val VERSION = 1
 
-    fun export(prefs: SecurePrefsManager, includeSession: Boolean): JSONObject =
-        JSONObject().apply {
+    suspend fun export(prefs: SecurePrefsManager, includeSession: Boolean): JSONObject {
+        val stored = prefs.readDurableSnapshot()
+        return JSONObject().apply {
             put("format", "mailx-android-settings")
             put("version", VERSION)
             put("settings", JSONObject().apply {
-                put("baseUrl", prefs.baseUrl)
-                put("defaultDomain", prefs.defaultDomain)
-                put("defaultRecipient", prefs.defaultRecipient)
-                put("defaultFormat", prefs.defaultFormat)
-                put("defaultFromName", prefs.defaultFromName)
-                put("blockTrackers", prefs.blockTrackers)
-                put("removeHeader", prefs.removeHeader)
-                put("logIssues", prefs.logIssues)
-                put("unsubscribeBehaviour", prefs.unsubscribeBehaviour)
-                put("darkModeMode", prefs.darkModeMode)
-                put("dynamicColorEnabled", prefs.dynamicColorEnabled)
-                put("amoledDarkEnabled", prefs.amoledDarkEnabled)
-                put("expressiveMotionEnabled", prefs.expressiveMotionEnabled)
-                put("reducedMotionEnabled", prefs.reducedMotionEnabled)
-                put("biometricEnabled", prefs.biometricEnabled)
-                put("aliasWatchEnabled", prefs.aliasWatchEnabled)
-                put("watchedAliasIdsJson", prefs.watchedAliasIdsJson)
-                put("aliasSearchEnabled", prefs.aliasSearchEnabled)
+                put("baseUrl", stored.optString("base_url", SecurePrefsManager.DEFAULT_API_BASE_URL))
+                put("defaultDomain", stored.optString("default_domain", "mailx.net"))
+                put("defaultRecipient", stored.optString("default_recipient", ""))
+                put("defaultFormat", stored.optString("default_format", "words"))
+                put("defaultFromName", stored.optString("default_from_name", ""))
+                put("blockTrackers", stored.optBoolean("block_trackers", false))
+                put("removeHeader", stored.optBoolean("remove_header", false))
+                put("logIssues", stored.optBoolean("log_issues", false))
+                put("unsubscribeBehaviour", stored.optInt("unsubscribe_behaviour", 0))
+                put("darkModeMode", stored.optInt("dark_mode_v3_mode", 1))
+                put("dynamicColorEnabled", stored.optBoolean("dynamic_color_v6_enabled", false))
+                put("amoledDarkEnabled", stored.optBoolean("amoled_dark_v3_enabled", false))
+                put("expressiveMotionEnabled", stored.optBoolean("expressive_motion_v6_enabled", true))
+                put("reducedMotionEnabled", stored.optBoolean("reduced_motion_v1_enabled", false))
+                put("biometricEnabled", stored.optBoolean("biometric_enabled", false))
+                put("aliasWatchEnabled", stored.optBoolean("alias_watch_enabled", false))
+                put("watchedAliasIdsJson", stored.optString("watched_alias_ids", "[]"))
+                put("aliasSearchEnabled", stored.optBoolean("alias_search_enabled", false))
             })
             if (includeSession) {
                 put("session", JSONObject().apply {
-                    put("accessKey", prefs.accessKey)
-                    put("bearerToken", prefs.bearerToken)
-                    put("accountEmail", prefs.accountEmail)
+                    put("accessKey", stored.optString("access_key", ""))
+                    put("bearerToken", stored.optString("bearer_token", ""))
+                    put("accountEmail", stored.optString("account_email", ""))
                 })
             }
         }
+    }
 
     /** Validate before mutating preferences; do not restore watch counter snapshots. */
     suspend fun restore(prefs: SecurePrefsManager, payload: JSONObject, restoreSession: Boolean) {
@@ -47,13 +49,14 @@ object MailxBackupRepository {
         val s = payload.optJSONObject("settings") ?: error("Missing settings")
         val base = s.optString("baseUrl", "")
         require(base.startsWith("https://") && base.length <= 2048) { "Invalid server URL" }
+        val current = prefs.readDurableSnapshot()
         val watched = org.json.JSONArray(s.optString("watchedAliasIdsJson", "[]"))
         require(watched.length() <= 25) { "Too many watched aliases" }
         val session = if (restoreSession) payload.optJSONObject("session") else null
         if (restoreSession) require(session != null) { "This backup has no session credentials" }
 
         prefs.baseUrl = base
-        prefs.defaultDomain = s.optString("defaultDomain", prefs.defaultDomain)
+        prefs.defaultDomain = s.optString("defaultDomain", current.optString("default_domain", "mailx.net"))
         prefs.defaultRecipient = s.optString("defaultRecipient", "")
         prefs.defaultFormat = s.optString("defaultFormat", "words")
         prefs.defaultFromName = s.optString("defaultFromName", "")
