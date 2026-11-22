@@ -59,7 +59,7 @@ A separate reviewer went through the network client, the random generation and t
 | `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Verified in Debug & Release CI |
 | `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Verified in Debug & Release CI |
 | `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | Verified in Debug & Release CI |
-| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Pure DataStore `Flow` + `suspend`; `runBlocking`, `AtomicReference`, `Channel`, and sync API removed; pending CI |
+| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Verified in Debug & Release CI; Phase 3 security tests added (pending CI + device verification) |
 
 ## Next steps (Pre-release roadmap)
 

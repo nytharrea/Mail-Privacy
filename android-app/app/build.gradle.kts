@@ -144,6 +144,8 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.19.1@aar")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
 

@@ -113,6 +113,10 @@ jobs:
         working-directory: android-app
         run: bash ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Run Android unit tests & compile instrumented tests
+        working-directory: android-app
+        run: bash ./gradlew testDebugUnitTest assembleDebugAndroidTest --no-daemon --stacktrace
+
       - name: Verify 16 KB ELF alignment (packaged libraries)
         run: bash scripts/check-elf-alignment.sh android-app/app/build/outputs/apk/debug/*.apk
 

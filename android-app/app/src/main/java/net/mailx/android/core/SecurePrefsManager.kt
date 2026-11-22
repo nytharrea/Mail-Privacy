@@ -34,10 +34,11 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 
-class SecurePrefsManager(context: Context) {
+class SecurePrefsManager internal constructor(
+    private val store: DataStore<JSONObject>
+) {
 
-    private val appContext = context.applicationContext
-    private val store: DataStore<JSONObject> = getStore(appContext)
+    constructor(context: Context) : this(getStore(context.applicationContext))
 
     companion object {
         private val processScope =
@@ -93,7 +94,7 @@ class SecurePrefsManager(context: Context) {
                 check(keyset.isUsingKeystore) {
                     "Android Keystore-backed Tink keyset is unavailable"
                 }
-                check(masterKeySecurityLevel() != "software") {
+                check(isHardwareSecurityLevel(masterKeySecurityLevel())) {
                     "Mailx storage master key is not hardware-backed"
                 }
 
@@ -112,7 +113,7 @@ class SecurePrefsManager(context: Context) {
         private fun ensureHardwareBackedMasterKey() {
             val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
             if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
-                check(masterKeySecurityLevel() != "software") {
+                check(isHardwareSecurityLevel(masterKeySecurityLevel())) {
                     "Existing Mailx storage key is not hardware-backed; clear app storage to re-provision it."
                 }
                 return
@@ -129,7 +130,7 @@ class SecurePrefsManager(context: Context) {
             }
 
             generateMasterKey(strongBox = false)
-            check(masterKeySecurityLevel() != "software") {
+            check(isHardwareSecurityLevel(masterKeySecurityLevel())) {
                 "TEE-backed Android Keystore is required for Mailx secure storage."
             }
         }
@@ -163,7 +164,7 @@ class SecurePrefsManager(context: Context) {
                 .build()
             generator.init(spec)
             generator.generateKey()
-            check(masterKeySecurityLevel() != "software") {
+            check(isHardwareSecurityLevel(masterKeySecurityLevel())) {
                 "Android Keystore generated a software-backed master key."
             }
         }
@@ -185,6 +186,12 @@ class SecurePrefsManager(context: Context) {
                 if (info.isInsideSecureHardware) "hardware" else "software"
             }
         }
+
+        internal fun isHardwareSecurityLevel(level: String): Boolean =
+            level == "strongbox" || level == "tee" || level == "hardware"
+
+        internal fun createSerializer(aead: Aead): Serializer<JSONObject> =
+            EncryptedJsonSerializer(aead)
 
         const val DEFAULT_API_BASE_URL = "https://api.mailx.net"
         val DEFAULT_SHARED_DOMAINS = listOf(
