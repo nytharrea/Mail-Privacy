@@ -6,16 +6,16 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fmt;
-#[cfg(feature = "network")]
+#[cfg(any(feature = "network", test))]
 use std::io::Read;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 const LIVEZ_TIMEOUT: Duration = Duration::from_secs(10);
 const API_TIMEOUT: Duration = Duration::from_secs(15);
 const RAW_TIMEOUT: Duration = Duration::from_secs(20);
 const IMPORT_TIMEOUT: Duration = Duration::from_secs(60);
-#[cfg(feature = "network")]
+#[cfg(any(feature = "network", test))]
 const MAX_BODY_BYTES: u64 = 10 * 1024 * 1024;
 const MAX_SAME_ORIGIN_REDIRECTS: usize = 2;
 const MAX_ERROR_MESSAGE_CHARS: usize = 300;
@@ -40,6 +40,9 @@ impl MailxError {
         match self {
             MailxError::TotpRequired(_) => Some(70001),
             MailxError::StepUpRequired(_) => Some(80001),
+            MailxError::Unauthorized(_) => Some(401),
+            MailxError::RateLimited(_) => Some(429),
+            MailxError::ApiError { status, .. } => Some(i64::from(*status)),
             _ => None,
         }
     }
@@ -240,6 +243,22 @@ impl Transport for UreqTransport {
     }
 }
 
+#[cfg(any(feature = "network", test))]
+fn read_bounded_body<R: Read>(reader: R, max_bytes: u64) -> Result<Vec<u8>, TransportError> {
+    let mut raw = Vec::new();
+    let limit = max_bytes.saturating_add(1);
+    reader
+        .take(limit)
+        .read_to_end(&mut raw)
+        .map_err(|error| TransportError(format!("Failed to read response body: {error}")))?;
+    if raw.len() as u64 > max_bytes {
+        return Err(TransportError(format!(
+            "Response body exceeded maximum allowed size ({max_bytes} bytes)."
+        )));
+    }
+    Ok(raw)
+}
+
 #[cfg(feature = "network")]
 fn read_ureq_response(
     response: ureq::http::Response<ureq::Body>,
@@ -252,13 +271,7 @@ fn read_ureq_response(
             String::from_utf8_lossy(value.as_bytes()).into_owned(),
         ));
     }
-    let mut raw = Vec::new();
-    response
-        .into_body()
-        .into_reader()
-        .take(MAX_BODY_BYTES)
-        .read_to_end(&mut raw)
-        .map_err(|error| TransportError(format!("Failed to read response body: {error}")))?;
+    let raw = read_bounded_body(response.into_body().into_reader(), MAX_BODY_BYTES)?;
     Ok(HttpResponse {
         status,
         headers,
@@ -542,6 +555,28 @@ fn parse_json_or_text(text: &str) -> Value {
     serde_json::from_str::<Value>(trimmed).unwrap_or_else(|_| json!({ "text": text }))
 }
 
+fn is_public_endpoint(path: &str) -> bool {
+    let path_only = path.find(['?', '#']).map_or(path, |end| &path[..end]);
+    matches!(
+        path_only,
+        "/livez"
+            | "/readyz"
+            | "/v1/announcements"
+            | "/v1/register"
+            | "/v1/login"
+            | "/v1/initiatepasswordreset"
+            | "/v1/resetpassword"
+            | "/v1/rotatepasession"
+            | "/v1/api/authenticate"
+            | "/v1/register/begin"
+            | "/v1/register/finish"
+            | "/v1/login/begin"
+            | "/v1/login/finish"
+            | "/v1/login/passkey/begin"
+            | "/v1/login/passkey/finish"
+    )
+}
+
 fn json_headers(with_content_type: bool) -> Vec<(String, String)> {
     let mut headers = vec![("Accept".to_string(), "application/json".to_string())];
     if with_content_type {
@@ -565,6 +600,7 @@ pub struct MailxClient {
     transport: Arc<dyn Transport>,
     access_key: Arc<RwLock<Option<SecretString>>>,
     bearer_token: Arc<RwLock<Option<SecretString>>>,
+    reauth_lock: Arc<Mutex<()>>,
 }
 
 impl MailxClient {
@@ -646,6 +682,7 @@ impl MailxClient {
             transport,
             access_key: Arc::new(RwLock::new(None)),
             bearer_token: Arc::new(RwLock::new(None)),
+            reauth_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -1188,15 +1225,33 @@ impl MailxClient {
 
         if response.status == 401 {
             if allow_reauth && !is_cookie {
-                let saved_key = self
-                    .access_key
-                    .read()
-                    .ok()
-                    .and_then(|g| g.as_ref().map(|s| s.expose().to_string()));
-                if let Some(key) = saved_key {
-                    if !key.starts_with("web:") && self.authenticate(&key).is_ok() {
-                        return self.execute_authenticated(method, path, json_body, false);
+                let refreshed = {
+                    let _guard = self
+                        .reauth_lock
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    let latest = self.current_token();
+                    if latest
+                        .as_deref()
+                        .is_some_and(|t| !t.is_empty() && t != raw_token)
+                    {
+                        true
+                    } else {
+                        let saved_key = self
+                            .access_key
+                            .read()
+                            .ok()
+                            .and_then(|g| g.as_ref().map(|s| s.expose().to_string()));
+                        match saved_key {
+                            Some(key) if !key.starts_with("web:") => {
+                                self.authenticate(&key).is_ok()
+                            }
+                            _ => false,
+                        }
                     }
+                };
+                if refreshed {
+                    return self.execute_authenticated(method, path, json_body, false);
                 }
             }
             return Err(Self::parse_error_body(401, &response.body));
@@ -1234,7 +1289,7 @@ impl MailxClient {
         if body.is_some() {
             headers.push(("Content-Type".to_string(), "application/json".to_string()));
         }
-        if !raw_token.is_empty() {
+        if !raw_token.is_empty() && !is_public_endpoint(&scoped_path) {
             headers.extend(Self::auth_headers(&raw_token)?);
         }
 
@@ -2417,5 +2472,102 @@ mod tests {
             client.delete_alias("alias-1"),
             Err(MailxError::SerializationError(_))
         ));
+    }
+
+    #[test]
+    fn public_endpoints_never_receive_session_credentials() {
+        let (client, transport) = client_with(vec![reply(200, "[]"), reply(200, "{}")]);
+        client.set_credentials(None, Some("cookie:secret-sess".to_string()));
+        client
+            .execute_raw_json("GET", "/v1/announcements", None)
+            .unwrap();
+        client
+            .execute_raw_json("POST", "/v1/initiatepasswordreset", Some("{}"))
+            .unwrap();
+        let requests = transport.requests();
+        assert_eq!(requests.len(), 2);
+        for req in &requests {
+            assert!(req.header("authorization").is_none());
+            assert!(req.header("cookie").is_none());
+        }
+    }
+
+    #[test]
+    fn bounded_body_reader_rejects_oversized_payloads() {
+        let ok_data = vec![b'a'; 64];
+        let read_exact = read_bounded_body(ok_data.as_slice(), 64).unwrap();
+        assert_eq!(read_exact.len(), 64);
+
+        let too_large = vec![b'b'; 65];
+        let err = read_bounded_body(too_large.as_slice(), 64).unwrap_err();
+        assert!(err.to_string().contains("exceeded"));
+        assert_eq!(MAX_BODY_BYTES, 10 * 1024 * 1024);
+    }
+
+    #[test]
+    fn http_status_error_codes_are_exposed_for_callers() {
+        let e401 = MailxClient::parse_error_body(401, "");
+        let e403 = MailxClient::parse_error_body(403, r#"{"error":"denied"}"#);
+        let e429 = MailxClient::parse_error_body(429, "Too Many Requests");
+        assert_eq!(e401.error_code(), Some(401));
+        assert_eq!(e403.error_code(), Some(403));
+        assert_eq!(e429.error_code(), Some(429));
+    }
+
+    #[test]
+    fn concurrent_401_reauth_is_single_flight() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct SingleFlightTransport {
+            barrier: std::sync::Barrier,
+            auth_calls: AtomicUsize,
+        }
+
+        impl Transport for SingleFlightTransport {
+            fn send(&self, request: &HttpRequest) -> Result<HttpResponse, TransportError> {
+                if request.url.ends_with("/v1/api/authenticate") {
+                    self.auth_calls.fetch_add(1, Ordering::SeqCst);
+                    return Ok(HttpResponse {
+                        status: 200,
+                        headers: Vec::new(),
+                        body: r#"{"token":"tok-fresh"}"#.to_string(),
+                    });
+                }
+                if request.header("authorization") == Some("Bearer tok-old") {
+                    self.barrier.wait();
+                    return Ok(HttpResponse {
+                        status: 401,
+                        headers: Vec::new(),
+                        body: r#"{"error":"expired"}"#.to_string(),
+                    });
+                }
+                assert_eq!(request.header("authorization"), Some("Bearer tok-fresh"));
+                Ok(HttpResponse {
+                    status: 200,
+                    headers: Vec::new(),
+                    body: r#"{"deleted":true}"#.to_string(),
+                })
+            }
+        }
+
+        let transport = Arc::new(SingleFlightTransport {
+            barrier: std::sync::Barrier::new(4),
+            auth_calls: AtomicUsize::new(0),
+        });
+        let client = MailxClient::with_transport(BASE, false, transport.clone()).unwrap();
+        client.set_credentials(Some(VALID_KEY.to_string()), Some("tok-old".to_string()));
+
+        let handles: Vec<_> = (0..4)
+            .map(|_| {
+                let c = client.clone();
+                std::thread::spawn(move || c.delete_alias("alias-1").unwrap())
+            })
+            .collect();
+        for h in handles {
+            let val = h.join().unwrap();
+            assert_eq!(val["deleted"], true);
+        }
+        assert_eq!(transport.auth_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(client.current_token().as_deref(), Some("tok-fresh"));
     }
 }

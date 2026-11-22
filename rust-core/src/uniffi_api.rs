@@ -233,6 +233,8 @@ struct ActiveSession {
     access_key: Option<SecretString>,
     bearer_token: SecretString,
     account_email: String,
+    #[cfg(feature = "network")]
+    client: Option<mailx_network::MailxClient>,
 }
 
 impl ActiveSession {
@@ -249,12 +251,23 @@ impl ActiveSession {
 }
 
 fn normalize_base_url(raw: &str) -> String {
-    let trimmed = raw.trim().trim_end_matches('/');
-    match trimmed.to_ascii_lowercase().as_str() {
-        "" | "https://mailx.net" | "https://www.mailx.net" | "https://app.mailx.net" => {
-            DEFAULT_API_BASE_URL.to_string()
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return DEFAULT_API_BASE_URL.to_string();
+    }
+    #[cfg(feature = "network")]
+    {
+        mailx_network::MailxClient::normalize_base_url(trimmed)
+    }
+    #[cfg(not(feature = "network"))]
+    {
+        let stripped = trimmed.trim_end_matches('/');
+        match stripped.to_ascii_lowercase().as_str() {
+            "https://mailx.net" | "https://www.mailx.net" | "https://app.mailx.net" => {
+                DEFAULT_API_BASE_URL.to_string()
+            }
+            _ => stripped.to_string(),
         }
-        _ => trimmed.to_string(),
     }
 }
 
@@ -345,6 +358,8 @@ impl MailxCore {
             access_key: (!access_key.is_empty()).then(|| SecretString::new(access_key)),
             bearer_token: SecretString::new(bearer_token),
             account_email,
+            #[cfg(feature = "network")]
+            client: None,
         };
         let snapshot = active.snapshot();
         *self.session_slot() = Some(active);
@@ -387,6 +402,8 @@ impl MailxCore {
             access_key: (!trimmed_key.is_empty()).then(|| SecretString::new(trimmed_key)),
             bearer_token: SecretString::new(trimmed_token),
             account_email: trimmed_email,
+            #[cfg(feature = "network")]
+            client: None,
         };
         let snapshot = active.snapshot();
         *self.session_slot() = Some(active);
@@ -415,6 +432,11 @@ impl MailxCore {
         }
         store.put(KEY_BEARER_TOKEN.to_string(), trimmed_new.into_bytes())?;
         active.bearer_token = next_secret;
+        #[cfg(feature = "network")]
+        if let Some(client) = &active.client {
+            let key = active.access_key.as_ref().map(|k| k.expose().to_string());
+            client.set_credentials(key, Some(active.bearer_token.expose().to_string()));
+        }
         Ok(true)
     }
 
@@ -835,15 +857,19 @@ impl MailxCore {
                 return Err(ApiCallResult::failure(e.to_string(), None));
             }
         }
-        let active = self
-            .session_slot()
-            .clone()
+        let mut guard = self.session_slot();
+        let active = guard
+            .as_mut()
             .ok_or_else(|| ApiCallResult::failure("Authentication is required", Some(401)))?;
+        let token = active.bearer_token.expose().to_string();
+        if let Some(client) = &active.client {
+            return Ok((client.clone(), token));
+        }
         let client = mailx_network::MailxClient::new(&active.base_url, true)
             .map_err(|e| ApiCallResult::from_mailx_error(&e))?;
-        let token = active.bearer_token.expose().to_string();
         let key = active.access_key.as_ref().map(|k| k.expose().to_string());
         client.set_credentials(key, Some(token.clone()));
+        active.client = Some(client.clone());
         Ok((client, token))
     }
 
@@ -1469,5 +1495,50 @@ mod tests {
         let nato: serde_json::Value =
             serde_json::from_str(&uniffi_encode_nato_phonetic("a@b.com".into())).unwrap();
         assert_eq!(nato["ok"], true);
+    }
+
+    #[test]
+    fn concurrent_token_rotation_only_succeeds_once() {
+        use std::sync::Barrier;
+
+        let store = Arc::new(MemoryStore::default());
+        let core = MailxCore::new();
+        core.attach_secure_store(store);
+        core.save_session(
+            "https://api.mailx.net".into(),
+            "ak_key".into(),
+            "tok_initial".into(),
+            "user@example.com".into(),
+        )
+        .unwrap();
+
+        let barrier = Arc::new(Barrier::new(8));
+        let handles: Vec<_> = (0..8)
+            .map(|idx| {
+                let c = core.clone();
+                let b = barrier.clone();
+                std::thread::spawn(move || {
+                    b.wait();
+                    let next = format!("tok_winner_{idx}");
+                    let rotated = c
+                        .rotate_session_token("tok_initial".into(), next.clone())
+                        .unwrap();
+                    (rotated, next)
+                })
+            })
+            .collect();
+
+        let mut winners = Vec::new();
+        for h in handles {
+            let (rotated, token) = h.join().unwrap();
+            if rotated {
+                winners.push(token);
+            }
+        }
+        assert_eq!(winners.len(), 1);
+        assert_eq!(
+            core.secure_store_get(KEY_BEARER_TOKEN.into()),
+            Ok(Some(winners[0].as_bytes().to_vec()))
+        );
     }
 }

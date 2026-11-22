@@ -11,7 +11,7 @@ This is the single current-state summary. Dated working logs are archived in [hi
 - **Randomness.** Alias suffixes, word/passphrase local parts and UUID local parts come from the OS CSPRNG with rejection sampling; entropy figures are computed from the real list sizes ([ADR 0001](adr/0001-os-csprng-for-all-randomness.md)).
 - **TOTP.** RFC 6238 on RustCrypto `hmac`/`sha1` with zeroized key material, checked against the RFC 6238 and RFC 2202 vectors.
 - **Secrets.** `SecretString` zeroizes on drop and compares in constant time. The unused `SecureStore` trait was removed; key validation remains for the secure-store port.
-- **Service client.** Transport abstraction, credentials only to the host the user entered, HTTPS except exact loopback hosts, same-origin redirects only, percent-encoded path segments, timeouts and a response size cap ([ADR 0002](adr/0002-network-host-and-credential-policy.md)).
+- **Service client.** Transport abstraction, credentials only to the host the user entered, HTTPS except exact loopback hosts, same-origin redirects only, public-endpoint credential stripping, percent-encoded path segments, bounded timeouts, strict 10 MiB response-size rejection, HTTP status error-code propagation, and single-flight 401 token refresh ([ADR 0002](adr/0002-network-host-and-credential-policy.md), [ADR 0006](adr/0006-certificate-pinning-and-rotation-policy.md)).
 - **Typed app shell.** Pure state machine for route, sheet, authentication and Back, owned by Rust and exposed through UniFFI ([ADR 0003](adr/0003-typed-rust-core-and-uniffi-boundary.md), [UNIFFI.md](UNIFFI.md)). The JSON reducer and its JNI export were removed.
 
 ### Android
@@ -59,7 +59,7 @@ A separate reviewer went through the network client, the random generation and t
 | `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Verified in Debug & Release CI |
 | `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Verified in Debug & Release CI |
 | `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | Verified in Debug & Release CI |
-| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Verified in Debug & Release CI; Phase 3 JVM security tests verified in CI; Phase 4A verified in CI; Phase 4B verified in CI; Phase 5 complete: jni_bridge.rs and jni crate removed; single UniFFI FFI boundary (pending CI + Update Cargo.lock) |
+| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Verified in Debug & Release CI; Phase 3 JVM security tests verified in CI; Phase 4A verified in CI; Phase 4B verified in CI; Phase 5 CI-verified: jni_bridge.rs and jni crate removed; single UniFFI FFI boundary. Phase 6 network & API security hardening implemented (pending CI) |
 
 ## Next steps (Pre-release roadmap)
 
