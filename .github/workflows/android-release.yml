@@ -87,7 +87,7 @@ jobs:
         with:
           tool: cargo-ndk
 
-      - name: "Build Mailx Rust Core (JNI + UniFFI)"
+      - name: "Build Mailx Rust Core (UniFFI)"
         run: |
           cargo ndk \
             -t arm64-v8a \
@@ -95,7 +95,7 @@ jobs:
             -t x86_64 \
             -t x86 \
             -o android-app/app/src/main/jniLibs \
-            build --release -p mailx-core --features "network,jni,uniffi"
+            build --release -p mailx-core --features "network,uniffi"
 
       - name: "Verify 16 KB ELF alignment (Rust libraries)"
         run: bash scripts/check-elf-alignment.sh android-app/app/src/main/jniLibs

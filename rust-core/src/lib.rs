@@ -11,7 +11,6 @@ pub use mailx_security::{
 };
 pub use mailx_utils::{secret, utils, SecretString};
 
-pub mod jni_bridge;
 
 pub use mailx_domain::models::*;
 pub use mailx_runtime::skeleton::{

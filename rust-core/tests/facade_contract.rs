@@ -1,5 +1,4 @@
 use mailx_core::{get_skeleton_info, validate_access_key};
-use serde_json::Value;
 
 #[test]
 fn android_facade_preserves_16kb_alignment_contract() {
@@ -12,11 +11,12 @@ fn access_key_validation_rejects_empty_input() {
     assert!(validate_access_key("").is_err());
 }
 
+#[cfg(feature = "uniffi")]
 #[test]
-fn jni_envelope_keeps_stable_error_shape() {
-    let response: Value =
-        serde_json::from_str(&mailx_core::jni_bridge::handle_validate_access_key(""))
-            .expect("JNI response must be valid JSON");
+fn uniffi_envelope_keeps_stable_error_shape() {
+    let raw = mailx_core::uniffi_api::uniffi_validate_access_key(String::new());
+    let response: serde_json::Value =
+        serde_json::from_str(&raw).expect("UniFFI response must be valid JSON");
 
     assert_eq!(response["ok"], false);
     assert!(response["error"].is_string());

@@ -12,7 +12,6 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["network"]
 network = ["mailx-network/network", "mailx-application/network"]
-jni = ["dep:jni"]
 uniffi = ["dep:uniffi"]
 
 [dependencies]
@@ -24,5 +23,4 @@ mailx-application = { path = "../crates/mailx-application", default-features = f
 mailx-runtime = { path = "../crates/mailx-runtime" }
 serde.workspace = true
 serde_json.workspace = true
-jni = { version = "0.21", optional = true }
 uniffi = { workspace = true, optional = true }
