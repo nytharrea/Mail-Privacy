@@ -12,8 +12,8 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import net.mailx.android.R
-import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.ui.MainActivity
 import org.json.JSONArray
 import org.json.JSONObject
@@ -36,10 +36,10 @@ class AliasWatchWorker(
 
         val stored = runCatching { prefs.readDurableSnapshot() }
             .getOrElse { return Result.retry() }
-        val baseUrl = stored.optString("base_url", "")
-        val accessKey = stored.optString("access_key", "")
-        val bearerToken = stored.optString("bearer_token", "")
-        val configured = bearerToken.isNotEmpty()
+        val baseUrl = normalizeApiBaseUrl(stored.optString("base_url", ""))
+        val accessKey = stored.optString("access_key", "").trim()
+        var currentBearerToken = stored.optString("bearer_token", "").trim()
+        val configured = currentBearerToken.isNotEmpty()
         if (!configured || !stored.optBoolean("alias_watch_enabled", false)) return Result.success()
 
         val watched = runCatching { JSONArray(stored.optString("watched_alias_ids", "[]")) }
@@ -61,14 +61,18 @@ class AliasWatchWorker(
                 MailxRustBridge.fetchAliases(
                     baseUrl = baseUrl,
                     accessKey = accessKey,
-                    bearerToken = bearerToken,
+                    bearerToken = currentBearerToken,
                     status = "active_inactive",
                     page = page
                 )
             }.getOrElse { return Result.retry() }
-            prefs.syncRefreshedTokenIfPresent(response)
-            runCatching { prefs.persistPendingWrites() }
-                .getOrElse { return Result.retry() }
+            val refreshed = response.optString("refreshed_token", "").trim()
+            if (refreshed.isNotEmpty() && refreshed != currentBearerToken) {
+                runCatching {
+                    prefs.writeValuesAndPersist(mapOf("bearer_token" to refreshed))
+                }.getOrElse { return Result.retry() }
+                currentBearerToken = refreshed
+            }
             if (!response.optBoolean("ok", false)) {
                 val code = response.optInt("error_code", 0)
                 return if (code == 401 || code == 403) Result.failure() else Result.retry()
@@ -132,6 +136,15 @@ class AliasWatchWorker(
         }
 
         return Result.retry()
+    }
+
+    private fun normalizeApiBaseUrl(raw: String): String {
+        val trimmed = raw.trim().trimEnd('/')
+        return when (trimmed.lowercase()) {
+            "", "https://mailx.net", "https://www.mailx.net", "https://app.mailx.net" ->
+                SecurePrefsManager.DEFAULT_API_BASE_URL
+            else -> trimmed
+        }
     }
 
     private fun postAliasNotification(aliasId: String, email: String, count: Int) {

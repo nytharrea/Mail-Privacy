@@ -11,13 +11,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import net.mailx.android.ui.MainActivity
 import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.security.EncryptedBackupCodec
 import net.mailx.android.security.MailxBackupRepository
+import net.mailx.android.ui.MainActivity
 
 /** SAF-based encrypted backup/restore; does not ask for broad storage permission. */
 @Composable
@@ -40,7 +41,7 @@ fun SecurityBackupDialog(onDismiss: () -> Unit) {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val prefs = SecurePrefsManager(context)
+                    val prefs = SecurePrefsManager(context.applicationContext)
                     if (restore) {
                         val bytes = context.contentResolver.openInputStream(uri)?.use {
                             // Reject excessive input before decoding, even from untrusted providers.
@@ -57,20 +58,26 @@ fun SecurityBackupDialog(onDismiss: () -> Unit) {
                         try {
                             val payload = EncryptedBackupCodec.decrypt(bytes, secret)
                             MailxBackupRepository.restore(prefs, payload, restoreSession)
-                        } finally { bytes.fill(0) }
+                        } finally {
+                            bytes.fill(0)
+                        }
                     } else {
                         val payload = MailxBackupRepository.export(prefs, includeSession)
                         val bytes = EncryptedBackupCodec.encrypt(payload, secret)
                         try {
                             context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) }
                                 ?: error("Cannot write selected file")
-                        } finally { bytes.fill(0) }
+                        } finally {
+                            bytes.fill(0)
+                        }
                     }
                 }
                 message = if (restore) "Backup restored. Reloading Mailx…" else "Encrypted backup saved"
                 if (restore) {
                     (context as? Activity)?.recreate()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 message = "Backup operation failed: ${e.message ?: e.javaClass.simpleName}"
             } finally {
@@ -99,10 +106,12 @@ fun SecurityBackupDialog(onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Settings and watched aliases are backed up locally. Credentials are excluded unless explicitly selected.")
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it },
+                    value = password,
+                    onValueChange = { password = it },
                     label = { Text("Backup password (10+ characters)") },
                     visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Row {
                     Checkbox(checked = includeSession, onCheckedChange = { includeSession = it })
@@ -116,12 +125,18 @@ fun SecurityBackupDialog(onDismiss: () -> Unit) {
                 if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 OutlinedButton(
                     enabled = !busy && password.length >= 10,
-                    onClick = { (context as? MainActivity)?.setExternalDocumentFlow(true); create.launch("mailx-backup.mailxbkp") },
+                    onClick = {
+                        (context as? MainActivity)?.setExternalDocumentFlow(true)
+                        create.launch("mailx-backup.mailxbkp")
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Export encrypted backup") }
                 Button(
                     enabled = !busy && password.isNotBlank(),
-                    onClick = { (context as? MainActivity)?.setExternalDocumentFlow(true); open.launch(arrayOf("application/octet-stream", "*/*")) },
+                    onClick = {
+                        (context as? MainActivity)?.setExternalDocumentFlow(true)
+                        open.launch(arrayOf("application/octet-stream", "*/*"))
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Select backup to restore") }
             }

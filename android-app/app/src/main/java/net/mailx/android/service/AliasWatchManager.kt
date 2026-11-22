@@ -1,6 +1,8 @@
 package net.mailx.android.service
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.mailx.android.core.SecurePrefsManager
 
 /**
@@ -9,22 +11,30 @@ import net.mailx.android.core.SecurePrefsManager
  */
 class AliasWatchManager(context: Context) {
     private val appContext = context.applicationContext
-    private val prefs = SecurePrefsManager(appContext)
 
-    suspend fun watchedIds(): Set<String> = prefs.getWatchedAliasIdsDurable()
+    private suspend fun durablePrefs(): SecurePrefsManager = withContext(Dispatchers.IO) {
+        SecurePrefsManager(appContext)
+    }
+
+    suspend fun watchedIds(): Set<String> = withContext(Dispatchers.IO) {
+        durablePrefs().getWatchedAliasIdsDurable()
+    }
 
     suspend fun isWatched(aliasId: String): Boolean = aliasId in watchedIds()
 
-    suspend fun setWatched(aliasId: String, watched: Boolean): Boolean {
-        val updated = prefs.setAliasWatchedDurable(aliasId, watched)
-        if (updated) {
-            val enabled = prefs.getWatchedAliasIdsDurable().isNotEmpty()
-            AliasWatchWorker.schedule(appContext, enabled)
+    suspend fun setWatched(aliasId: String, watched: Boolean): Boolean =
+        withContext(Dispatchers.IO) {
+            val prefs = durablePrefs()
+            val updated = prefs.setAliasWatchedDurable(aliasId, watched)
+            if (updated) {
+                val enabled = prefs.getWatchedAliasIdsDurable().isNotEmpty()
+                AliasWatchWorker.schedule(appContext, enabled)
+            }
+            updated
         }
-        return updated
-    }
 
-    suspend fun setEnabled(enabled: Boolean) {
+    suspend fun setEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
+        val prefs = durablePrefs()
         val shouldEnable = enabled && prefs.getWatchedAliasIdsDurable().isNotEmpty()
         prefs.writeValuesAndPersist(mapOf("alias_watch_enabled" to shouldEnable))
         AliasWatchWorker.schedule(appContext, shouldEnable)

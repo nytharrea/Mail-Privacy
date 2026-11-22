@@ -48,17 +48,17 @@ A separate reviewer went through the network client, the random generation and t
 | Component | Status | Notes |
 |---|---|---|
 | `MailxBackupRepository.kt` | Migrated | Uses `readDurableSnapshot` and `writeValuesAndPersist` |
-| `AliasWatchManager.kt` | Migrated (except ctor) | Uses durable watched-alias methods |
+| `AliasWatchManager.kt` | Migrated (Phase 2.5) | Deferred IO construction + durable API; pending CI |
 | `QuickAliasTileService.kt` | Migrated (Phase 1 / Increment 5) | Verified in Debug & Release CI |
-| `AliasWatchWorker.kt` | Hybrid | Replace remaining `syncRefreshedTokenIfPresent` with `writeValuesAndPersist` |
+| `AliasWatchWorker.kt` | Migrated (Phase 2.6) | Durable token persistence + updated pagination token; pending CI |
 | `MainActivity.kt` | Hybrid | 4 synchronous reads remain (`aliasSearchEnabled`, `aliasWatchEnabled`, `biometricEnabled`, `isConfigured`) |
 | `MailxViewModel.kt` | Hybrid | 25 synchronous property/method calls remain |
-| `QuickAliasWidgetProvider.kt` | Migrated (Phase 2.1) | Durable snapshot + atomic `writeValuesAndPersist`; pending CI |
-| `PrivacyStatsWidgetProvider.kt` | Migrated (Phase 2.2) | Durable snapshot + atomic `writeValuesAndPersist`; pending CI |
-| `PinnedAliasesWidgetService.kt` | Migrated (Phase 2.3) | Durable snapshot on binder thread (`onDataSetChanged`); pending CI |
-| `AliasSearchIndex.kt` | Pending (Phase 2.4) | Direct synchronous `aliasSearchEnabled` read |
-| `ReverseAliasSendActivity.kt` | Pending (Phase 2.7) | 5 synchronous calls |
-| `SecurityBackupDialog.kt` | Pending (Phase 2.9) | Direct `SecurePrefsManager(context)` instantiation in UI |
+| `QuickAliasWidgetProvider.kt` | Migrated (Phase 2.1) | Verified in Debug & Release CI |
+| `PrivacyStatsWidgetProvider.kt` | Migrated (Phase 2.2) | Verified in Debug & Release CI |
+| `PinnedAliasesWidgetService.kt` | Migrated (Phase 2.3) | Verified in Debug & Release CI |
+| `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Uses `readDurableSnapshot()`; pending CI |
+| `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Async `readDurableSnapshot()` in `LaunchedEffect`; pending CI |
+| `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | IO-only durable backup/restore + `CancellationException` handling; pending CI |
 | `SecurePrefsManager.kt` | Pending (Phase 2.11) | Remove `runBlocking`, `AtomicReference`, `Channel` queue, and sync getters/setters once all callers migrate |
 
 ## Next steps (Pre-release roadmap)

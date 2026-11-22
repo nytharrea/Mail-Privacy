@@ -27,23 +27,31 @@ object AliasSearchIndex {
     private const val TYPE = "Alias"
 
     suspend fun replace(context: Context, aliases: List<UiAlias>) = withContext(Dispatchers.IO) {
-        if (!SecurePrefsManager(context).aliasSearchEnabled) return@withContext
+        val searchEnabled = SecurePrefsManager(context.applicationContext)
+            .readDurableSnapshot()
+            .optBoolean("alias_search_enabled", false)
+        if (!searchEnabled) return@withContext
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching {
                 val searchContext = PlatformStorage.SearchContext.Builder(context, DB).build()
                 val session = PlatformStorage.createSearchSessionAsync(searchContext).await()
                 try {
                     val schema = AppSearchSchema.Builder(TYPE)
-                        .addProperty(AppSearchSchema.StringPropertyConfig.Builder("email")
-                            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                            .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                            .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                            .build())
+                        .addProperty(
+                            AppSearchSchema.StringPropertyConfig.Builder("email")
+                                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
+                                .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+                                .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+                                .build()
+                        )
                         .build()
-                    session.setSchemaAsync(SetSchemaRequest.Builder()
-                        .addSchemas(schema)
-                        .setSchemaTypeDisplayedBySystem(TYPE, true)
-                        .setForceOverride(true).build()).await()
+                    session.setSchemaAsync(
+                        SetSchemaRequest.Builder()
+                            .addSchemas(schema)
+                            .setSchemaTypeDisplayedBySystem(TYPE, true)
+                            .setForceOverride(true)
+                            .build()
+                    ).await()
                     // Remove deleted/renamed aliases before repopulating the opted-in index.
                     session.removeAsync("", SearchSpec.Builder().addFilterNamespaces(NS).build()).await()
                     for (batch in aliases.filter { it.deletedAt.isBlank() }.chunked(100)) {
@@ -51,12 +59,15 @@ object AliasSearchIndex {
                         batch.forEach { alias ->
                             request.addGenericDocuments(
                                 GenericDocument.Builder<GenericDocument.Builder<*>>(NS, alias.id, TYPE)
-                                    .setPropertyString("email", alias.name).build()
+                                    .setPropertyString("email", alias.name)
+                                    .build()
                             )
                         }
                         session.putAsync(request.build()).await()
                     }
-                } finally { session.close() }
+                } finally {
+                    session.close()
+                }
             }
         }
         runCatching {
@@ -72,7 +83,8 @@ object AliasSearchIndex {
                         .setShortLabel(alias.name.take(40))
                         .setLongLabel(alias.name.take(80))
                         .setIcon(IconCompat.createWithResource(context, R.drawable.ic_mailx_web_mark))
-                        .setIntent(intent).build()
+                        .setIntent(intent)
+                        .build()
                 }
             ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
         }
@@ -86,7 +98,9 @@ object AliasSearchIndex {
                 val session = PlatformStorage.createSearchSessionAsync(searchContext).await()
                 try {
                     session.removeAsync("", SearchSpec.Builder().addFilterNamespaces(NS).build()).await()
-                } finally { session.close() }
+                } finally {
+                    session.close()
+                }
             }
         }
     }

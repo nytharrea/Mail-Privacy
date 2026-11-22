@@ -30,11 +30,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.mailx.android.core.SecurePrefsManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.mailx.android.core.MailxRustBridge
+import net.mailx.android.core.SecurePrefsManager
 import net.mailx.android.ui.theme.MailxTheme
 import org.json.JSONArray
 import org.json.JSONObject
+
+private data class ReverseAliasUiPrefs(
+    val darkModeMode: Int = -1,
+    val dynamicColorEnabled: Boolean = false,
+    val amoledDarkEnabled: Boolean = false,
+    val defaultDomain: String = "mailx.net",
+    val cachedAliases: List<String> = emptyList()
+)
 
 class ReverseAliasSendActivity : ComponentActivity() {
 
@@ -42,13 +53,41 @@ class ReverseAliasSendActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val initialTarget = extractTargetEmail(intent)
-        val prefs = SecurePrefsManager(this)
-        val cachedAliases = loadCachedAliasNames(prefs.cachedAliasesJson)
-        val defaultAlias = cachedAliases.firstOrNull() ?: "example.alias@${prefs.defaultDomain}"
 
         setContent {
+            var uiPrefs by remember { mutableStateOf(ReverseAliasUiPrefs()) }
+
+            LaunchedEffect(Unit) {
+                uiPrefs = try {
+                    withContext(Dispatchers.IO) {
+                        val stored = SecurePrefsManager(applicationContext).readDurableSnapshot()
+                        val defaultDomain = stored.optString("default_domain", "")
+                            .trim()
+                            .ifEmpty { "mailx.net" }
+                        val aliases = loadCachedAliasNames(stored.optString("cached_aliases", ""))
+                        ReverseAliasUiPrefs(
+                            darkModeMode = if (stored.has("dark_mode_v3_mode")) {
+                                stored.optInt("dark_mode_v3_mode", -1)
+                            } else {
+                                -1
+                            },
+                            dynamicColorEnabled = stored.optBoolean("dynamic_color_v6_enabled", false),
+                            amoledDarkEnabled = stored.optBoolean("amoled_dark_v3_enabled", false),
+                            defaultDomain = defaultDomain,
+                            cachedAliases = aliases
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Throwable) {
+                    ReverseAliasUiPrefs()
+                }
+            }
+
+            val defaultAlias = uiPrefs.cachedAliases.firstOrNull()
+                ?: "example.alias@${uiPrefs.defaultDomain}"
             val systemDark = isSystemInDarkTheme()
-            val isDark = when (prefs.darkModeMode) {
+            val isDark = when (uiPrefs.darkModeMode) {
                 1 -> true
                 0 -> false
                 else -> systemDark
@@ -56,12 +95,12 @@ class ReverseAliasSendActivity : ComponentActivity() {
 
             MailxTheme(
                 darkTheme = isDark,
-                dynamicColor = prefs.dynamicColorEnabled,
-                amoledDark = prefs.amoledDarkEnabled
+                dynamicColor = uiPrefs.dynamicColorEnabled,
+                amoledDark = uiPrefs.amoledDarkEnabled
             ) {
                 ReverseAliasDialogCard(
                     initialAlias = defaultAlias,
-                    availableAliases = cachedAliases,
+                    availableAliases = uiPrefs.cachedAliases,
                     initialTargetEmail = initialTarget,
                     onCopyAndClose = { generated ->
                         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -77,7 +116,8 @@ class ReverseAliasSendActivity : ComponentActivity() {
                         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         cb.setPrimaryClip(ClipData.newPlainText("Mailx Reverse Alias", generated))
                         runCatching {
-                            val mailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generated"))
+                            val mailIntent =
+                                Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$generated"))
                             startActivity(Intent.createChooser(mailIntent, "Send Email"))
                         }
                         finish()
@@ -95,7 +135,8 @@ class ReverseAliasSendActivity : ComponentActivity() {
             return schemePart.substringBefore("?").trim()
         }
         if (intent.action == Intent.ACTION_PROCESS_TEXT) {
-            val selected = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty().trim()
+            val selected =
+                intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty().trim()
             if (selected.contains("@")) return selected
         }
         return ""
@@ -104,7 +145,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
     private fun loadCachedAliasNames(rawJson: String): List<String> {
         return runCatching {
             val arr = JSONArray(rawJson)
-            buildList<String> {
+            buildList {
                 for (i in 0 until arr.length()) {
                     val obj = arr.optJSONObject(i) ?: continue
                     val enabled = obj.optBoolean("enabled", true)
@@ -129,6 +170,7 @@ private fun ReverseAliasDialogCard(
     onDismiss: () -> Unit
 ) {
     var senderAlias by remember { mutableStateOf(initialAlias) }
+    var aliasEditedByUser by remember { mutableStateOf(false) }
     var targetEmail by remember { mutableStateOf(initialTargetEmail) }
     var generatedAddress by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -149,9 +191,12 @@ private fun ReverseAliasDialogCard(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (initialTargetEmail.isNotBlank()) {
-            recompute(senderAlias, initialTargetEmail)
+    LaunchedEffect(initialAlias) {
+        if (!aliasEditedByUser && initialAlias != senderAlias) {
+            senderAlias = initialAlias
+        }
+        if (targetEmail.isNotBlank()) {
+            recompute(senderAlias, targetEmail)
         }
     }
 
@@ -201,6 +246,7 @@ private fun ReverseAliasDialogCard(
                             FilterChip(
                                 selected = senderAlias == candidate,
                                 onClick = {
+                                    aliasEditedByUser = true
                                     senderAlias = candidate
                                     recompute(candidate, targetEmail)
                                 },
@@ -213,6 +259,7 @@ private fun ReverseAliasDialogCard(
                 OutlinedTextField(
                     value = senderAlias,
                     onValueChange = {
+                        aliasEditedByUser = true
                         senderAlias = it
                         recompute(it, targetEmail)
                     },
@@ -273,7 +320,11 @@ private fun ReverseAliasDialogCard(
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
-                        Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Outlined.ContentCopy,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Copy")
                     }
@@ -284,7 +335,11 @@ private fun ReverseAliasDialogCard(
                         modifier = Modifier.weight(1f),
                         shape = CircleShape
                     ) {
-                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Compose")
                     }
