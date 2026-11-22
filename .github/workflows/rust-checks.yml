@@ -28,6 +28,7 @@ jobs:
         shell: bash
         run: |
           if cargo metadata --locked --format-version 1 > /dev/null; then
+            echo "Cargo.lock is up to date (--locked enabled)."
             echo "flag=--locked" >> "${GITHUB_OUTPUT}"
           else
             echo "::warning title=Cargo.lock validation failed::The Cargo metadata error is printed below."
