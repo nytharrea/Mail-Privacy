@@ -55,35 +55,40 @@ object MailxBackupRepository {
         val session = if (restoreSession) payload.optJSONObject("session") else null
         if (restoreSession) require(session != null) { "This backup has no session credentials" }
 
-        prefs.baseUrl = base
-        prefs.defaultDomain = s.optString("defaultDomain", current.optString("default_domain", "mailx.net"))
-        prefs.defaultRecipient = s.optString("defaultRecipient", "")
-        prefs.defaultFormat = s.optString("defaultFormat", "words")
-        prefs.defaultFromName = s.optString("defaultFromName", "")
-        prefs.blockTrackers = s.optBoolean("blockTrackers", false)
-        prefs.removeHeader = s.optBoolean("removeHeader", false)
-        prefs.logIssues = s.optBoolean("logIssues", false)
-        prefs.unsubscribeBehaviour = s.optInt("unsubscribeBehaviour", 0)
-        prefs.darkModeMode = s.optInt("darkModeMode", -1)
-        prefs.dynamicColorEnabled = s.optBoolean("dynamicColorEnabled", false)
-        prefs.amoledDarkEnabled = s.optBoolean("amoledDarkEnabled", false)
-        prefs.expressiveMotionEnabled = s.optBoolean("expressiveMotionEnabled", true)
-        prefs.reducedMotionEnabled = s.optBoolean("reducedMotionEnabled", false)
-        // Never enable the app lock without first validating biometrics on this device.
-        prefs.biometricEnabled = false
-        prefs.watchedAliasIdsJson = watched.toString()
-        prefs.previousWatchedAliasesJson = "[]"
-        prefs.aliasWatchEnabled = s.optBoolean("aliasWatchEnabled", false) && watched.length() > 0
-        // Search index is rebuilt only after an explicit new opt-in on this device.
-        prefs.aliasSearchEnabled = false
+        val values = linkedMapOf<String, Any?>(
+            "base_url" to base,
+            "default_domain" to s.optString(
+                "defaultDomain",
+                current.optString("default_domain", "mailx.net")
+            ),
+            "default_recipient" to s.optString("defaultRecipient", ""),
+            "default_format" to s.optString("defaultFormat", "words"),
+            "default_from_name" to s.optString("defaultFromName", ""),
+            "block_trackers" to s.optBoolean("blockTrackers", false),
+            "remove_header" to s.optBoolean("removeHeader", false),
+            "log_issues" to s.optBoolean("logIssues", false),
+            "unsubscribe_behaviour" to s.optInt("unsubscribeBehaviour", 0),
+            "dark_mode_v3_mode" to s.optInt("darkModeMode", -1),
+            "dynamic_color_v6_enabled" to s.optBoolean("dynamicColorEnabled", false),
+            "amoled_dark_v3_enabled" to s.optBoolean("amoledDarkEnabled", false),
+            "expressive_motion_v6_enabled" to s.optBoolean("expressiveMotionEnabled", true),
+            "reduced_motion_v1_enabled" to s.optBoolean("reducedMotionEnabled", false),
+            // Never enable the app lock without validating biometrics on this device.
+            "biometric_enabled" to false,
+            "watched_alias_ids" to watched.toString(),
+            "previous_watched_aliases" to "[]",
+            "alias_watch_enabled" to (s.optBoolean("aliasWatchEnabled", false) && watched.length() > 0),
+            // Search index is rebuilt only after an explicit new opt-in on this device.
+            "alias_search_enabled" to false
+        )
         if (session != null) {
-            prefs.setSessionSecretsAndPersist(
-                accessKey = session.optString("accessKey", ""),
-                bearerToken = session.optString("bearerToken", ""),
-                accountEmail = session.optString("accountEmail", "")
-            )
-        } else {
-            prefs.persistPendingWrites()
+            values["access_key"] = session.optString("accessKey", "").trim()
+            values["bearer_token"] = session.optString("bearerToken", "").trim()
+            values["account_email"] = session.optString("accountEmail", "").trim()
         }
+
+        // One ordered durable transaction: no partially restored settings if a
+        // later write fails, and no success response before DataStore commits.
+        prefs.writeValuesAndPersist(values)
     }
 }

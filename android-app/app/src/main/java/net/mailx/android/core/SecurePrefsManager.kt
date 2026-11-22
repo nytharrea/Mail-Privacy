@@ -385,6 +385,37 @@ class SecurePrefsManager(context: Context) {
     }
 
     /**
+     * Apply a validated settings/session batch as one ordered DataStore mutation.
+     * The in-memory compatibility snapshot is updated in the same order as the
+     * durable writer queue, and the method returns only after persistence.
+     */
+    suspend fun writeValuesAndPersist(
+        values: Map<String, Any?>,
+        removals: Set<String> = emptySet()
+    ) {
+        val completion = CompletableDeferred<Unit>()
+        synchronized(snapshot) {
+            val next = JSONObject(snapshot.get().toString())
+            removals.forEach(next::remove)
+            values.forEach { (key, value) ->
+                if (value == null) next.remove(key) else next.put(key, value)
+            }
+            snapshot.set(next)
+            check(
+                processMutations.trySend(
+                    StorageMutation(
+                        values = values,
+                        removals = removals,
+                        completion = completion
+                    )
+                ).isSuccess
+            ) { "Secure storage write queue is unavailable." }
+        }
+        completion.await()
+        persistPendingWrites()
+    }
+
+    /**
      * Wait until all previously queued writes have reached DataStore's durable
      * updateData transaction. Call after authentication, token refresh, logout,
      * and backup restore before reporting success to the user.
