@@ -48,17 +48,17 @@ A separate reviewer went through the network client, the random generation and t
 | Component | Status | Notes |
 |---|---|---|
 | `MailxBackupRepository.kt` | Migrated | Uses `readDurableSnapshot` and `writeValuesAndPersist` |
-| `AliasWatchManager.kt` | Migrated (Phase 2.5) | Deferred IO construction + durable API; pending CI |
+| `AliasWatchManager.kt` | Migrated (Phase 2.5) | Verified in Debug & Release CI |
 | `QuickAliasTileService.kt` | Migrated (Phase 1 / Increment 5) | Verified in Debug & Release CI |
-| `AliasWatchWorker.kt` | Migrated (Phase 2.6) | Durable token persistence + updated pagination token; pending CI |
-| `MainActivity.kt` | Hybrid | 4 synchronous reads remain (`aliasSearchEnabled`, `aliasWatchEnabled`, `biometricEnabled`, `isConfigured`) |
+| `AliasWatchWorker.kt` | Migrated (Phase 2.6) | Verified in Debug & Release CI |
+| `MainActivity.kt` | Migrated (Phase 2.8) | Uses `SecurePrefsManager.dataFlow` + durable writes; pending CI |
 | `MailxViewModel.kt` | Hybrid | 25 synchronous property/method calls remain |
 | `QuickAliasWidgetProvider.kt` | Migrated (Phase 2.1) | Verified in Debug & Release CI |
 | `PrivacyStatsWidgetProvider.kt` | Migrated (Phase 2.2) | Verified in Debug & Release CI |
 | `PinnedAliasesWidgetService.kt` | Migrated (Phase 2.3) | Verified in Debug & Release CI |
-| `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Uses `readDurableSnapshot()`; pending CI |
-| `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Async `readDurableSnapshot()` in `LaunchedEffect`; pending CI |
-| `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | IO-only durable backup/restore + `CancellationException` handling; pending CI |
+| `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Verified in Debug & Release CI |
+| `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Verified in Debug & Release CI |
+| `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | Verified in Debug & Release CI |
 | `SecurePrefsManager.kt` | Pending (Phase 2.11) | Remove `runBlocking`, `AtomicReference`, `Channel` queue, and sync getters/setters once all callers migrate |
 
 ## Next steps (Pre-release roadmap)

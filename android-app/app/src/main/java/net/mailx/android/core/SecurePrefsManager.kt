@@ -18,7 +18,9 @@ import androidx.datastore.core.Serializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.channels.Channel
@@ -379,6 +381,13 @@ class SecurePrefsManager(context: Context) {
      * have completed. Callers must use this from a coroutine; it never reads
      * the synchronous in-memory compatibility snapshot.
      */
+    /**
+     * Reactive stream of durable encrypted DataStore snapshots.
+     * Each emitted JSONObject is a defensive copy so callers cannot mutate store state.
+     */
+    val dataFlow: Flow<JSONObject>
+        get() = store.data.map { JSONObject(it.toString()) }
+
     suspend fun readDurableSnapshot(): JSONObject {
         persistPendingWrites()
         return JSONObject(store.data.first().toString())

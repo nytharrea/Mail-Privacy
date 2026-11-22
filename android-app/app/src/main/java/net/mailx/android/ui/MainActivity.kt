@@ -80,6 +80,8 @@ import org.json.JSONObject
 class MainActivity : FragmentActivity() {
     private var appLocked by mutableStateOf(false)
     private var biometricEnabled by mutableStateOf(false)
+    private var sessionConfigured by mutableStateOf(false)
+    private var initialPrefsLoaded by mutableStateOf(false)
     private var promptShowing = false
     private var externalDocumentFlow = false
     private var pendingAliasId by mutableStateOf<String?>(null)
@@ -121,15 +123,26 @@ class MainActivity : FragmentActivity() {
 
     private fun changeBiometric(enabled: Boolean) {
         authenticate {
-            securePrefs.biometricEnabled = enabled
-            biometricEnabled = enabled
-            appLocked = false
+            lifecycleScope.launch {
+                runCatching {
+                    securePrefs.writeValuesAndPersist(mapOf("biometric_enabled" to enabled))
+                }.onSuccess {
+                    biometricEnabled = enabled
+                    appLocked = false
+                }.onFailure {
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        "Could not save app lock preference",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
     }
 
     override fun onStop() {
         super.onStop()
-        if (biometricEnabled && securePrefs.isConfigured() && !externalDocumentFlow) appLocked = true
+        if (biometricEnabled && sessionConfigured && !externalDocumentFlow) appLocked = true
     }
 
     override fun onResume() {
@@ -150,20 +163,35 @@ class MainActivity : FragmentActivity() {
         pendingAliasId = intent?.getStringExtra(AliasWatchWorker.EXTRA_WATCHED_ALIAS_ID)
         val prefs = SecurePrefsManager(this)
         securePrefs = prefs
-        biometricEnabled = prefs.biometricEnabled
-        appLocked = biometricEnabled && prefs.isConfigured()
+        lifecycleScope.launch {
+            prefs.dataFlow.collect { stored ->
+                val bio = stored.optBoolean("biometric_enabled", false)
+                val configured = stored.optString("bearer_token", "").trim().isNotEmpty()
+                biometricEnabled = bio
+                sessionConfigured = configured
+                if (!initialPrefsLoaded) {
+                    initialPrefsLoaded = true
+                    appLocked = bio && configured
+                    if (appLocked && !promptShowing) {
+                        window.decorView.post { if (appLocked) authenticate() }
+                    }
+                } else if (!configured) {
+                    appLocked = false
+                }
+            }
+        }
         lifecycleScope.launch {
             val stored = runCatching { prefs.readDurableSnapshot() }.getOrNull()
             val enabled = stored?.optBoolean("alias_watch_enabled", false) == true
             val watched = prefs.getWatchedAliasIdsDurable()
             AliasWatchWorker.schedule(this@MainActivity, enabled && watched.isNotEmpty())
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
-                android.content.pm.PackageManager.PERMISSION_GRANTED &&
-            prefs.aliasWatchEnabled
-        ) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 3401)
+            if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED &&
+                enabled
+            ) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 3401)
+            }
         }
 
         setContent {
@@ -187,7 +215,9 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    if (appLocked && prefs.isConfigured()) {
+                    if (!initialPrefsLoaded) {
+                        Box(Modifier.fillMaxSize())
+                    } else if (appLocked && sessionConfigured) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -219,7 +249,8 @@ fun MailxAppScreen(
     val context = LocalContext.current
     val reducedMotion = LocalReducedMotion.current
     var showBackupDialog by remember { mutableStateOf(false) }
-    var aliasSearchEnabled by remember { mutableStateOf(vm.prefs.aliasSearchEnabled) }
+    val durablePrefs by vm.prefs.dataFlow.collectAsStateWithLifecycle(initialValue = null)
+    val aliasSearchEnabled = durablePrefs?.optBoolean("alias_search_enabled", false) ?: false
     val localScope = rememberCoroutineScope()
 
     val authState by vm.authState.collectAsStateWithLifecycle()
@@ -536,9 +567,12 @@ fun MailxAppScreen(
                         onToggleBiometric = onToggleBiometric,
                         aliasSearchEnabled = aliasSearchEnabled,
                         onToggleAliasSearch = { enabled ->
-                            aliasSearchEnabled = enabled
-                            vm.prefs.aliasSearchEnabled = enabled
-                            if (!enabled) localScope.launch { net.mailx.android.service.AliasSearchIndex.clear(context) }
+                            localScope.launch {
+                                runCatching {
+                                    vm.prefs.writeValuesAndPersist(mapOf("alias_search_enabled" to enabled))
+                                }
+                                if (!enabled) net.mailx.android.service.AliasSearchIndex.clear(context)
+                            }
                         },
                         onOpenBackupDialog = { showBackupDialog = true },
                         onRequestLogout = { vm.openSheet(ActiveSheet.ConfirmLogout) }
