@@ -1,6 +1,9 @@
 package net.mailx.android.ui.viewmodel
 
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import net.mailx.android.core.uniffi.ApiCallResult
 import net.mailx.android.core.uniffi.AppEvent
 import net.mailx.android.core.uniffi.AppState
 import net.mailx.android.core.uniffi.MailxCore
@@ -10,6 +13,8 @@ import net.mailx.android.core.uniffi.SessionSnapshot
 import net.mailx.android.core.uniffi.Sheet
 import net.mailx.android.ui.model.ActiveSheet
 import net.mailx.android.ui.model.MainNavTab
+import org.json.JSONArray
+import org.json.JSONObject
 
 internal class AppShell(authenticated: Boolean) : AutoCloseable {
     private val core = MailxCore()
@@ -62,6 +67,99 @@ internal class AppShell(authenticated: Boolean) : AutoCloseable {
         return snapshot
     }
 
+    suspend fun loginWithAccessKey(baseUrl: String, accessKey: String): ApiCallResult =
+        withContext(Dispatchers.IO) {
+            core.loginWithAccessKey(baseUrl, accessKey).also { state = core.state() }
+        }
+
+    suspend fun loginWithPassword(
+        baseUrl: String,
+        email: String,
+        password: String,
+        otp: String = ""
+    ): ApiCallResult = withContext(Dispatchers.IO) {
+        core.loginWithPassword(baseUrl, email, password, otp).also { state = core.state() }
+    }
+
+    suspend fun passkeyLoginBegin(baseUrl: String, email: String = ""): ApiCallResult =
+        withContext(Dispatchers.IO) {
+            core.passkeyLoginBegin(baseUrl, email)
+        }
+
+    suspend fun passkeyLoginFinish(
+        baseUrl: String,
+        ceremonyCookie: String,
+        credentialJson: String,
+        discoverable: Boolean,
+        fallbackEmail: String = ""
+    ): ApiCallResult = withContext(Dispatchers.IO) {
+        core.passkeyLoginFinish(
+            baseUrl,
+            ceremonyCookie,
+            credentialJson,
+            discoverable,
+            fallbackEmail
+        ).also { state = core.state() }
+    }
+
+    suspend fun passkeyRegisterBegin(): ApiCallResult = withContext(Dispatchers.IO) {
+        core.passkeyRegisterBegin()
+    }
+
+    suspend fun passkeyRegisterFinish(
+        ceremonyCookie: String,
+        credentialJson: String
+    ): ApiCallResult = withContext(Dispatchers.IO) {
+        core.passkeyRegisterFinish(ceremonyCookie, credentialJson)
+    }
+
+    suspend fun apiRequest(
+        method: String,
+        path: String,
+        bodyJson: String = ""
+    ): ApiCallResult = withContext(Dispatchers.IO) {
+        core.apiRequest(method, path, bodyJson)
+    }
+
+    suspend fun importAliasesCsv(csvText: String): ApiCallResult = withContext(Dispatchers.IO) {
+        core.importAliasesCsv(csvText)
+    }
+
+    suspend fun fetchDefaults(): ApiCallResult = withContext(Dispatchers.IO) {
+        core.fetchDefaults()
+    }
+
+    suspend fun fetchAliases(
+        search: String = "",
+        status: String = "active_inactive",
+        wildcard: String = "",
+        page: Int = 1
+    ): ApiCallResult = withContext(Dispatchers.IO) {
+        core.fetchAliases(search, status, wildcard, page.coerceAtLeast(1).toUInt())
+    }
+
+    suspend fun createAlias(requestJson: String): ApiCallResult = withContext(Dispatchers.IO) {
+        core.createAlias(requestJson)
+    }
+
+    suspend fun updateAlias(aliasId: String, requestJson: String): ApiCallResult =
+        withContext(Dispatchers.IO) {
+            core.updateAlias(aliasId, requestJson)
+        }
+
+    suspend fun pinAlias(aliasId: String, pinned: Boolean): ApiCallResult =
+        withContext(Dispatchers.IO) {
+            core.pinAlias(aliasId, pinned)
+        }
+
+    suspend fun deleteAlias(aliasId: String): ApiCallResult = withContext(Dispatchers.IO) {
+        core.deleteAlias(aliasId)
+    }
+
+    suspend fun logoutSession(): ApiCallResult = withContext(Dispatchers.IO) {
+        core.logoutSession().also { state = core.state() }
+    }
+
     fun authenticate(): Boolean = send(AppEvent.Authenticate)
 
     fun signOut(): Boolean = send(AppEvent.SignOut)
@@ -93,6 +191,20 @@ internal class AppShell(authenticated: Boolean) : AutoCloseable {
     private companion object {
         const val TAG = "AppShell"
     }
+}
+
+internal fun ApiCallResult.toJsonEnvelope(): JSONObject = JSONObject().apply {
+    put("ok", ok)
+    if (ok && dataJson.isNotBlank()) {
+        val trimmed = dataJson.trim()
+        when {
+            trimmed.startsWith("{") -> put("data", JSONObject(trimmed))
+            trimmed.startsWith("[") -> put("data", JSONArray(trimmed))
+            else -> put("data", trimmed)
+        }
+    }
+    error?.let { put("error", it) }
+    errorCode?.let { put("error_code", it) }
 }
 
 private fun MainNavTab.toRoute(): Route = when (this) {

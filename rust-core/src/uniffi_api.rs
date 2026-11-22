@@ -190,6 +190,43 @@ pub struct SessionSnapshot {
     pub account_email: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ApiCallResult {
+    pub ok: bool,
+    pub data_json: String,
+    pub error: Option<String>,
+    pub error_code: Option<i64>,
+}
+
+impl ApiCallResult {
+    #[cfg(feature = "network")]
+    fn success<T: serde::Serialize>(data: &T) -> Self {
+        match serde_json::to_string(data) {
+            Ok(data_json) => Self {
+                ok: true,
+                data_json,
+                error: None,
+                error_code: None,
+            },
+            Err(err) => Self::failure(err.to_string(), None),
+        }
+    }
+
+    fn failure(error: impl Into<String>, error_code: Option<i64>) -> Self {
+        Self {
+            ok: false,
+            data_json: String::new(),
+            error: Some(error.into()),
+            error_code,
+        }
+    }
+
+    #[cfg(feature = "network")]
+    fn from_mailx_error(error: &mailx_network::MailxError) -> Self {
+        Self::failure(error.to_string(), error.error_code())
+    }
+}
+
 #[derive(Clone)]
 struct ActiveSession {
     base_url: String,
@@ -395,6 +432,383 @@ impl MailxCore {
         let _ = self.inner.dispatch(shell::AppEvent::SignOut);
         Ok(empty_session_snapshot(base_url))
     }
+
+    pub fn login_with_access_key(&self, base_url: String, access_key: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let client = match mailx_network::MailxClient::new(&base_url, true) {
+                Ok(c) => c,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            let res = match client.authenticate(&access_key) {
+                Ok(r) => r,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            let email = self.session_snapshot().account_email;
+            let saved = self.save_session(base_url, access_key, res.token.clone(), email);
+            if let Err(e) = saved {
+                return ApiCallResult::failure(e.to_string(), None);
+            }
+            ApiCallResult::success(&res)
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (base_url, access_key);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn login_with_password(
+        &self,
+        base_url: String,
+        email: String,
+        password: String,
+        otp: String,
+    ) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let client = match mailx_network::MailxClient::new(&base_url, true) {
+                Ok(c) => c,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            let res = match client.login_with_credentials(&email, &password, &otp) {
+                Ok(r) => r,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            let saved = self.save_session(base_url, String::new(), res.token.clone(), email);
+            if let Err(e) = saved {
+                return ApiCallResult::failure(e.to_string(), None);
+            }
+            ApiCallResult::success(&res)
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (base_url, email, password, otp);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn passkey_login_begin(&self, base_url: String, email: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let client = match mailx_network::MailxClient::new(&base_url, true) {
+                Ok(c) => c,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            match client.passkey_login_begin(&email) {
+                Ok(res) => ApiCallResult::success(&res),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (base_url, email);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn passkey_login_finish(
+        &self,
+        base_url: String,
+        ceremony_cookie: String,
+        credential_json: String,
+        discoverable: bool,
+        fallback_email: String,
+    ) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let client = match mailx_network::MailxClient::new(&base_url, true) {
+                Ok(c) => c,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            let res = match client.passkey_login_finish(
+                &ceremony_cookie,
+                &credential_json,
+                discoverable,
+                &fallback_email,
+            ) {
+                Ok(r) => r,
+                Err(e) => return ApiCallResult::from_mailx_error(&e),
+            };
+            let email = if res.recipient.trim().is_empty() {
+                fallback_email
+            } else {
+                res.recipient.clone()
+            };
+            let saved = self.save_session(base_url, String::new(), res.token.clone(), email);
+            if let Err(e) = saved {
+                return ApiCallResult::failure(e.to_string(), None);
+            }
+            ApiCallResult::success(&res)
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (
+                base_url,
+                ceremony_cookie,
+                credential_json,
+                discoverable,
+                fallback_email,
+            );
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn passkey_register_begin(&self) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.passkey_register_begin();
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn passkey_register_finish(
+        &self,
+        ceremony_cookie: String,
+        credential_json: String,
+    ) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.passkey_register_finish(&ceremony_cookie, &credential_json);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (ceremony_cookie, credential_json);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn api_request(&self, method: String, path: String, body_json: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let body_opt = if body_json.trim().is_empty() {
+                None
+            } else {
+                Some(body_json.as_str())
+            };
+            let res = client.execute_raw_json(&method, &path, body_opt);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (method, path, body_json);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn import_aliases_csv(&self, csv_text: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.import_aliases_csv(&csv_text);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = csv_text;
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn fetch_defaults(&self) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.fetch_defaults();
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn fetch_aliases(
+        &self,
+        search: String,
+        status: String,
+        wildcard: String,
+        page: u32,
+    ) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let filter = mailx_domain::models::AliasFilter {
+                page: page.max(1) as usize,
+                status,
+                wildcard,
+                search,
+                ..Default::default()
+            };
+            let res = client.fetch_aliases(&filter);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (search, status, wildcard, page);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn create_alias(&self, request_json: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let req: mailx_domain::models::AliasRequest = match serde_json::from_str(&request_json)
+            {
+                Ok(r) => r,
+                Err(e) => return ApiCallResult::failure(e.to_string(), None),
+            };
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.create_alias(&req);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = request_json;
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn update_alias(&self, alias_id: String, request_json: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let req: mailx_domain::models::AliasRequest = match serde_json::from_str(&request_json)
+            {
+                Ok(r) => r,
+                Err(e) => return ApiCallResult::failure(e.to_string(), None),
+            };
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.update_alias(&alias_id, &req);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (alias_id, request_json);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn pin_alias(&self, alias_id: String, pinned: bool) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.pin_alias(&alias_id, pinned);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = (alias_id, pinned);
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn delete_alias(&self, alias_id: String) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        {
+            let (client, orig) = match self.build_session_client() {
+                Ok(pair) => pair,
+                Err(err) => return err,
+            };
+            let res = client.delete_alias(&alias_id);
+            self.sync_client_rotation(&client, &orig);
+            match res {
+                Ok(val) => ApiCallResult::success(&val),
+                Err(e) => ApiCallResult::from_mailx_error(&e),
+            }
+        }
+        #[cfg(not(feature = "network"))]
+        {
+            let _ = alias_id;
+            ApiCallResult::failure("Network support is disabled in this build.", None)
+        }
+    }
+
+    pub fn logout_session(&self) -> ApiCallResult {
+        #[cfg(feature = "network")]
+        if let Ok((client, _)) = self.build_session_client() {
+            let _ = client.logout();
+        }
+        match self.clear_session() {
+            Ok(_) => ApiCallResult {
+                ok: true,
+                data_json: "{}".to_string(),
+                error: None,
+                error_code: None,
+            },
+            Err(e) => ApiCallResult::failure(e.to_string(), None),
+        }
+    }
 }
 
 impl MailxCore {
@@ -412,6 +826,34 @@ impl MailxCore {
         self.store_slot()
             .clone()
             .ok_or(SecureStorePortError::NotAttached)
+    }
+
+    #[cfg(feature = "network")]
+    fn build_session_client(&self) -> Result<(mailx_network::MailxClient, String), ApiCallResult> {
+        if self.session_slot().is_none() && self.store_slot().is_some() {
+            if let Err(e) = self.restore_session() {
+                return Err(ApiCallResult::failure(e.to_string(), None));
+            }
+        }
+        let active = self
+            .session_slot()
+            .clone()
+            .ok_or_else(|| ApiCallResult::failure("Authentication is required", Some(401)))?;
+        let client = mailx_network::MailxClient::new(&active.base_url, true)
+            .map_err(|e| ApiCallResult::from_mailx_error(&e))?;
+        let token = active.bearer_token.expose().to_string();
+        let key = active.access_key.as_ref().map(|k| k.expose().to_string());
+        client.set_credentials(key, Some(token.clone()));
+        Ok((client, token))
+    }
+
+    #[cfg(feature = "network")]
+    fn sync_client_rotation(&self, client: &mailx_network::MailxClient, original_token: &str) {
+        if let Some(current) = client.current_token() {
+            if !current.is_empty() && current != original_token {
+                let _ = self.rotate_session_token(original_token.to_string(), current);
+            }
+        }
     }
 }
 
@@ -724,5 +1166,13 @@ mod tests {
             Err(SecureStorePortError::NotAttached)
         );
         assert_eq!(core.clear_session(), Err(SecureStorePortError::NotAttached));
+    }
+
+    #[test]
+    fn api_request_requires_active_session() {
+        let core = MailxCore::new();
+        let res = core.api_request("GET".into(), "/v1/user".into(), String::new());
+        assert!(!res.ok);
+        assert!(res.error.is_some());
     }
 }
