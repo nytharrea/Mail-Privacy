@@ -56,7 +56,7 @@ fun ManageAliasBottomSheet(
     onToggleEnabled: (Boolean) -> Unit,
     onTogglePinned: (Boolean) -> Unit,
     watched: Boolean = false,
-    onToggleWatched: (Boolean) -> Boolean = { false },
+    onToggleWatched: suspend (Boolean) -> Boolean = { false },
     onUpdateMetadata: (description: String, fromName: String, recipients: String) -> Unit,
     onPauseAlias: (value: Int, unit: String) -> Unit = { _, _ -> },
     onUnpauseAlias: () -> Unit = {},
@@ -68,15 +68,20 @@ fun ManageAliasBottomSheet(
 ) {
     val context = LocalContext.current
     var isWatched by remember(alias.id) { mutableStateOf(watched) }
+    val watchScope = rememberCoroutineScope()
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted && onToggleWatched(true)) isWatched = true
+        if (granted) watchScope.launch {
+            if (onToggleWatched(true)) isWatched = true
+        }
     }
     fun toggleWatch(enabled: Boolean) {
         if (enabled && Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else if (onToggleWatched(enabled)) {
-            isWatched = enabled
+        } else {
+            watchScope.launch {
+                if (onToggleWatched(enabled)) isWatched = enabled
+            }
         }
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

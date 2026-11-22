@@ -34,9 +34,15 @@ class AliasWatchWorker(
         val prefs = runCatching { SecurePrefsManager(applicationContext) }
             .getOrElse { return Result.retry() }
 
-        if (!prefs.isConfigured() || !prefs.aliasWatchEnabled) return Result.success()
+        val stored = runCatching { prefs.readDurableSnapshot() }
+            .getOrElse { return Result.retry() }
+        val baseUrl = stored.optString("base_url", "")
+        val accessKey = stored.optString("access_key", "")
+        val bearerToken = stored.optString("bearer_token", "")
+        val configured = bearerToken.isNotEmpty()
+        if (!configured || !stored.optBoolean("alias_watch_enabled", false)) return Result.success()
 
-        val watched = runCatching { JSONArray(prefs.watchedAliasIdsJson) }
+        val watched = runCatching { JSONArray(stored.optString("watched_alias_ids", "[]")) }
             .getOrElse { JSONArray() }
         if (watched.length() == 0) return Result.success()
 
@@ -53,14 +59,16 @@ class AliasWatchWorker(
         for (page in 1..100) {
             val response = runCatching {
                 MailxRustBridge.fetchAliases(
-                    baseUrl = prefs.baseUrl,
-                    accessKey = prefs.accessKey,
-                    bearerToken = prefs.bearerToken,
+                    baseUrl = baseUrl,
+                    accessKey = accessKey,
+                    bearerToken = bearerToken,
                     status = "active_inactive",
                     page = page
                 )
             }.getOrElse { return Result.retry() }
             prefs.syncRefreshedTokenIfPresent(response)
+            runCatching { prefs.persistPendingWrites() }
+                .getOrElse { return Result.retry() }
             if (!response.optBoolean("ok", false)) {
                 val code = response.optInt("error_code", 0)
                 return if (code == 401 || code == 403) Result.failure() else Result.retry()
@@ -80,8 +88,9 @@ class AliasWatchWorker(
             if (ids.all { it in seen } || added == 0) break
             if (page == 100) return Result.retry() // Incomplete pagination; keep old baseline.
         }
-        val previous = runCatching { JSONArray(prefs.previousWatchedAliasesJson) }
-            .getOrElse { JSONArray() }
+        val previous = runCatching {
+            JSONArray(stored.optString("previous_watched_aliases", "[]"))
+        }.getOrElse { JSONArray() }
         val watchedJson = JSONArray().apply { ids.forEach { put(it) } }
 
         val result = runCatching {
@@ -114,7 +123,11 @@ class AliasWatchWorker(
                 val alias = current.optJSONObject(i) ?: continue
                 if (ids.contains(alias.optString("id"))) nextBaseline.put(alias)
             }
-            prefs.previousWatchedAliasesJson = nextBaseline.toString()
+            runCatching {
+                prefs.writeValuesAndPersist(
+                    mapOf("previous_watched_aliases" to nextBaseline.toString())
+                )
+            }.getOrElse { return Result.retry() }
             return Result.success()
         }
 

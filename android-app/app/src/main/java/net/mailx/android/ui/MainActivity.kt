@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.mailx.android.core.SecurePrefsManager
@@ -151,7 +152,12 @@ class MainActivity : FragmentActivity() {
         securePrefs = prefs
         biometricEnabled = prefs.biometricEnabled
         appLocked = biometricEnabled && prefs.isConfigured()
-        AliasWatchWorker.schedule(this, prefs.aliasWatchEnabled && prefs.getWatchedAliasIds().isNotEmpty())
+        lifecycleScope.launch {
+            val stored = runCatching { prefs.readDurableSnapshot() }.getOrNull()
+            val enabled = stored?.optBoolean("alias_watch_enabled", false) == true
+            val watched = prefs.getWatchedAliasIdsDurable()
+            AliasWatchWorker.schedule(this@MainActivity, enabled && watched.isNotEmpty())
+        }
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED &&
@@ -670,7 +676,10 @@ fun MailxAppScreen(
             val target = aliases.find { it.id == sheet.aliasId }
             if (target != null) {
                 val watchManager = remember(context) { AliasWatchManager(context) }
-                var isWatched by remember(target.id) { mutableStateOf(watchManager.isWatched(target.id)) }
+                var isWatched by remember(target.id) { mutableStateOf(false) }
+                LaunchedEffect(target.id) {
+                    isWatched = watchManager.isWatched(target.id)
+                }
                 ManageAliasBottomSheet(
                     alias = target,
                     availableRecipients = defaultsState.availableRecipients,
@@ -680,9 +689,7 @@ fun MailxAppScreen(
                     watched = isWatched,
                     onToggleWatched = { enabled ->
                         val updated = watchManager.setWatched(target.id, enabled)
-                        if (updated) {
-                            isWatched = enabled
-                        } else if (enabled) {
+                        if (!updated && enabled) {
                             android.widget.Toast.makeText(
                                 context,
                                 "Maximum 25 watched aliases",
