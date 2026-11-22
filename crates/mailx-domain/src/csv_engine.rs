@@ -163,15 +163,8 @@ mod tests {
 
     #[test]
     fn test_export_and_reimport_round_trip() {
-        let aliases = vec![Alias {
-            id: "a1".to_string(),
-            name: "news.fox@mailx.net".to_string(),
-            description: "Daily, News".to_string(),
-            enabled: true,
-            recipients: "me@example.com".to_string(),
-            ..Default::default()
-        }];
-        let csv = export_aliases_to_csv(&aliases);
+        let json = r#"[{"id":"a1","name":"news.fox@mailx.net","description":"Daily, News","enabled":true,"recipients":"me@example.com"}]"#;
+        let csv = export_aliases_json_to_csv(json).unwrap();
         assert!(csv.starts_with("alias,description,enabled,recipients\n"));
         let plan = parse_aliases_csv_import(&csv, "fallback@example.com", &[], 500);
         assert_eq!(plan.skipped_count, 0);
