@@ -1464,8 +1464,7 @@ mod tests {
 
     #[test]
     fn uniffi_local_helpers_return_json_envelopes() {
-        let info: serde_json::Value =
-            serde_json::from_str(&uniffi_get_skeleton_info()).unwrap();
+        let info: serde_json::Value = serde_json::from_str(&uniffi_get_skeleton_info()).unwrap();
         assert_eq!(info["ok"], true);
         let nato: serde_json::Value =
             serde_json::from_str(&uniffi_encode_nato_phonetic("a@b.com".into())).unwrap();
