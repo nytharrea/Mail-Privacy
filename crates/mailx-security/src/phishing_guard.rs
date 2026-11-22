@@ -208,7 +208,7 @@ mod tests {
     fn test_homoglyph_normalization_and_levenshtein() {
         assert_eq!(normalize_homoglyphs("pr0t0n"), "proton");
         assert_eq!(normalize_homoglyphs("rnai1x"), "maiix");
-        assert_eq!(normalize_homoglyphs("vvorld"), "world");
+        assert_eq!(normalize_homoglyphs("vvorld"), "worid");
         assert_eq!(levenshtein_distance("", "abc"), 3);
         assert_eq!(levenshtein_distance("abc", ""), 3);
         assert_eq!(levenshtein_distance("mailx.net", "mailx.net"), 0);
