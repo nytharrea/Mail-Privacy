@@ -736,6 +736,7 @@ data class ThemeUiState(
     val reducedMotionEnabled: Boolean = false
 )
 
+@Immutable
 sealed interface ActiveSheet {
     data object None : ActiveSheet
     data object CreateAlias : ActiveSheet

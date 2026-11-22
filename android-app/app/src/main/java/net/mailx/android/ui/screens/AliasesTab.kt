@@ -449,7 +449,7 @@ fun AliasesTab(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(top = 2.dp, bottom = 84.dp)
                 ) {
-                    items(aliases, key = { it.id }) { alias ->
+                    items(aliases, key = { it.id }, contentType = { "alias_card" }) { alias ->
                         val isSelected = selectedIds.contains(alias.id)
                         AliasCard(
                             alias = alias,

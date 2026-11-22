@@ -117,7 +117,7 @@ fun RulesAndBlocklistTab(
                     )
                 }
             } else {
-                itemsIndexed(rules, key = { _, r -> r.id.ifEmpty { r.name } }) { index, rule ->
+                itemsIndexed(rules, key = { _, r -> r.id.ifEmpty { r.name } }, contentType = { _, _ -> "rule_card" }) { index, rule ->
                     var showRuleMenu by remember { mutableStateOf(false) }
 
                     Surface(
@@ -405,7 +405,7 @@ fun RulesAndBlocklistTab(
                     )
                 }
             } else {
-                itemsIndexed(blocklist, key = { _, b -> b.id.ifEmpty { b.value } }) { _, item ->
+                itemsIndexed(blocklist, key = { _, b -> b.id.ifEmpty { b.value } }, contentType = { _, _ -> "blocklist_card" }) { _, item ->
                     Surface(
                         shape = RoundedCornerShape(15.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,

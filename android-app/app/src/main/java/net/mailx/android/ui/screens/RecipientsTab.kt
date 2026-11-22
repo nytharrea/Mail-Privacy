@@ -103,6 +103,25 @@ fun RecipientsTab(
         if (showVerifiedOnly) base.filter { it.isActive } else base
     }
 
+    val recipientStatsMap = remember(aliases, displayedRecipients, defaultsState.defaultRecipient) {
+        val defaultRec = defaultsState.defaultRecipient
+        val result = HashMap<String, Pair<Int, Int>>(displayedRecipients.size)
+        for (rec in displayedRecipients) {
+            var count = 0
+            var forwards = 0
+            for (alias in aliases) {
+                val matches = alias.recipients.contains(rec.email, ignoreCase = true) ||
+                    (alias.recipients.isBlank() && defaultRec.contains(rec.email, ignoreCase = true))
+                if (matches) {
+                    count++
+                    forwards += alias.forwards
+                }
+            }
+            result[rec.email] = count to forwards
+        }
+        result
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 36.dp),
@@ -207,19 +226,14 @@ fun RecipientsTab(
                     )
                 }
             } else {
-                items(displayedRecipients, key = { it.id.ifEmpty { it.email } }) { rec ->
-                    val aliasCountForRec = remember(aliases, rec.email) {
-                        aliases.count {
-                            it.recipients.contains(rec.email, ignoreCase = true) ||
-                                (it.recipients.isBlank() && defaultsState.defaultRecipient.contains(rec.email, ignoreCase = true))
-                        }
-                    }
-                    val forwardedForRec = remember(aliases, rec.email) {
-                        aliases.filter {
-                            it.recipients.contains(rec.email, ignoreCase = true) ||
-                                (it.recipients.isBlank() && defaultsState.defaultRecipient.contains(rec.email, ignoreCase = true))
-                        }.sumOf { it.forwards }
-                    }
+                items(
+                    displayedRecipients,
+                    key = { it.id.ifEmpty { it.email } },
+                    contentType = { "recipient_card" }
+                ) { rec ->
+                    val recStats = recipientStatsMap[rec.email]
+                    val aliasCountForRec = recStats?.first ?: 0
+                    val forwardedForRec = recStats?.second ?: 0
                     val isDefault = defaultsState.defaultRecipient.equals(rec.email, ignoreCase = true)
                     val isExpanded = expandedRecipientId == rec.email
                     val canDelete = !rec.id.startsWith("fallback_") && !rec.id.startsWith("default_")
@@ -721,7 +735,7 @@ fun RecipientsTab(
                     )
                 }
             } else {
-                items(customDomains, key = { it.id.ifEmpty { it.name } }) { dom ->
+                items(customDomains, key = { it.id.ifEmpty { it.name } }, contentType = { "domain_card" }) { dom ->
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,

@@ -102,21 +102,38 @@ fun HomeDashboardTab(
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
 
-    val activeCount = remember(aliases) { aliases.count { it.enabled && it.deletedAt.isBlank() } }
-    val pinnedCount = remember(aliases) { aliases.count { it.pinned && it.deletedAt.isBlank() } }
-
-    val totalForwards = remember(aliases, userStats) {
-        maxOf(userStats.forwards, aliases.sumOf { it.forwards })
+    val homeMetrics = remember(aliases, userStats) {
+        var active = 0
+        var pinned = 0
+        var fw = 0
+        var blk = 0
+        var rep = 0
+        var snd = 0
+        for (alias in aliases) {
+            if (alias.deletedAt.isBlank()) {
+                if (alias.enabled) active++
+                if (alias.pinned) pinned++
+            }
+            fw += alias.forwards
+            blk += alias.blocks
+            rep += alias.replies
+            snd += alias.sends
+        }
+        intArrayOf(
+            active,
+            pinned,
+            maxOf(userStats.forwards, fw),
+            maxOf(userStats.blocks, blk),
+            maxOf(userStats.replies, rep),
+            maxOf(userStats.sends, snd)
+        )
     }
-    val totalBlocks = remember(aliases, userStats) {
-        maxOf(userStats.blocks, aliases.sumOf { it.blocks })
-    }
-    val totalReplies = remember(aliases, userStats) {
-        maxOf(userStats.replies, aliases.sumOf { it.replies })
-    }
-    val totalSends = remember(aliases, userStats) {
-        maxOf(userStats.sends, aliases.sumOf { it.sends })
-    }
+    val activeCount = homeMetrics[0]
+    val pinnedCount = homeMetrics[1]
+    val totalForwards = homeMetrics[2]
+    val totalBlocks = homeMetrics[3]
+    val totalReplies = homeMetrics[4]
+    val totalSends = homeMetrics[5]
     val totalOutbound = totalReplies + totalSends
 
     val posturePair = remember(
@@ -788,7 +805,7 @@ fun HomeDashboardTab(
                     )
                 }
             } else {
-                items(spotlightAliases, key = { "home_${it.id}" }) { alias ->
+                items(spotlightAliases, key = { "home_${it.id}" }, contentType = { "alias_card" }) { alias ->
                     AliasCard(
                         alias = alias,
                         onClick = { onSelectAlias(alias) },
