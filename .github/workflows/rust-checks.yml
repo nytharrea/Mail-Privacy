@@ -25,10 +25,15 @@ jobs:
 
       - name: Check Cargo.lock
         id: lock
+        shell: bash
         run: |
-          if cargo metadata --locked --format-version 1 > /dev/null 2>&1; then
+          if cargo metadata --locked --format-version 1 > /dev/null; then
             echo "flag=--locked" >> "${GITHUB_OUTPUT}"
           else
+            echo "::warning title=Cargo.lock validation failed::The Cargo metadata error is printed below."
+            # Re-run visibly: the first probe intentionally suppresses metadata
+            # JSON, but must not suppress Cargo's diagnostic on failure.
+            cargo metadata --locked --format-version 1 > /dev/null || true
             echo "flag=" >> "${GITHUB_OUTPUT}"
             echo "::warning title=Cargo.lock is out of date::Run the 'Update Cargo.lock' workflow and keep its commit so CI can build with --locked."
           fi

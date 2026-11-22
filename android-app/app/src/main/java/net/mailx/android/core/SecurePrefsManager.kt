@@ -675,6 +675,57 @@ class SecurePrefsManager(context: Context) {
         }
     }
 
+    suspend fun getWatchedAliasIdsDurable(): Set<String> {
+        val stored = readDurableSnapshot()
+        return runCatching {
+            val array = JSONArray(stored.optString(KEY_WATCHED_ALIAS_IDS, "[]"))
+            buildSet {
+                for (i in 0 until array.length()) {
+                    array.optString(i).trim().takeIf(String::isNotEmpty)?.let(::add)
+                }
+            }
+        }.getOrDefault(emptySet())
+    }
+
+    suspend fun setAliasWatchedDurable(aliasId: String, watched: Boolean): Boolean {
+        val normalizedId = aliasId.trim()
+        if (normalizedId.isEmpty()) return false
+
+        val stored = readDurableSnapshot()
+        val ids = runCatching {
+            val array = JSONArray(stored.optString(KEY_WATCHED_ALIAS_IDS, "[]"))
+            buildSet {
+                for (i in 0 until array.length()) {
+                    array.optString(i).trim().takeIf(String::isNotEmpty)?.let(::add)
+                }
+            }
+        }.getOrDefault(emptySet()).toMutableSet()
+
+        if (watched && normalizedId !in ids && ids.size >= 25) return false
+        if (watched) ids.add(normalizedId) else ids.remove(normalizedId)
+
+        val values = mutableMapOf<String, Any?>(
+            KEY_WATCHED_ALIAS_IDS to JSONArray().apply {
+                ids.sorted().forEach(::put)
+            }.toString()
+        )
+        if (!watched) {
+            val previous = runCatching {
+                val old = JSONArray(stored.optString(KEY_PREVIOUS_WATCHED_ALIASES, "[]"))
+                JSONArray().apply {
+                    for (i in 0 until old.length()) {
+                        val item = old.optJSONObject(i) ?: continue
+                        if (item.optString("id") != normalizedId) put(item)
+                    }
+                }.toString()
+            }.getOrDefault("[]")
+            values[KEY_PREVIOUS_WATCHED_ALIASES] = previous
+        }
+
+        writeValuesAndPersist(values)
+        return true
+    }
+
     fun getWatchedAliasIds(): Set<String> = runCatching {
         val array = JSONArray(watchedAliasIdsJson)
         buildSet {
