@@ -154,4 +154,69 @@ mod tests {
         assert_eq!(plan.requests[0].domain, "dom_123");
         assert_eq!(plan.requests[0].local_part.as_deref(), Some("shopping.bot"));
     }
+
+    #[test]
+    fn test_sanitize_csv_cell_strips_commas_and_newlines() {
+        let cleaned = sanitize_csv_cell("  hello, world
+next line  ");
+        assert_eq!(cleaned, "hello  world  next line");
+    }
+
+    #[test]
+    fn test_export_and_reimport_round_trip() {
+        let aliases = vec![Alias {
+            id: "a1".to_string(),
+            name: "news.fox@mailx.net".to_string(),
+            description: "Daily, News".to_string(),
+            enabled: true,
+            recipients: "me@example.com".to_string(),
+            ..Default::default()
+        }];
+        let csv = export_aliases_to_csv(&aliases);
+        assert!(csv.starts_with("alias,description,enabled,recipients
+"));
+        let plan = parse_aliases_csv_import(&csv, "fallback@example.com", &[], 500);
+        assert_eq!(plan.skipped_count, 0);
+        assert_eq!(plan.requests.len(), 1);
+        assert_eq!(plan.requests[0].domain, "mailx.net");
+        assert_eq!(plan.requests[0].local_part.as_deref(), Some("news.fox"));
+        assert!(plan.requests[0].enabled);
+    }
+
+    #[test]
+    fn test_parse_csv_empty_and_fallback_recipient() {
+        let empty = parse_aliases_csv_import("   
+
+  ", "me@example.com", &[], 500);
+        assert!(empty.requests.is_empty());
+        assert_eq!(empty.skipped_count, 0);
+
+        let csv = "shop@mailx.net,Store,false,
+";
+        let plan = parse_aliases_csv_import(csv, "fallback@example.com", &[], 500);
+        assert_eq!(plan.requests.len(), 1);
+        assert!(!plan.requests[0].enabled);
+        assert_eq!(plan.requests[0].recipients, "fallback@example.com");
+    }
+
+    #[test]
+    fn test_parse_csv_skips_malformed_and_respects_row_limit() {
+        let csv = concat!(
+            "alias,description,enabled,recipients
+",
+            "no-at-sign,d,true,r@e.com
+",
+            "@missinglocal.com,d,true,r@e.com
+",
+            "a@mailx.net,d1,true,r@e.com
+",
+            "b@mailx.net,d2,true,r@e.com
+",
+            "c@mailx.net,d3,true,r@e.com
+"
+        );
+        let plan = parse_aliases_csv_import(csv, "", &[], 4);
+        assert_eq!(plan.skipped_count, 2);
+        assert_eq!(plan.requests.len(), 2);
+    }
 }

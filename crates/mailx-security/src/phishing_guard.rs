@@ -181,4 +181,45 @@ mod tests {
         assert_eq!(r.lookalike_brand_target.as_deref(), Some("Proton"));
         assert!(r.reply_to_mismatch);
     }
+
+    #[test]
+    fn test_clean_aligned_brand_domain_is_low_risk() {
+        let r = evaluate_sender_phishing_risk("noreply@mailx.net", "noreply@mailx.net", true, true);
+        assert_eq!(r.risk_score, 0);
+        assert_eq!(r.risk_level, "Low");
+        assert!(r.lookalike_brand_target.is_none());
+        assert!(!r.reply_to_mismatch);
+        assert!(r.warnings.is_empty());
+
+        let sub = evaluate_sender_phishing_risk("alerts@notify.proton.me", "", true, true);
+        assert_eq!(sub.risk_score, 0);
+        assert!(sub.lookalike_brand_target.is_none());
+    }
+
+    #[test]
+    fn test_punycode_idn_domain_is_flagged() {
+        let r = evaluate_sender_phishing_risk("support@xn--pple-43d.com", "", true, true);
+        assert!(r.is_punycode_idn);
+        assert!(r.risk_score >= 45);
+        assert_eq!(r.risk_level, "High");
+    }
+
+    #[test]
+    fn test_homoglyph_normalization_and_levenshtein() {
+        assert_eq!(normalize_homoglyphs("pr0t0n"), "proton");
+        assert_eq!(normalize_homoglyphs("rnai1x"), "maiix");
+        assert_eq!(normalize_homoglyphs("vvorld"), "world");
+        assert_eq!(levenshtein_distance("", "abc"), 3);
+        assert_eq!(levenshtein_distance("abc", ""), 3);
+        assert_eq!(levenshtein_distance("mailx.net", "mailx.net"), 0);
+        assert_eq!(levenshtein_distance("mailx.net", "mailz.net"), 1);
+    }
+
+    #[test]
+    fn test_missing_spf_or_dkim_increases_risk() {
+        let r = evaluate_sender_phishing_risk("hello@example.org", "", false, true);
+        assert_eq!(r.risk_score, 20);
+        assert_eq!(r.risk_level, "Medium");
+        assert!(!r.warnings.is_empty());
+    }
 }

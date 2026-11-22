@@ -401,4 +401,63 @@ Content-Disposition: attachment; filename="invoice.scr"
         assert!(rep.is_pgp_mime_encrypted);
         assert_eq!(rep.high_risk_attachments, vec!["invoice.scr".to_string()]);
     }
+
+    #[test]
+    fn test_pgp_mime_signed_and_inline_pgp_detection() {
+        let sample = concat!(
+            "Content-Type: multipart/signed; protocol="application/pgp-signature"; ",
+            "boundary="sig_bnd"
+",
+            "--sig_bnd
+",
+            "-----BEGIN PGP MESSAGE-----
+abc
+-----END PGP MESSAGE-----
+",
+            "--sig_bnd
+",
+            "Content-Type: application/pgp-signature
+",
+            "--sig_bnd--
+"
+        );
+        let rep = inspect_mime_message(sample);
+        assert!(rep.is_pgp_mime_signed);
+        assert!(rep.has_inline_pgp_block);
+        assert_eq!(rep.detected_part_count, 2);
+        assert_eq!(rep.boundary.as_deref(), Some("sig_bnd"));
+    }
+
+    #[test]
+    fn test_safe_and_dangerous_attachments_classification() {
+        let sample = concat!(
+            "Content-Type: multipart/mixed; boundary="mix"
+",
+            "--mix
+",
+            "Content-Disposition: attachment; filename="report.pdf"
+",
+            "--mix
+",
+            "Content-Disposition: attachment; filename="payload.apk"
+",
+            "--mix--
+"
+        );
+        let rep = inspect_mime_message(sample);
+        assert_eq!(rep.attachment_filenames.len(), 2);
+        assert_eq!(rep.high_risk_attachments, vec!["payload.apk".to_string()]);
+        assert!(inspect_attachment_filename("photo.png").is_none());
+        assert!(inspect_attachment_filename("login.html").is_some());
+    }
+
+    #[test]
+    fn test_plain_text_message_defaults_to_single_part() {
+        let rep = inspect_mime_message("Subject: Hi
+
+Plain body");
+        assert_eq!(rep.content_type, "text/plain");
+        assert_eq!(rep.detected_part_count, 1);
+        assert!(rep.attachment_filenames.is_empty());
+    }
 }

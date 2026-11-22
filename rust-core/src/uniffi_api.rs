@@ -1541,4 +1541,91 @@ mod tests {
             Ok(Some(winners[0].as_bytes().to_vec()))
         );
     }
+
+    #[test]
+    fn uniffi_logout_session_clears_state_and_store() {
+        let store = Arc::new(MemoryStore::default());
+        let core = MailxCore::new();
+        core.attach_secure_store(store);
+        core.save_session(
+            "http://127.0.0.1:1".into(),
+            String::new(),
+            "cookie:sess".into(),
+            "me@example.com".into(),
+        )
+        .unwrap();
+        let res = core.logout_session();
+        assert!(res.ok);
+        assert!(!core.session_snapshot().authenticated);
+        assert!(!core.state().authenticated);
+        assert_eq!(core.secure_store_get(KEY_BEARER_TOKEN.into()), Ok(None));
+    }
+
+    #[test]
+    fn uniffi_rotate_session_token_rejects_empty_and_identical() {
+        let store = Arc::new(MemoryStore::default());
+        let core = MailxCore::new();
+        core.attach_secure_store(store);
+        core.save_session(
+            "https://api.mailx.net".into(),
+            "ak".into(),
+            "tok_1".into(),
+            "u@example.com".into(),
+        )
+        .unwrap();
+        let blank = core.rotate_session_token("tok_1".into(), "   ".into());
+        let same = core.rotate_session_token("tok_1".into(), "tok_1".into());
+        assert_eq!(blank, Ok(false));
+        assert_eq!(same, Ok(false));
+    }
+
+    #[test]
+    fn uniffi_local_helpers_handle_invalid_inputs_safely() {
+        let bad_key: serde_json::Value =
+            serde_json::from_str(&uniffi_validate_access_key("short".into())).unwrap();
+        assert_eq!(bad_key["ok"], false);
+
+        let bad_totp: serde_json::Value =
+            serde_json::from_str(&uniffi_generate_totp_token("!!!".into(), 1000)).unwrap();
+        assert_eq!(bad_totp["ok"], false);
+
+        let bad_watch: serde_json::Value = serde_json::from_str(&uniffi_detect_alias_watch_events(
+            "not-json".into(),
+            "[]".into(),
+            "[]".into(),
+        ))
+        .unwrap();
+        assert_eq!(bad_watch["ok"], false);
+
+        let bad_csv: serde_json::Value =
+            serde_json::from_str(&uniffi_format_aliases_csv("not-json".into())).unwrap();
+        assert_eq!(bad_csv["ok"], false);
+    }
+
+    #[test]
+    fn uniffi_local_helpers_valid_round_trips() {
+        let valid_key = concat!(
+            "550e8400-e29b-41d4-a716-446655440000.",
+            "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"
+        );
+        let key_res: serde_json::Value =
+            serde_json::from_str(&uniffi_validate_access_key(valid_key.into())).unwrap();
+        assert_eq!(key_res["ok"], true);
+
+        let suffix: serde_json::Value =
+            serde_json::from_str(&uniffi_generate_random_suffix(8)).unwrap();
+        assert_eq!(suffix["ok"], true);
+        assert_eq!(suffix["data"].as_str().unwrap().len(), 8);
+
+        let sanitized: serde_json::Value = serde_json::from_str(&uniffi_sanitize_tracking_urls(
+            "https://example.com/?utm_source=test&id=42".into(),
+        ))
+        .unwrap();
+        assert_eq!(sanitized["ok"], true);
+
+        let totp: serde_json::Value =
+            serde_json::from_str(&uniffi_generate_totp_token("JBSWY3DPEHPK3PXP".into(), 59))
+                .unwrap();
+        assert_eq!(totp["ok"], true);
+    }
 }

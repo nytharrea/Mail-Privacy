@@ -391,4 +391,187 @@ mod tests {
         assert!(out.should_remove_attachments);
         assert_eq!(out.subject_replacement.as_deref(), Some("[Filtered Promo]"));
     }
+
+    #[test]
+    fn test_normalize_rule_payload_validation_bounds() {
+        let cond = RuleConditionSpec {
+            r#type: "is_mailing_list".to_string(),
+            r#match: "is".to_string(),
+            values: vec!["ignored".to_string()],
+        };
+        let act = RuleActionSpec {
+            r#type: "block".to_string(),
+            value: "ignored".to_string(),
+        };
+        let empty_name = normalize_rule_payload_json(RulePayloadInput {
+            rule_id: None,
+            name: "   ",
+            operator: "OR",
+            forwards: true,
+            replies: false,
+            sends: false,
+            active: true,
+            conditions: std::slice::from_ref(&cond),
+            actions: std::slice::from_ref(&act),
+        });
+        assert!(empty_name.is_err());
+
+        let too_many_conds = vec![cond.clone(); 6];
+        let over_limit = normalize_rule_payload_json(RulePayloadInput {
+            rule_id: None,
+            name: "Too Many",
+            operator: "AND",
+            forwards: true,
+            replies: false,
+            sends: false,
+            active: true,
+            conditions: &too_many_conds,
+            actions: std::slice::from_ref(&act),
+        });
+        assert!(over_limit.is_err());
+
+        let valid = normalize_rule_payload_json(RulePayloadInput {
+            rule_id: Some("r42"),
+            name: "  List Guard  ",
+            operator: "or",
+            forwards: true,
+            replies: true,
+            sends: false,
+            active: true,
+            conditions: &[cond],
+            actions: &[act],
+        })
+        .unwrap();
+        let parsed: Value = serde_json::from_str(&valid).unwrap();
+        assert_eq!(parsed["id"], "r42");
+        assert_eq!(parsed["operator"], "OR");
+        assert_eq!(parsed["conditions"][0]["match"], "");
+        assert_eq!(parsed["actions"][0]["value"], "");
+    }
+
+    #[test]
+    fn test_evaluate_or_operator_and_negative_matchers() {
+        let rule = MailxRuleSpec {
+            id: "r2".to_string(),
+            name: "OR Rule".to_string(),
+            order: 1,
+            operator: "OR".to_string(),
+            conditions: vec![
+                RuleConditionSpec {
+                    r#type: "subject".to_string(),
+                    r#match: "starts_with".to_string(),
+                    values: vec!["urgent".to_string()],
+                },
+                RuleConditionSpec {
+                    r#type: "sender".to_string(),
+                    r#match: "not_contains".to_string(),
+                    values: vec!["trusted.org".to_string()],
+                },
+            ],
+            actions: vec![RuleActionSpec {
+                r#type: "block".to_string(),
+                value: String::new(),
+            }],
+            forwards: true,
+            replies: false,
+            sends: false,
+            active: true,
+        };
+        let ctx = SimulatedEmailContext {
+            sender_email: "spam@unknown.net".to_string(),
+            subject: "Regular update".to_string(),
+            ..Default::default()
+        };
+        let out = evaluate_rule(&rule, &ctx);
+        assert!(out.matched);
+        assert_eq!(out.matched_conditions, 1);
+        assert!(out.should_block);
+    }
+
+    #[test]
+    fn test_evaluate_regex_anchors_and_all_actions() {
+        let rule = MailxRuleSpec {
+            id: "r3".to_string(),
+            name: "Full Actions".to_string(),
+            order: 2,
+            operator: "AND".to_string(),
+            conditions: vec![RuleConditionSpec {
+                r#type: "subject".to_string(),
+                r#match: "regex".to_string(),
+                values: vec!["^invoice$".to_string()],
+            }],
+            actions: vec![
+                RuleActionSpec {
+                    r#type: "deactivate_alias".to_string(),
+                    value: String::new(),
+                },
+                RuleActionSpec {
+                    r#type: "disable_encryption".to_string(),
+                    value: String::new(),
+                },
+                RuleActionSpec {
+                    r#type: "hide_banner".to_string(),
+                    value: String::new(),
+                },
+                RuleActionSpec {
+                    r#type: "set_display_name".to_string(),
+                    value: "Billing".to_string(),
+                },
+                RuleActionSpec {
+                    r#type: "forward_to".to_string(),
+                    value: "a@example.com, b@example.com".to_string(),
+                },
+                RuleActionSpec {
+                    r#type: "stop".to_string(),
+                    value: String::new(),
+                },
+            ],
+            forwards: true,
+            replies: false,
+            sends: false,
+            active: true,
+        };
+        let ctx = SimulatedEmailContext {
+            subject: "INVOICE".to_string(),
+            ..Default::default()
+        };
+        let out = evaluate_rule(&rule, &ctx);
+        assert!(out.matched);
+        assert!(out.should_deactivate_alias);
+        assert!(out.should_disable_encryption);
+        assert_eq!(out.banner_override, Some(false));
+        assert_eq!(out.display_name_override.as_deref(), Some("Billing"));
+        assert_eq!(out.forward_to_override.len(), 2);
+        assert!(out.stop_processing);
+    }
+
+    #[test]
+    fn test_unmatched_rule_triggers_no_actions() {
+        let rule = MailxRuleSpec {
+            id: "r4".to_string(),
+            name: "No Match".to_string(),
+            order: 3,
+            operator: "AND".to_string(),
+            conditions: vec![RuleConditionSpec {
+                r#type: "subject".to_string(),
+                r#match: "ends_with".to_string(),
+                values: vec!["receipt".to_string()],
+            }],
+            actions: vec![RuleActionSpec {
+                r#type: "block".to_string(),
+                value: String::new(),
+            }],
+            forwards: true,
+            replies: false,
+            sends: false,
+            active: true,
+        };
+        let ctx = SimulatedEmailContext {
+            subject: "Hello friend".to_string(),
+            ..Default::default()
+        };
+        let out = evaluate_rule(&rule, &ctx);
+        assert!(!out.matched);
+        assert!(!out.should_block);
+    }
 }

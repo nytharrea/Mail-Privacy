@@ -571,4 +571,65 @@ mod tests {
                 .unwrap();
         assert_eq!(path, "/v1/blocklist/plain-id-42");
     }
+
+    #[test]
+    fn test_build_action_endpoint_domains_recipients_and_rules() {
+        let (m, path, body) = build_action_endpoint(
+            "add_custom_domain",
+            &json!({ "name": "  EXAMPLE.ORG  " }),
+        )
+        .unwrap();
+        assert_eq!(m, "POST");
+        assert_eq!(path, "/v1/domain");
+        assert_eq!(body.unwrap(), r#"{"name":"example.org"}"#);
+
+        let (m, path, _) =
+            build_action_endpoint("verify_domain_dns", &json!({ "domain_id": "d1" })).unwrap();
+        assert_eq!(m, "POST");
+        assert_eq!(path, "/v1/domain/d1/verify-dns");
+
+        let (m, path, _) = build_action_endpoint(
+            "delete_recipient",
+            &json!({ "recipient_id": "rec1", "recipients": "a@b.com" }),
+        )
+        .unwrap();
+        assert_eq!(m, "PUT");
+        assert_eq!(path, "/v1/recipient/delete/rec1");
+
+        let (m, path, _) = build_action_endpoint(
+            "toggle_rule_active",
+            &json!({ "rule_id": "r9", "active": false }),
+        )
+        .unwrap();
+        assert_eq!(m, "PUT");
+        assert_eq!(path, "/v1/rule/r9/active");
+    }
+
+    #[test]
+    fn test_build_action_endpoint_totp_access_key_and_unknown() {
+        let (m, path, body) = build_action_endpoint("initiate_totp", &json!({})).unwrap();
+        assert_eq!(m, "PUT");
+        assert_eq!(path, "/v1/user/totp/enable");
+        assert!(body.is_none());
+
+        let (m, path, body) =
+            build_action_endpoint("create_access_key", &json!({ "expires_days": 30 })).unwrap();
+        assert_eq!(m, "POST");
+        assert_eq!(path, "/v1/accesskeys");
+        let parsed: Value = serde_json::from_str(&body.unwrap()).unwrap();
+        assert_eq!(parsed["name"], "Mailx Android");
+        assert!(parsed["expires_at"].as_str().is_some());
+
+        let err = build_action_endpoint("unknown_action", &json!({})).unwrap_err();
+        assert!(!err.is_empty());
+    }
+
+    #[test]
+    fn test_build_expiry_iso_from_days_bounds() {
+        assert!(build_expiry_iso_from_days(0).is_none());
+        assert!(build_expiry_iso_from_days(-5).is_none());
+        let iso = build_expiry_iso_from_days(7).unwrap();
+        assert!(iso.ends_with("T23:59:59Z"));
+        assert_eq!(iso.len(), 20);
+    }
 }
