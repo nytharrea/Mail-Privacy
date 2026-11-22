@@ -5,11 +5,11 @@ edition.workspace = true
 
 [features]
 default = ["network"]
-network = ["mailx-network/network"]
+network = ["dep:mailx-network", "mailx-network/network"]
 
 [dependencies]
 mailx-domain = { path = "../mailx-domain" }
-mailx-network = { path = "../mailx-network", default-features = false }
+mailx-network = { path = "../mailx-network", default-features = false, optional = true }
 mailx-utils = { path = "../mailx-utils" }
 serde.workspace = true
 serde_json.workspace = true

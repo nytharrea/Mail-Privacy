@@ -738,8 +738,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                     }
                 }
             } else if (showIndicator) {
-                emitToast(fetchError ?: "Failed to fetch aliases")
-            }
+                emitToast(fetchError)
         } finally {
             if (showIndicator) {
                 _isLoadingAliases.value = false
