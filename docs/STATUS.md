@@ -59,7 +59,7 @@ A separate reviewer went through the network client, the random generation and t
 | `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Verified in Debug & Release CI |
 | `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Verified in Debug & Release CI |
 | `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | Verified in Debug & Release CI |
-| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Verified in Debug & Release CI; Phase 3 JVM security tests verified in CI; Phase 4A verified in CI; Phase 4B Rust API orchestration via UniFFI added (pending CI) |
+| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Verified in Debug & Release CI; Phase 3 JVM security tests verified in CI; Phase 4A verified in CI; Phase 4B verified in CI; Phase 5A all Kotlin FFI calls migrated from JNI to UniFFI (pending CI) |
 
 ## Next steps (Pre-release roadmap)
 

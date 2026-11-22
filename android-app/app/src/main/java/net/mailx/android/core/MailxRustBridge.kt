@@ -2,43 +2,142 @@ package net.mailx.android.core
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import net.mailx.android.core.uniffi.ApiCallResult
+import net.mailx.android.core.uniffi.MailxCore
+import net.mailx.android.core.uniffi.SecureStorePort
+import net.mailx.android.core.uniffi.uniffiAnalyzeEmailHeaders
+import net.mailx.android.core.uniffi.uniffiAnalyzeMtaBounce
+import net.mailx.android.core.uniffi.uniffiAuditAliasHygiene
+import net.mailx.android.core.uniffi.uniffiComputePrivacyPosture
+import net.mailx.android.core.uniffi.uniffiComputeSevenDayTelemetry
+import net.mailx.android.core.uniffi.uniffiDecodeTrackersReport
+import net.mailx.android.core.uniffi.uniffiDetectAliasWatchEvents
+import net.mailx.android.core.uniffi.uniffiEncodeNatoPhonetic
+import net.mailx.android.core.uniffi.uniffiEncodeQrMatrix
+import net.mailx.android.core.uniffi.uniffiEvaluatePhishingRisk
+import net.mailx.android.core.uniffi.uniffiFilterAndSortAliases
+import net.mailx.android.core.uniffi.uniffiFormatAliasesCsv
+import net.mailx.android.core.uniffi.uniffiGenerateContextualAliases
+import net.mailx.android.core.uniffi.uniffiGeneratePassphraseAndCandidate
+import net.mailx.android.core.uniffi.uniffiGenerateRandomSuffix
+import net.mailx.android.core.uniffi.uniffiGenerateReverseAlias
+import net.mailx.android.core.uniffi.uniffiGenerateTotpToken
+import net.mailx.android.core.uniffi.uniffiGenerateWildcard
+import net.mailx.android.core.uniffi.uniffiGetSkeletonInfo
+import net.mailx.android.core.uniffi.uniffiInspectOpenpgpKey
+import net.mailx.android.core.uniffi.uniffiParseAliasesCsvImport
+import net.mailx.android.core.uniffi.uniffiSanitizeTrackingUrls
+import net.mailx.android.core.uniffi.uniffiSimulateRule
+import net.mailx.android.core.uniffi.uniffiValidateAccessKey
+import org.json.JSONArray
 import org.json.JSONObject
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.ConcurrentHashMap
 
 object MailxRustBridge {
-    init {
-        System.loadLibrary("mailx_core")
+
+    private class EphemeralSessionStore(
+        baseUrl: String,
+        accessKey: String = "",
+        bearerToken: String = ""
+    ) : SecureStorePort {
+        private val entries = ConcurrentHashMap<String, ByteArray>()
+
+        init {
+            if (baseUrl.isNotBlank()) {
+                entries["base_url"] = baseUrl.trim().toByteArray(StandardCharsets.UTF_8)
+            }
+            if (accessKey.isNotBlank()) {
+                entries["access_key"] = accessKey.trim().toByteArray(StandardCharsets.UTF_8)
+            }
+            if (bearerToken.isNotBlank()) {
+                entries["bearer_token"] = bearerToken.trim().toByteArray(StandardCharsets.UTF_8)
+            }
+        }
+
+        override fun get(key: String): ByteArray? = entries[key]?.copyOf()
+
+        override fun put(key: String, value: ByteArray) {
+            entries[key] = value.copyOf()
+        }
+
+        override fun delete(key: String) {
+            entries.remove(key)
+        }
+
+        fun currentBearerToken(): String =
+            entries["bearer_token"]?.let { String(it, StandardCharsets.UTF_8) }.orEmpty()
     }
 
-    @JvmStatic
-    external fun nativeDetectAliasWatchEvents(
+    private fun ApiCallResult.toEnvelope(
+        originalToken: String = "",
+        currentToken: String = ""
+    ): JSONObject = JSONObject().apply {
+        put("ok", ok)
+        if (ok && dataJson.isNotBlank()) {
+            val trimmed = dataJson.trim()
+            when {
+                trimmed.startsWith("{") -> put("data", JSONObject(trimmed))
+                trimmed.startsWith("[") -> put("data", JSONArray(trimmed))
+                else -> put("data", trimmed)
+            }
+        }
+        error?.let { put("error", it) }
+        errorCode?.let { put("error_code", it) }
+        if (currentToken.isNotEmpty() && currentToken != originalToken.trim()) {
+            put("refreshed_token", currentToken)
+        }
+    }
+
+    private suspend fun runWithSession(
+        baseUrl: String,
+        accessKey: String,
+        bearerToken: String,
+        block: (MailxCore) -> ApiCallResult
+    ): JSONObject = withContext(Dispatchers.IO) {
+        val store = EphemeralSessionStore(baseUrl, accessKey, bearerToken)
+        MailxCore().use { core ->
+            core.attachSecureStore(store)
+            val result = block(core)
+            result.toEnvelope(
+                originalToken = bearerToken,
+                currentToken = store.currentBearerToken()
+            )
+        }
+    }
+
+    fun nativeDetectAliasWatchEvents(
         previousAliasesJson: String,
         currentAliasesJson: String,
         watchedIdsJson: String
-    ): String
+    ): String = uniffiDetectAliasWatchEvents(
+        previousAliasesJson,
+        currentAliasesJson,
+        watchedIdsJson
+    )
 
-    @JvmStatic
-    external fun nativeValidateAccessKey(accessKey: String): String
+    fun nativeValidateAccessKey(accessKey: String): String =
+        uniffiValidateAccessKey(accessKey)
 
-    @JvmStatic
-    external fun nativeGenerateReverseAlias(aliasEmail: String, targetEmail: String): String
+    fun nativeGenerateReverseAlias(aliasEmail: String, targetEmail: String): String =
+        uniffiGenerateReverseAlias(aliasEmail, targetEmail)
 
-    @JvmStatic
-    external fun nativeGenerateWildcard(wildcardAlias: String, prefix: String): String
+    fun nativeGenerateWildcard(wildcardAlias: String, prefix: String): String =
+        uniffiGenerateWildcard(wildcardAlias, prefix)
 
-    @JvmStatic
-    external fun nativeDecodeTrackersReport(rawInput: String): String
+    fun nativeDecodeTrackersReport(rawInput: String): String =
+        uniffiDecodeTrackersReport(rawInput)
 
-    @JvmStatic
-    external fun nativeEncodeQrMatrix(payload: String): String
+    fun nativeEncodeQrMatrix(payload: String): String =
+        uniffiEncodeQrMatrix(payload)
 
-    @JvmStatic
-    external fun nativeEncodeNatoPhonetic(email: String): String
+    fun nativeEncodeNatoPhonetic(email: String): String =
+        uniffiEncodeNatoPhonetic(email)
 
-    @JvmStatic
-    external fun nativeGenerateRandomSuffix(length: Int): String
+    fun nativeGenerateRandomSuffix(length: Int): String =
+        uniffiGenerateRandomSuffix(length)
 
-    @JvmStatic
-    external fun nativeComputePrivacyPosture(
+    fun nativeComputePrivacyPosture(
         forwards: Int,
         blocks: Int,
         activeAliases: Int,
@@ -47,211 +146,115 @@ object MailxRustBridge {
         trackersBlocked: Boolean,
         headerStripped: Boolean,
         rulesActive: Int
-    ): String
+    ): String = uniffiComputePrivacyPosture(
+        forwards,
+        blocks,
+        activeAliases,
+        totalAliases,
+        pgpActive,
+        trackersBlocked,
+        headerStripped,
+        rulesActive
+    )
 
-    @JvmStatic
-    external fun nativeFilterAndSortAliases(
+    fun nativeFilterAndSortAliases(
         aliasesJson: String,
         searchQuery: String,
         selectedChip: String,
         sortField: String,
         sortDescending: Boolean,
         pinnedFirst: Boolean
-    ): String
+    ): String = uniffiFilterAndSortAliases(
+        aliasesJson,
+        searchQuery,
+        selectedChip,
+        sortField,
+        sortDescending,
+        pinnedFirst
+    )
 
-    @JvmStatic
-    external fun nativeComputeSevenDayTelemetry(
+    fun nativeComputeSevenDayTelemetry(
         rawStatsJson: String,
         aliasesJson: String,
         referenceEpochSecs: Long
-    ): String
+    ): String = uniffiComputeSevenDayTelemetry(
+        rawStatsJson,
+        aliasesJson,
+        referenceEpochSecs
+    )
 
-    @JvmStatic
-    external fun nativeFormatAliasesCsv(aliasesJson: String): String
+    fun nativeFormatAliasesCsv(aliasesJson: String): String =
+        uniffiFormatAliasesCsv(aliasesJson)
 
-    @JvmStatic
-    external fun nativeParseAliasesCsvImport(
+    fun nativeParseAliasesCsvImport(
         csvText: String,
         customDomainsJson: String,
         defaultRecipient: String
-    ): String
+    ): String = uniffiParseAliasesCsvImport(
+        csvText,
+        customDomainsJson,
+        defaultRecipient
+    )
 
-    @JvmStatic
-    external fun nativeGetSkeletonInfo(): String
+    fun nativeGetSkeletonInfo(): String = uniffiGetSkeletonInfo()
 
-    @JvmStatic
-    external fun nativeSanitizeTrackingUrls(rawText: String): String
+    fun nativeSanitizeTrackingUrls(rawText: String): String =
+        uniffiSanitizeTrackingUrls(rawText)
 
-    @JvmStatic
-    external fun nativeAnalyzeEmailHeaders(rawHeaders: String): String
+    fun nativeAnalyzeEmailHeaders(rawHeaders: String): String =
+        uniffiAnalyzeEmailHeaders(rawHeaders)
 
-    @JvmStatic
-    external fun nativeGenerateContextualAliases(
+    fun nativeGenerateContextualAliases(
         serviceInput: String,
         domain: String,
         count: Int
-    ): String
+    ): String = uniffiGenerateContextualAliases(serviceInput, domain, count)
 
-    @JvmStatic
-    external fun nativeAuditAliasHygiene(aliasesJson: String): String
+    fun nativeAuditAliasHygiene(aliasesJson: String): String =
+        uniffiAuditAliasHygiene(aliasesJson)
 
-    @JvmStatic
-    external fun nativeInspectOpenPgpKey(armoredKey: String): String
+    fun nativeInspectOpenPgpKey(armoredKey: String): String =
+        uniffiInspectOpenpgpKey(armoredKey)
 
-    @JvmStatic
-    external fun nativeEvaluatePhishingRisk(
+    fun nativeEvaluatePhishingRisk(
         fromHeader: String,
         replyToHeader: String,
         returnPathHeader: String
-    ): String
+    ): String = uniffiEvaluatePhishingRisk(fromHeader, replyToHeader, returnPathHeader)
 
-    @JvmStatic
-    external fun nativeSimulateRule(
+    fun nativeSimulateRule(
         ruleJson: String,
         emailContextJson: String
-    ): String
+    ): String = uniffiSimulateRule(ruleJson, emailContextJson)
 
-    @JvmStatic
-    external fun nativeAnalyzeMtaBounce(
+    fun nativeAnalyzeMtaBounce(
         logType: String,
         statusText: String,
         messageText: String,
         remoteMta: String,
         rawBounce: String
-    ): String
+    ): String = uniffiAnalyzeMtaBounce(
+        logType,
+        statusText,
+        messageText,
+        remoteMta,
+        rawBounce
+    )
 
-    @JvmStatic
-    external fun nativeGenerateTotpToken(
+    fun nativeGenerateTotpToken(
         base32Secret: String,
         unixSeconds: Long
-    ): String
+    ): String = uniffiGenerateTotpToken(base32Secret, unixSeconds)
 
-    @JvmStatic
-    external fun nativeGeneratePassphraseAndCandidate(
+    fun nativeGeneratePassphraseAndCandidate(
         format: String,
         domain: String,
         wordCount: Int
-    ): String
-
-    @JvmStatic
-    external fun nativeAuthenticate(baseUrl: String, accessKey: String): String
-
-    @JvmStatic
-    external fun nativeLogin(
-        baseUrl: String,
-        email: String,
-        password: String,
-        otp: String
-    ): String
-
-    @JvmStatic
-    external fun nativePasskeyLoginBegin(
-        baseUrl: String,
-        email: String
-    ): String
-
-    @JvmStatic
-    external fun nativePasskeyLoginFinish(
-        baseUrl: String,
-        ceremonyCookie: String,
-        credentialJson: String,
-        discoverable: Boolean,
-        fallbackEmail: String
-    ): String
-
-    @JvmStatic
-    external fun nativePasskeyRegisterBegin(
-        baseUrl: String,
-        bearerToken: String
-    ): String
-
-    @JvmStatic
-    external fun nativePasskeyRegisterFinish(
-        baseUrl: String,
-        bearerToken: String,
-        ceremonyCookie: String,
-        credentialJson: String
-    ): String
-
-    @JvmStatic
-    external fun nativeApiRequest(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        method: String,
-        path: String,
-        bodyJson: String
-    ): String
-
-    @JvmStatic
-    external fun nativeImportAliasesCsv(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        csvText: String
-    ): String
-
-    @JvmStatic
-    external fun nativeFetchDefaults(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String
-    ): String
-
-    @JvmStatic
-    external fun nativeFetchAliases(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        search: String,
-        status: String,
-        wildcard: String,
-        page: Int
-    ): String
-
-    @JvmStatic
-    external fun nativeCreateAlias(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        requestJson: String
-    ): String
-
-    @JvmStatic
-    external fun nativeUpdateAlias(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        aliasId: String,
-        requestJson: String
-    ): String
-
-    @JvmStatic
-    external fun nativePinAlias(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        aliasId: String,
-        pinned: Boolean
-    ): String
-
-    @JvmStatic
-    external fun nativeDeleteAlias(
-        baseUrl: String,
-        accessKey: String,
-        bearerToken: String,
-        aliasId: String
-    ): String
-
-    @JvmStatic
-    external fun nativeLogout(
-        baseUrl: String,
-        bearerToken: String
-    ): String
+    ): String = uniffiGeneratePassphraseAndCandidate(format, domain, wordCount)
 
     suspend fun authenticate(baseUrl: String, accessKey: String): JSONObject =
-        withContext(Dispatchers.IO) {
-            JSONObject(nativeAuthenticate(baseUrl, accessKey))
+        runWithSession(baseUrl, "", "") { core ->
+            core.loginWithAccessKey(baseUrl, accessKey)
         }
 
     suspend fun login(
@@ -259,15 +262,17 @@ object MailxRustBridge {
         email: String,
         password: String,
         otp: String = ""
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeLogin(baseUrl, email, password, otp))
+    ): JSONObject = runWithSession(baseUrl, "", "") { core ->
+        core.loginWithPassword(baseUrl, email, password, otp)
     }
 
     suspend fun passkeyLoginBegin(
         baseUrl: String,
         email: String = ""
     ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativePasskeyLoginBegin(baseUrl, email))
+        MailxCore().use { core ->
+            core.passkeyLoginBegin(baseUrl, email).toEnvelope()
+        }
     }
 
     suspend fun passkeyLoginFinish(
@@ -276,23 +281,21 @@ object MailxRustBridge {
         credentialJson: String,
         discoverable: Boolean,
         fallbackEmail: String = ""
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(
-            nativePasskeyLoginFinish(
-                baseUrl,
-                ceremonyCookie,
-                credentialJson,
-                discoverable,
-                fallbackEmail
-            )
+    ): JSONObject = runWithSession(baseUrl, "", "") { core ->
+        core.passkeyLoginFinish(
+            baseUrl,
+            ceremonyCookie,
+            credentialJson,
+            discoverable,
+            fallbackEmail
         )
     }
 
     suspend fun passkeyRegisterBegin(
         baseUrl: String,
         bearerToken: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativePasskeyRegisterBegin(baseUrl, bearerToken))
+    ): JSONObject = runWithSession(baseUrl, "", bearerToken) { core ->
+        core.passkeyRegisterBegin()
     }
 
     suspend fun passkeyRegisterFinish(
@@ -300,15 +303,8 @@ object MailxRustBridge {
         bearerToken: String,
         ceremonyCookie: String,
         credentialJson: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(
-            nativePasskeyRegisterFinish(
-                baseUrl,
-                bearerToken,
-                ceremonyCookie,
-                credentialJson
-            )
-        )
+    ): JSONObject = runWithSession(baseUrl, "", bearerToken) { core ->
+        core.passkeyRegisterFinish(ceremonyCookie, credentialJson)
     }
 
     suspend fun apiRequest(
@@ -318,8 +314,8 @@ object MailxRustBridge {
         method: String,
         path: String,
         bodyJson: String = ""
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeApiRequest(baseUrl, accessKey, bearerToken, method, path, bodyJson))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.apiRequest(method, path, bodyJson)
     }
 
     suspend fun importAliasesCsv(
@@ -327,16 +323,16 @@ object MailxRustBridge {
         accessKey: String,
         bearerToken: String,
         csvText: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeImportAliasesCsv(baseUrl, accessKey, bearerToken, csvText))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.importAliasesCsv(csvText)
     }
 
     suspend fun fetchDefaults(
         baseUrl: String,
         accessKey: String,
         bearerToken: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeFetchDefaults(baseUrl, accessKey, bearerToken))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.fetchDefaults()
     }
 
     suspend fun fetchAliases(
@@ -347,10 +343,8 @@ object MailxRustBridge {
         status: String = "active_inactive",
         wildcard: String = "",
         page: Int = 1
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(
-            nativeFetchAliases(baseUrl, accessKey, bearerToken, search, status, wildcard, page)
-        )
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.fetchAliases(search, status, wildcard, page.coerceAtLeast(1).toUInt())
     }
 
     suspend fun createAlias(
@@ -358,8 +352,8 @@ object MailxRustBridge {
         accessKey: String,
         bearerToken: String,
         requestJson: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeCreateAlias(baseUrl, accessKey, bearerToken, requestJson))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.createAlias(requestJson)
     }
 
     suspend fun updateAlias(
@@ -368,8 +362,8 @@ object MailxRustBridge {
         bearerToken: String,
         aliasId: String,
         requestJson: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeUpdateAlias(baseUrl, accessKey, bearerToken, aliasId, requestJson))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.updateAlias(aliasId, requestJson)
     }
 
     suspend fun pinAlias(
@@ -378,8 +372,8 @@ object MailxRustBridge {
         bearerToken: String,
         aliasId: String,
         pinned: Boolean
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativePinAlias(baseUrl, accessKey, bearerToken, aliasId, pinned))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.pinAlias(aliasId, pinned)
     }
 
     suspend fun deleteAlias(
@@ -387,14 +381,14 @@ object MailxRustBridge {
         accessKey: String,
         bearerToken: String,
         aliasId: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeDeleteAlias(baseUrl, accessKey, bearerToken, aliasId))
+    ): JSONObject = runWithSession(baseUrl, accessKey, bearerToken) { core ->
+        core.deleteAlias(aliasId)
     }
 
     suspend fun logout(
         baseUrl: String,
         bearerToken: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject(nativeLogout(baseUrl, bearerToken))
+    ): JSONObject = runWithSession(baseUrl, "", bearerToken) { core ->
+        core.logoutSession()
     }
 }

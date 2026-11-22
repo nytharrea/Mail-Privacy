@@ -867,6 +867,292 @@ fn read_utf8_key(
     }
 }
 
+fn json_ok<T: serde::Serialize>(data: T) -> String {
+    serde_json::to_string(&serde_json::json!({
+        "ok": true,
+        "data": data,
+    }))
+    .unwrap_or_else(|_| r#"{"ok":false,"error":"Serialization error"}"#.to_string())
+}
+
+fn json_err(err: impl fmt::Display) -> String {
+    serde_json::to_string(&serde_json::json!({
+        "ok": false,
+        "error": err.to_string(),
+    }))
+    .unwrap_or_else(|_| r#"{"ok":false,"error":"Serialization error"}"#.to_string())
+}
+
+#[uniffi::export]
+pub fn uniffi_detect_alias_watch_events(
+    previous_aliases_json: String,
+    current_aliases_json: String,
+    watched_ids_json: String,
+) -> String {
+    let previous: serde_json::Value = match serde_json::from_str(&previous_aliases_json) {
+        Ok(value) => value,
+        Err(error) => return json_err(error),
+    };
+    let current: serde_json::Value = match serde_json::from_str(&current_aliases_json) {
+        Ok(value) => value,
+        Err(error) => return json_err(error),
+    };
+    let watched: Vec<String> = match serde_json::from_str(&watched_ids_json) {
+        Ok(value) => value,
+        Err(error) => return json_err(error),
+    };
+    match mailx_domain::alias_watch::detect_alias_watch_events(&previous, &current, &watched) {
+        Ok(events) => json_ok(events),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_validate_access_key(access_key: String) -> String {
+    match mailx_utils::utils::validate_access_key(&access_key) {
+        Ok(()) => json_ok(true),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_generate_reverse_alias(alias_email: String, target_email: String) -> String {
+    match mailx_utils::utils::generate_reverse_alias(&alias_email, &target_email) {
+        Ok(addr) => json_ok(addr),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_generate_wildcard(wildcard_alias: String, prefix: String) -> String {
+    match mailx_utils::utils::generate_wildcard_on_the_fly(&wildcard_alias, &prefix) {
+        Ok(addr) => json_ok(addr),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_decode_trackers_report(raw_input: String) -> String {
+    match mailx_runtime::skeleton::decode_and_audit_trackers(&raw_input) {
+        Ok(report) => json_ok(report),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_encode_qr_matrix(payload: String) -> String {
+    match mailx_utils::utils::encode_qr_matrix(&payload) {
+        Ok(matrix) => json_ok(matrix),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_encode_nato_phonetic(email: String) -> String {
+    json_ok(mailx_utils::utils::encode_nato_phonetic(&email))
+}
+
+#[uniffi::export]
+pub fn uniffi_generate_random_suffix(length: i32) -> String {
+    json_ok(mailx_utils::utils::generate_random_suffix(
+        length.max(0) as usize
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+#[uniffi::export]
+pub fn uniffi_compute_privacy_posture(
+    forwards: i32,
+    blocks: i32,
+    active_aliases: i32,
+    total_aliases: i32,
+    pgp_active: bool,
+    trackers_blocked: bool,
+    header_stripped: bool,
+    rules_active: i32,
+) -> String {
+    let input = mailx_utils::utils::PrivacyPostureInput {
+        forwards: forwards.max(0) as u64,
+        blocks: blocks.max(0) as u64,
+        active_aliases: active_aliases.max(0) as usize,
+        total_aliases: total_aliases.max(0) as usize,
+        pgp_active,
+        trackers_blocked,
+        header_stripped,
+        rules_active: rules_active.max(0) as usize,
+    };
+    json_ok(mailx_utils::utils::compute_privacy_posture(input))
+}
+
+#[uniffi::export]
+pub fn uniffi_filter_and_sort_aliases(
+    aliases_json: String,
+    search_query: String,
+    selected_chip: String,
+    sort_field: String,
+    sort_descending: bool,
+    pinned_first: bool,
+) -> String {
+    let res = mailx_runtime::skeleton::filter_and_sort_aliases(
+        &aliases_json,
+        &search_query,
+        &selected_chip,
+        &sort_field,
+        sort_descending,
+        pinned_first,
+    );
+    match res {
+        Ok(list) => json_ok(list),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_compute_seven_day_telemetry(
+    raw_stats_json: String,
+    aliases_json: String,
+    reference_epoch_secs: i64,
+) -> String {
+    let res = mailx_runtime::skeleton::compute_seven_day_telemetry(
+        &raw_stats_json,
+        &aliases_json,
+        reference_epoch_secs,
+    );
+    match res {
+        Ok(summary) => json_ok(summary),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_format_aliases_csv(aliases_json: String) -> String {
+    match mailx_runtime::skeleton::format_aliases_csv_export(&aliases_json) {
+        Ok(csv) => json_ok(csv),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_parse_aliases_csv_import(
+    csv_text: String,
+    custom_domains_json: String,
+    default_recipient: String,
+) -> String {
+    let res = mailx_runtime::skeleton::parse_aliases_csv_import(
+        &csv_text,
+        &custom_domains_json,
+        &default_recipient,
+    );
+    match res {
+        Ok(plan) => json_ok(plan),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_get_skeleton_info() -> String {
+    json_ok(mailx_runtime::skeleton::get_skeleton_info())
+}
+
+#[uniffi::export]
+pub fn uniffi_sanitize_tracking_urls(raw_text: String) -> String {
+    json_ok(mailx_runtime::skeleton::sanitize_tracking_urls(&raw_text))
+}
+
+#[uniffi::export]
+pub fn uniffi_analyze_email_headers(raw_headers: String) -> String {
+    json_ok(mailx_runtime::skeleton::analyze_email_headers(&raw_headers))
+}
+
+#[uniffi::export]
+pub fn uniffi_generate_contextual_aliases(
+    service_input: String,
+    domain: String,
+    count: i32,
+) -> String {
+    let aliases = mailx_runtime::skeleton::generate_contextual_aliases(
+        &service_input,
+        &domain,
+        count.max(0) as usize,
+    );
+    json_ok(aliases)
+}
+
+#[uniffi::export]
+pub fn uniffi_audit_alias_hygiene(aliases_json: String) -> String {
+    json_ok(mailx_runtime::skeleton::audit_alias_hygiene(&aliases_json))
+}
+
+#[uniffi::export]
+pub fn uniffi_inspect_openpgp_key(armored_key: String) -> String {
+    json_ok(mailx_runtime::skeleton::inspect_openpgp_key_armor(
+        &armored_key,
+    ))
+}
+
+#[uniffi::export]
+pub fn uniffi_evaluate_phishing_risk(
+    from_header: String,
+    reply_to_header: String,
+    return_path_header: String,
+) -> String {
+    let report = mailx_runtime::skeleton::evaluate_phishing_and_domain_risk(
+        &from_header,
+        &reply_to_header,
+        &return_path_header,
+    );
+    json_ok(report)
+}
+
+#[uniffi::export]
+pub fn uniffi_simulate_rule(rule_json: String, email_context_json: String) -> String {
+    match mailx_runtime::skeleton::simulate_rule_evaluation(&rule_json, &email_context_json) {
+        Ok(res) => json_ok(res),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_analyze_mta_bounce(
+    log_type: String,
+    status_text: String,
+    message_text: String,
+    remote_mta: String,
+    raw_bounce: String,
+) -> String {
+    let report = mailx_runtime::skeleton::analyze_mta_bounce_log(
+        &log_type,
+        &status_text,
+        &message_text,
+        &remote_mta,
+        &raw_bounce,
+    );
+    json_ok(report)
+}
+
+#[uniffi::export]
+pub fn uniffi_generate_totp_token(base32_secret: String, unix_seconds: i64) -> String {
+    let secs = unix_seconds.max(0) as u64;
+    match mailx_runtime::skeleton::generate_totp_token(&base32_secret, secs) {
+        Ok(res) => json_ok(res),
+        Err(error) => json_err(error),
+    }
+}
+
+#[uniffi::export]
+pub fn uniffi_generate_passphrase_and_candidate(
+    format: String,
+    domain: String,
+    word_count: i32,
+) -> String {
+    let res = mailx_runtime::skeleton::generate_passphrase_and_candidate(
+        &format,
+        &domain,
+        word_count.max(0) as usize,
+    );
+    json_ok(res)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1174,5 +1460,15 @@ mod tests {
         let res = core.api_request("GET".into(), "/v1/user".into(), String::new());
         assert!(!res.ok);
         assert!(res.error.is_some());
+    }
+
+    #[test]
+    fn uniffi_local_helpers_return_json_envelopes() {
+        let info: serde_json::Value =
+            serde_json::from_str(&uniffi_get_skeleton_info()).unwrap();
+        assert_eq!(info["ok"], true);
+        let nato: serde_json::Value =
+            serde_json::from_str(&uniffi_encode_nato_phonetic("a@b.com".into())).unwrap();
+        assert_eq!(nato["ok"], true);
     }
 }
