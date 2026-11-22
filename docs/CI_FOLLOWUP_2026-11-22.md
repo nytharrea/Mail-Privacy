@@ -1,37 +1,28 @@
 # CI follow-up — 2026-11-22
 
-Based on the supplied GitHub Actions logs for commit
-`7165eefa324a418ce34d87db6535fedd8da3a32c`.
+## Cargo.lock
 
-## Confirmed CI results
+The supplied source archive now contains the root `Cargo.lock` (185 package
+entries). The Refresh Cargo.lock logs show that one run successfully committed
+it (`8a03373`), while a concurrent run created its own commit and was rejected
+by GitHub with `fetch first`. The Rust workspace check log predates the
+successful lockfile push, so its `cargo metadata --locked` warning is stale
+relative to the later lockfile commit.
 
-- Android Release: `BUILD SUCCESSFUL`.
-- Rust test suites: all executed tests passed; one test was ignored.
-- Clippy with all features: passed.
-- Clippy without default features: passed, with an unused dependency warning.
-- The Cargo lock check warned that `Cargo.lock` was missing or stale.
-- The nightly GitHub Release upload completed.
+The workflow now serializes refresh runs with a GitHub Actions concurrency group
+and fetches/rebases onto the latest branch before pushing. If an unrelated merge
+races with the job, rebase preserves it; a true Cargo.lock conflict will fail
+visibly and can be resolved by rerunning the workflow against the latest branch.
 
-## Source changes in this follow-up
+## Android
 
-1. Made `mailx-network` an optional dependency of `mailx-application` and
-   explicitly connected it to the `network` feature. This matches the existing
-   `#[cfg(feature = "network")]` imports in `controller.rs` and avoids retaining
-   a dependency in `--no-default-features` builds.
-2. Removed a redundant Elvis fallback from `MailxViewModel` where CI reported
-   `fetchError` as a non-null `String`.
+The previous Android CI failure was caused by `AliasWatchManager` calling
+`getWatchedAliasIdsDurable` and `setAliasWatchedDurable` while neither API
+existed in `SecurePrefsManager`. Both suspend methods are now implemented using
+the durable DataStore snapshot and awaited batch write API.
 
-## Not changed
+## Validation status
 
-- No generated `Cargo.lock` is included. This environment has no Cargo binary,
-  so the lockfile must be generated and committed by the existing
-  `.github/workflows/update-cargo-lock.yml` workflow.
-- Deprecated Compose and widget APIs were not mechanically replaced because
-  they need API-level review and UI/device regression checks.
-- The secure-storage and JNI/UniFFI migrations remain separate follow-up work.
-
-## Validation boundary
-
-These edits have not been compiled locally. Run the Cargo lock refresh workflow,
-then rerun Rust checks and Android Debug/Release CI against this exact commit
-before treating this ZIP as validated.
+These source changes have not been compiled in this environment. Run the
+Update Cargo.lock workflow and Android Debug/Release CI on this exact archive
+before treating it as validated.
