@@ -52,14 +52,14 @@ A separate reviewer went through the network client, the random generation and t
 | `QuickAliasTileService.kt` | Migrated (Phase 1 / Increment 5) | Verified in Debug & Release CI |
 | `AliasWatchWorker.kt` | Migrated (Phase 2.6) | Verified in Debug & Release CI |
 | `MainActivity.kt` | Migrated (Phase 2.8) | Verified in Debug & Release CI |
-| `MailxViewModel.kt` | Migrated (Phase 2.10) | Uses `dataFlow` snapshot + durable `suspend` writes; pending CI |
+| `MailxViewModel.kt` | Migrated (Phase 2.10) | Verified in Debug & Release CI |
 | `QuickAliasWidgetProvider.kt` | Migrated (Phase 2.1) | Verified in Debug & Release CI |
 | `PrivacyStatsWidgetProvider.kt` | Migrated (Phase 2.2) | Verified in Debug & Release CI |
 | `PinnedAliasesWidgetService.kt` | Migrated (Phase 2.3) | Verified in Debug & Release CI |
 | `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Verified in Debug & Release CI |
 | `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Verified in Debug & Release CI |
 | `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | Verified in Debug & Release CI |
-| `SecurePrefsManager.kt` | Pending (Phase 2.11) | Remove `runBlocking`, `AtomicReference`, `Channel` queue, and sync getters/setters once all callers migrate |
+| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Pure DataStore `Flow` + `suspend`; `runBlocking`, `AtomicReference`, `Channel`, and sync API removed; pending CI |
 
 ## Next steps (Pre-release roadmap)
 
