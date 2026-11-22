@@ -739,6 +739,12 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                 }
             } else if (showIndicator) {
                 emitToast(fetchError)
+            }
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            if (showIndicator) {
+                emitToast(error.message ?: "Failed to fetch aliases")
+            }
         } finally {
             if (showIndicator) {
                 _isLoadingAliases.value = false
