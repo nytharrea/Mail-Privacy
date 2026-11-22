@@ -40,7 +40,9 @@ jobs:
 
       - name: Commit lockfile
         run: |
-          if git diff --quiet -- Cargo.lock; then
+          # git diff does not report untracked files. Use porcelain status so
+          # a newly generated Cargo.lock is committed on the first run as well.
+          if [ -z "$(git status --porcelain -- Cargo.lock)" ]; then
             echo "Cargo.lock is already up to date."
             exit 0
           fi

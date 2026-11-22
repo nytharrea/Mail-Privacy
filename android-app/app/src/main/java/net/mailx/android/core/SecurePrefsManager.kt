@@ -675,16 +675,6 @@ class SecurePrefsManager(context: Context) {
         }
     }
 
-    suspend fun getWatchedAliasIdsDurable(): Set<String> = runCatching {
-        val stored = readDurableSnapshot()
-        val array = JSONArray(stored.optString("watched_alias_ids", "[]"))
-        buildSet {
-            for (i in 0 until array.length()) {
-                array.optString(i).takeIf(String::isNotBlank)?.let(::add)
-            }
-        }
-    }.getOrDefault(emptySet())
-
     fun getWatchedAliasIds(): Set<String> = runCatching {
         val array = JSONArray(watchedAliasIdsJson)
         buildSet {
