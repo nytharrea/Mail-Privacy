@@ -733,7 +733,8 @@ data class ThemeUiState(
     val dynamicColorEnabled: Boolean = false,
     val amoledDarkEnabled: Boolean = false,
     val expressiveMotionEnabled: Boolean = false,
-    val reducedMotionEnabled: Boolean = false
+    val reducedMotionEnabled: Boolean = false,
+    val colorPreset: String = "graphite_lime"
 )
 
 @Immutable

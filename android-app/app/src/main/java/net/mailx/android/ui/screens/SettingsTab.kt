@@ -56,6 +56,7 @@ fun SettingsTab(
     onToggleAmoledDark: (Boolean) -> Unit,
     onToggleExpressiveMotion: (Boolean) -> Unit = {},
     onToggleReducedMotion: (Boolean) -> Unit = {},
+    onUpdateColorPreset: (String) -> Unit = {},
     onSyncDefaults: () -> Unit,
     onOpenReverseAliasTool: () -> Unit,
     onOpenPrivacyLabSheet: () -> Unit = {},
@@ -132,6 +133,25 @@ fun SettingsTab(
                         options = colorModes.map { it.second },
                         selectedIndex = selectedColorIdx,
                         onSelect = { idx -> onUpdateDarkModeMode(colorModes[idx].first) },
+                        compact = true
+                    )
+                    val presets = listOf(
+                        "graphite_lime" to "Graphite Lime",
+                        "night_fjord" to "Night Fjord"
+                    )
+                    val selectedPresetIdx = presets
+                        .indexOfFirst { it.first == themeState.colorPreset }
+                        .coerceAtLeast(0)
+                    Text(
+                        text = "Color Palette",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    MailxSegmentedControl(
+                        options = presets.map { it.second },
+                        selectedIndex = selectedPresetIdx,
+                        onSelect = { idx -> onUpdateColorPreset(presets[idx].first) },
                         compact = true
                     )
                 }

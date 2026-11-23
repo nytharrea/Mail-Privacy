@@ -2,12 +2,7 @@ package net.mailx.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * Mailx "Night Fjord" design system.
- * Brand accents are reserved for actions; semantic colors communicate state.
- */
 object MailxPalette {
-    // Brand: sea-glass mint with a deep teal light-theme counterpart.
     val BrandPrimary = Color(0xFF087F73)
     val BrandPrimaryDark = Color(0xFF63E6CB)
     val BrandPrimaryAccent = Color(0xFF9AF5E2)
@@ -17,7 +12,39 @@ object MailxPalette {
     val BrandPrimaryContainerLight = Color(0xFFD3F8EF)
     val BrandOnPrimaryContainerLight = Color(0xFF064E49)
 
-    // Cool blue is a secondary interaction color, not a second primary.
+    val GraphiteLimePrimaryDark = Color(0xFFC8FF3D)
+    val GraphiteLimeOnPrimaryDark = Color(0xFF111408)
+    val GraphiteLimePrimaryContainerDark = Color(0xFF2A3412)
+    val GraphiteLimeOnPrimaryContainerDark = Color(0xFFE4FF9B)
+    val GraphiteLimeSecondaryDark = Color(0xFFA3B18A)
+    val GraphiteLimeOnSecondaryDark = Color(0xFF171E12)
+    val GraphiteLimeSecondaryContainerDark = Color(0xFF22291E)
+    val GraphiteLimeOnSecondaryContainerDark = Color(0xFFDCE6CB)
+
+    val GraphiteLimePrimaryLight = Color(0xFF3E6800)
+    val GraphiteLimePrimaryContainerLight = Color(0xFFE5F8B8)
+    val GraphiteLimeOnPrimaryContainerLight = Color(0xFF1B2E00)
+    val GraphiteLimeSecondaryLight = Color(0xFF4F5D3A)
+    val GraphiteLimeSecondaryContainerLight = Color(0xFFE3EAD6)
+    val GraphiteLimeOnSecondaryContainerLight = Color(0xFF1E2613)
+
+    val Graphite950 = Color(0xFF0D0E10)
+    val Graphite925 = Color(0xFF121417)
+    val Graphite900 = Color(0xFF16181C)
+    val Graphite850 = Color(0xFF1C1F24)
+    val Graphite800 = Color(0xFF23272E)
+    val Graphite750 = Color(0xFF2B3038)
+    val GraphiteBorder = Color(0xFF262A31)
+    val GraphiteText = Color(0xFFF2F4F7)
+    val GraphiteSubtext = Color(0xFF9CA3AF)
+    val GraphiteOutline = Color(0xFF525866)
+
+    val Paper50 = Color(0xFFF6F7F5)
+    val Paper100 = Color(0xFFFFFFFF)
+    val Paper150 = Color(0xFFECEEE9)
+    val Paper200 = Color(0xFFDFE2DC)
+    val Paper300 = Color(0xFFCCD1C7)
+
     val BrandAccentTeal = Color(0xFF176F91)
     val BrandAccentTealDark = Color(0xFF78D7F6)
     val BrandSecondaryContainerDark = Color(0xFF163543)
@@ -25,7 +52,6 @@ object MailxPalette {
     val BrandSecondaryContainerLight = Color(0xFFDDF4FC)
     val BrandOnSecondaryContainerLight = Color(0xFF104A62)
 
-    // Restrained lilac is reserved for specialist tools and neutral emphasis.
     val BrandTertiaryNeutral = Color(0xFF67558E)
     val BrandTertiaryNeutralDark = Color(0xFFC6B4FF)
     val BrandTertiaryContainerDark = Color(0xFF302A45)
@@ -33,7 +59,6 @@ object MailxPalette {
     val BrandTertiaryContainerLight = Color(0xFFEDE7FF)
     val BrandOnTertiaryContainerLight = Color(0xFF3F3267)
 
-    // Semantic states.
     val ForwardEmerald = Color(0xFF10B981)
     val ForwardEmeraldSoft = Color(0xFF34D399)
     val ForwardedGreen = Color(0xFF42D6A0)
@@ -43,7 +68,6 @@ object MailxPalette {
     val BlockedRose = Color(0xFFFF718B)
     val PausedAmber = Color(0xFFF6C66A)
 
-    // Dark surfaces: cool graphite with enough separation for layered cards.
     val Obsidian950 = Color(0xFF080E15)
     val Obsidian925 = Color(0xFF0D151E)
     val Obsidian900 = Color(0xFF121D28)
