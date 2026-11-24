@@ -1,87 +1,43 @@
 # Project status
 
-Last reviewed: 2026-11-22
+Last reviewed: 2026-11-24
 
-This is the single current-state summary. Dated working logs are archived in [history/](history/); decisions are in [adr/](adr/).
+This is the single current-state summary for **Mailx v0.5.0-rc1** (unofficial Android client for the open-source `mailx` email-alias server). Dated working logs are archived in [history/](history/); architectural decisions are in [adr/](adr/).
 
-## Implemented
+## Implemented & CI-verified (Phases 1–10)
 
 ### Rust core
-
-- **Randomness.** Alias suffixes, word/passphrase local parts and UUID local parts come from the OS CSPRNG with rejection sampling; entropy figures are computed from the real list sizes ([ADR 0001](adr/0001-os-csprng-for-all-randomness.md)).
-- **TOTP.** RFC 6238 on RustCrypto `hmac`/`sha1` with zeroized key material, checked against the RFC 6238 and RFC 2202 vectors.
-- **Secrets.** `SecretString` zeroizes on drop and compares in constant time. The unused `SecureStore` trait was removed; key validation remains for the secure-store port.
-- **Service client.** Transport abstraction, credentials only to the host the user entered, HTTPS except exact loopback hosts, same-origin redirects only, public-endpoint credential stripping, percent-encoded path segments, bounded timeouts, strict 10 MiB response-size rejection, HTTP status error-code propagation, and single-flight 401 token refresh ([ADR 0002](adr/0002-network-host-and-credential-policy.md), [ADR 0006](adr/0006-certificate-pinning-and-rotation-policy.md)).
-- **Typed app shell.** Pure state machine for route, sheet, authentication and Back, owned by Rust and exposed through UniFFI ([ADR 0003](adr/0003-typed-rust-core-and-uniffi-boundary.md), [UNIFFI.md](UNIFFI.md)). The JSON reducer and its JNI export were removed.
+- **Randomness.** OS CSPRNG with rejection sampling across alias suffixes, word/passphrase and UUID local parts ([ADR 0001](adr/0001-os-csprng-for-all-randomness.md)).
+- **TOTP & local security.** RFC 6238 on RustCrypto `hmac`/`sha1` with zeroized key material; phishing, MIME, PGP, DNS, RFC email, MTA, and rule evaluation modules.
+- **Secrets & session ownership.** `SecretString` zeroizes on drop and compares in constant time. `MailxCore` owns active session state, `SecureStorePort` persistence, and atomic token rotation.
+- **Service client.** Transport abstraction, credentials restricted to the user-entered host, HTTPS-only except exact loopback hosts, same-origin redirects only, public-endpoint credential stripping, percent-encoded path segments, bounded timeouts, strict 10 MiB response-size rejection, HTTP status error-code propagation, and single-flight 401 token refresh ([ADR 0002](adr/0002-network-host-and-credential-policy.md), [ADR 0006](adr/0006-certificate-pinning-and-rotation-policy.md)).
+- **Single UniFFI boundary.** Legacy handwritten JNI (`jni_bridge.rs`, `external fun`, `System.loadLibrary`, and the `jni` crate) has been completely removed. `MailxCore` and all local helpers are exposed exclusively through `uniffi 0.32.2` ([ADR 0003](adr/0003-typed-rust-core-and-uniffi-boundary.md), [UNIFFI.md](UNIFFI.md)).
 
 ### Android
-
-- `AppShell.kt` is the only Kotlin entry to the typed core. `MailxViewModel` mirrors Rust's route and sheet into its flows and exposes `canGoBack`; system Back calls `navigateBack()` which dispatches `Back` to Rust.
-- Encrypted storage uses Tink AES-256-GCM wrapped by a hardware-backed Android Keystore master key (StrongBox preferred, TEE fallback, software keys rejected) stored in an app-private DataStore file.
-- `QuickAliasTileService` (Phase 1 / Increment 5) reads durable snapshots asynchronously, persists refreshed tokens via `writeValuesAndPersist`, separates `CancellationException` from operational errors, and resets tile state in `finally`.
-- The recents thumbnail is hidden on Android 13+ (`setRecentsScreenshotEnabled(false)`).
-- ProGuard keeps the generated UniFFI package and the JNA members it reaches by reflection.
+- **Single FFI entry & pure async storage.** `AppShell.kt` and `AndroidSecureStoreAdapter.kt` wire `MailxCore` to `SecurePrefsManager` (pure DataStore `Flow` + `suspend`, Tink AES-256-GCM, hardware-backed Android Keystore preferring StrongBox with TEE fallback and software-key rejection). All legacy synchronous storage wrappers (`runBlocking` getters/setters) have been removed.
+- **Performance.** Single-pass metrics in `HomeDashboardTab` and `RecipientsTab`, `@Immutable` UI state models including `ActiveSheet`, and `key` + `contentType` across all `LazyColumn` lists.
+- **UI & theme.** **Graphite Lime** is the default matte dark/light theme with **Night Fjord** selectable in Settings (`Appearance & Display`), `MotionScheme.standard()` as the default motion scheme, `LocalReducedMotion` support, and 100% English UI copy.
+- **Release security.** `android:allowBackup="false"`, `android:fullBackupContent="false"`, `android:usesCleartextTraffic="false"`, full `data_extraction_rules.xml` exclusions for cloud backup and device transfer, `QuickAliasWidgetProvider` active widget ID validation, `setRecentsScreenshotEnabled(false)` on Android 13+, and ProGuard log stripping (`Log.v/d/i`). Details: [RELEASE_SECURITY_AUDIT.md](RELEASE_SECURITY_AUDIT.md).
 
 ### Build, CI and release ([ADR 0004](adr/0004-reproducible-toolchain-and-ci.md))
-
-- Rust release pinned in `rust-toolchain.toml`; `cargo fmt --check`; Clippy `-D warnings` for all features and no default features; workspace tests. The release workflow is gated by these checks.
-- `Cargo.lock` is committed and validated with `cargo metadata --locked --format-version 1`; `rust-checks.yml` prints an explicit confirmation line when `--locked` is enabled. The manual **Update Cargo.lock** workflow uses `git status --porcelain -- Cargo.lock` so newly generated or modified lockfiles are committed.
-- Bindgen version follows the locked `uniffi` crate and is cached.
-- Debug CI builds `arm64-v8a` and `x86_64`; Release CI builds all 4 ABIs (`arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`) plus a universal APK, verifies 16 KB ELF alignment for native libraries and packaged APKs, and generates `SHA256SUMS.txt`.
-- Dependabot, weekly advisory `cargo audit`, and a manual live-account smoke workflow are configured.
+- Rust toolchain pinned in `rust-toolchain.toml`; `Cargo.lock` verified with `--locked`; `cargo fmt --check`, Clippy `-D warnings` (`--all-features` and `--no-default-features`), and **201/201** Rust workspace tests green.
+- Android Debug CI (`arm64-v8a`, `x86_64`) runs **12/12** JVM unit tests (`SecureStorageSecurityUnitTest`, `AndroidSecureStoreAdapterUnitTest`), compiles `assembleDebugAndroidTest`, and verifies 16 KB ELF alignment.
+- Android Release CI builds all 4 ABIs (`arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`) plus a universal signed APK (Signature Scheme v2 + v3), verifies 16 KB ELF LOAD alignment and 16 KB `zipalign`, and generates `SHA256SUMS.txt`.
 
 ## Verification performed, and its limits
 
-| Area | What was done | What it does not prove |
+| Area | Verified in CI | Still requires physical device / owner action |
 |---|---|---|
-| Rust | GitHub Actions (`rust-checks.yml`) green with `--locked`: `cargo fmt --check`, Clippy `-D warnings` (all features and no default features), and workspace tests | Runtime behavior on a physical Android device |
-| Android Debug & Release CI | GitHub Actions Debug (`arm64-v8a` + `x86_64`) and Release (4 ABIs + universal APK) builds succeeded with UniFFI Kotlin binding generation, 16 KB alignment checks, and APK signing verification. Increment 5 (`QuickAliasTileService.kt`) is pending its own CI run | Real-device StrongBox/TEE behavior, runtime JNA/UniFFI loading, and live API flows |
-| Secure Storage | Durable DataStore API (`readDurableSnapshot`, `writeValuesAndPersist`) implemented and used in backup, Alias Watch, and `QuickAliasTileService` | Hardware Keystore security level (`strongbox` vs `tee`), process death, and corruption recovery on a physical device |
-| Device and live account | Not yet verified against the latest release candidate | End-to-end UX, token rotation under concurrency, widgets, and Quick Settings Tile on device |
+| Rust workspace | `cargo fmt --check`, Clippy `-D warnings` (all/no-default features), 201/201 tests (`--locked`) | Live-account runtime behavior on device |
+| Android Debug & JVM tests | 12/12 JVM security & adapter unit tests, `assembleDebugAndroidTest`, Debug APKs, 16 KB alignment | Running `SecureStorageDeviceSecurityTest` on a physical Android device |
+| Android Signed Release | 4 ABIs + universal APK, R8 minification, v2+v3 signing, 16 KB ELF & `zipalign` | Physical-device install, login, widgets, Quick Settings Tile, and process-death checks |
+| Licensing & distribution | Provenance gap documented in [LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md) | Owner decision and top-level `LICENSE` file before public release |
 
-### Independent review
+## Release Candidate gate (Phase 11)
+Complete the physical-device smoke tests and licensing sign-off in [RELEASE_CANDIDATE_CHECKLIST.md](RELEASE_CANDIDATE_CHECKLIST.md) before publishing public binaries.
 
-A separate reviewer went through the network client, the random generation and the app shell and reproduced their findings with throw-away probes. Eight defects were confirmed and fixed with tests: a backslash in the URL authority that bypassed host validation, `.` and `..` ids collapsing the request path, an authentication response without a token being accepted, unbounded JSON error messages, JSON mentioning `<body>` being mistaken for HTML, credentials and bodies appearing in `Debug` output, PUT and DELETE being turned into a GET on 301 and 302, and the emulator alias `10.0.2.2` being accepted as cleartext. Details are in [ADR 0002](adr/0002-network-host-and-credential-policy.md).
-
-## Secure Storage migration inventory (Phase 1.3)
-
-| Component | Status | Notes |
-|---|---|---|
-| `MailxBackupRepository.kt` | Migrated | Uses `readDurableSnapshot` and `writeValuesAndPersist` |
-| `AliasWatchManager.kt` | Migrated (Phase 2.5) | Verified in Debug & Release CI |
-| `QuickAliasTileService.kt` | Migrated (Phase 1 / Increment 5) | Verified in Debug & Release CI |
-| `AliasWatchWorker.kt` | Migrated (Phase 2.6) | Verified in Debug & Release CI |
-| `MainActivity.kt` | Migrated (Phase 2.8) | Verified in Debug & Release CI |
-| `MailxViewModel.kt` | Migrated (Phase 2.10) | Verified in Debug & Release CI |
-| `QuickAliasWidgetProvider.kt` | Migrated (Phase 2.1) | Verified in Debug & Release CI |
-| `PrivacyStatsWidgetProvider.kt` | Migrated (Phase 2.2) | Verified in Debug & Release CI |
-| `PinnedAliasesWidgetService.kt` | Migrated (Phase 2.3) | Verified in Debug & Release CI |
-| `AliasSearchIndex.kt` | Migrated (Phase 2.4) | Verified in Debug & Release CI |
-| `ReverseAliasSendActivity.kt` | Migrated (Phase 2.7) | Verified in Debug & Release CI |
-| `SecurityBackupDialog.kt` | Migrated (Phase 2.9) | Verified in Debug & Release CI |
-| `SecurePrefsManager.kt` | Migrated (Phase 2.11) | Verified in Debug & Release CI; Phase 3 JVM security tests verified in CI; Phase 4A verified in CI; Phase 4B verified in CI; Phase 5 CI-verified: jni_bridge.rs and jni crate removed; single UniFFI FFI boundary. Phase 6 network & API security CI-verified; Phase 7 CI-verified (201 Rust + 12 JVM tests); Phase 8 CI-verified; Phase 9 CI-verified (Graphite Lime default + Night Fjord preset); Phase 10 Release Security Audit & hardening implemented (pending CI) |
-
-## Next steps (Pre-release roadmap)
-
-1. **Phase 1.1:** Run Debug and Release CI on this Phase 1 / Increment 5 archive and confirm zero regressions.
-2. **Phase 2:** Complete Secure Storage async migration across widgets, background services, activities, `MailxViewModel`, and remove the legacy sync compatibility layer in `SecurePrefsManager.kt`.
-3. **Phase 3:** Execute Secure Storage security and device tests (StrongBox/TEE, corruption, wrong key, logout durability, process death).
-4. **Phase 4–5:** Move session, token refresh, and API orchestration into Rust and replace `jni_bridge.rs` with a single UniFFI boundary.
-5. **Phase 6–11:** Network/API hardening, full test coverage, measured performance, UI finalization, release security audit, and Release Candidate sign-off.
-
-## Deferred
-
-| Item | Why it is not done | Needed to proceed |
-|---|---|---|
-| Platform trust store, certificate pinning | A wrong pin or incomplete chain locks every user out; cannot be verified offline | Device test plan and a pin-rotation strategy |
-| Request cancellation | Client is blocking with timeouts | Async UniFFI gateway after the session work |
-| Localization (English and Turkish) | Several hundred hard-coded strings, many outside composable scope | Batches with CI compile feedback after Phase 9 |
-| Navigation 3 | No pushed destinations exist; Rust-owned routes are enough | Revisit only if detail screens appear |
-| Glance widgets, Baseline Profile, screenshot tests | Need an Android build environment and a device | Post-Phase 7/8 measured work |
-| LTS JDK in CI | Full build not verified on JDK 21; JDK 27 is documented as deliberate | A verified run |
-| `jni` 0.22 migration | Superseded by Phase 5 goal to remove `jni_bridge.rs` in favor of UniFFI | Phase 5 completion |
-
-## Decisions that are yours
-
-- **License.** There is no top-level `LICENSE` file and the workspace license metadata was removed earlier because it was unverified. Choosing the project license requires a file-level provenance review; see [LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md). This is not something to settle in code.
-- **Repository secrets and variables** for the live smoke test and for release signing ([BUILD_ENVIRONMENT.md](BUILD_ENVIRONMENT.md)).
+## Intentionally deferred (post-v1)
+- **Certificate pinning:** Deferred until a host-scoped SPKI pin-rotation and emergency recovery runbook is verified on physical devices ([ADR 0006](adr/0006-certificate-pinning-and-rotation-policy.md)).
+- **Cooperative request cancellation:** Blocking calls are bounded by timeouts; async UniFFI cancellation is post-v1.
+- **Diagnostics Engine & Localization:** Explicitly deferred for post-v1 (English-only for v1).
+- **Navigation 3, Glance widgets, Baseline Profiles:** Deferred until post-release measurement.
