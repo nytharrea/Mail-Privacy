@@ -48,7 +48,16 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        when (intent.action) {
+        val action = intent.action ?: return
+        if (action != ACTION_CREATE_ALIAS && action != ACTION_COPY_LAST) return
+        val activeIds = AppWidgetManager.getInstance(context)
+            .getAppWidgetIds(ComponentName(context, QuickAliasWidgetProvider::class.java))
+        val targetId = intent.getIntExtra(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        )
+        if (activeIds.isEmpty() || targetId !in activeIds) return
+        when (action) {
             ACTION_CREATE_ALIAS -> handleCreateAlias(context)
             ACTION_COPY_LAST -> handleCopyLast(context)
         }
@@ -282,9 +291,11 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
+            val primaryWidgetId = appWidgetIds.firstOrNull() ?: AppWidgetManager.INVALID_APPWIDGET_ID
             val createIntent = Intent(context, QuickAliasWidgetProvider::class.java).apply {
                 action = ACTION_CREATE_ALIAS
                 component = ComponentName(context, QuickAliasWidgetProvider::class.java)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, primaryWidgetId)
             }
             val createPending = PendingIntent.getBroadcast(
                 context,
@@ -296,6 +307,7 @@ class QuickAliasWidgetProvider : AppWidgetProvider() {
             val copyIntent = Intent(context, QuickAliasWidgetProvider::class.java).apply {
                 action = ACTION_COPY_LAST
                 component = ComponentName(context, QuickAliasWidgetProvider::class.java)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, primaryWidgetId)
             }
             val copyPending = PendingIntent.getBroadcast(
                 context,
