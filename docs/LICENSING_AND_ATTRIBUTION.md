@@ -1,13 +1,13 @@
-# Licensing and attribution review
+# Licensing and attribution
 
-## Verified upstream information
+## Project license
 
-The official `ivpn/mailx` repository identifies itself as GPL-3.0 licensed: <https://github.com/ivpn/mailx>. The upstream license text is available at <https://github.com/ivpn/mailx/blob/main/LICENSE.md>.
+This repository is licensed under the **GNU General Public License v3.0 only (`GPL-3.0-only`)**. The full license text is in [LICENSE](../LICENSE).
 
-## Local snapshot issue
+## Unofficial client notice
 
-The supplied Android-client archive has no top-level `LICENSE`/`LICENSE.md`, while its Cargo workspace previously declared `MIT` and named a separate repository. Those facts do not establish the license of every file in this archive, nor do they establish whether any file is copied or derived from upstream source.
+Mailx Android (`Mail-Privacy`) is an independent, unofficial Android client that connects to the open-source `mailx` email-alias server (<https://github.com/ivpn/mailx>, also licensed under GPL-3.0). This project is not affiliated with, sponsored by, or endorsed by IVPN. Do not use IVPN trademarks or logos without permission.
 
-For that reason this update removes the unverified workspace-level Cargo `MIT` declaration rather than silently relicensing the whole project. It does **not** add a new project-wide license. Before publishing binaries or source, complete a file-level provenance and license review, retain all third-party notices, and choose the correct license for original contributions. If a component is a derivative of GPL-3.0-covered upstream code, comply with the applicable GPL-3.0 obligations for that covered work.
+## Third-party dependencies
 
-This is an engineering note, not legal advice. Do not describe this Android app as official or endorsed by IVPN. Do not use IVPN logos or imply IVPN authorship without permission.
+All Rust crates (locked in `Cargo.lock`) and Android/Kotlin dependencies (declared in `android-app/app/build.gradle.kts`) remain subject to their respective open-source licenses. Retain all third-party copyright and license notices when redistributing source or binaries.

@@ -29,5 +29,5 @@ Date: 2026-11-23
 - `SecretString` zeroizes on drop and uses constant-time equality.
 
 ## 5. Licensing & Attribution (Owner Action Required Before Public Distribution)
-- No top-level `LICENSE` file has been added automatically; see [LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md).
-- Before publishing APKs or source publicly, complete provenance review and add the chosen top-level `LICENSE` file, keeping clear attribution that this Android client is unofficial and not endorsed by IVPN.
+- Top-level `LICENSE` (`GPL-3.0-only`) added and declared in `Cargo.toml`; see [LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md).
+- Unofficial client attribution and non-endorsement notice retained.

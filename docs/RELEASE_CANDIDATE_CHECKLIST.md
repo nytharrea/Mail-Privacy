@@ -24,5 +24,5 @@ All automated CI gates (Phases 1–10: 201 Rust tests, 12 Android JVM unit tests
 - [ ] Test `mailto:` / selected-text share into `ReverseAliasSendActivity`.
 
 ## 5. Licensing & Attribution (Before Public Publishing)
-- [ ] Complete file-level provenance review and add a top-level `LICENSE` file ([LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md)).
+- [x] Top-level `LICENSE` (`GPL-3.0-only`) added and aligned with `Cargo.toml` ([LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md)).
 - [ ] Keep clear repository and release-note disclosure that this Android app is unofficial and not endorsed by IVPN.
