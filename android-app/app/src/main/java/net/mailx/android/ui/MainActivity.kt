@@ -209,8 +209,7 @@ class MainActivity : FragmentActivity() {
                 dynamicColor = themeState.dynamicColorEnabled,
                 amoledDark = themeState.amoledDarkEnabled,
                 expressiveMotion = themeState.expressiveMotionEnabled,
-                reducedMotion = themeState.reducedMotionEnabled,
-                colorPreset = themeState.colorPreset
+                reducedMotion = themeState.reducedMotionEnabled
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -552,7 +551,6 @@ fun MailxAppScreen(
                         onToggleAmoledDark = vm::toggleAmoledDark,
                         onToggleExpressiveMotion = vm::toggleExpressiveMotion,
                         onToggleReducedMotion = vm::toggleReducedMotion,
-                        onUpdateColorPreset = vm::updateColorPreset,
                         onSyncDefaults = { vm.syncServerDefaults(silent = false) },
                         onOpenReverseAliasTool = {
                             val firstActive = aliases.firstOrNull { it.enabled && !it.wildcard }?.name

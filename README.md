@@ -71,7 +71,7 @@ This configures `origin` to your own Android repository and `upstream` to `https
 
 ## Licensing and attribution
 
-The official IVPN Mailx repository is GPL-3.0 licensed. This snapshot has no top-level license file and previously contained conflicting Cargo license metadata. The unverified Cargo `MIT` declaration was removed, and no project-wide license has been invented. Complete the provenance review before redistributing; see [docs/LICENSING_AND_ATTRIBUTION.md](docs/LICENSING_AND_ATTRIBUTION.md).
+This project is licensed under the **GNU General Public License v3.0 only (`GPL-3.0-only`)** — see [LICENSE](LICENSE) and [docs/LICENSING_AND_ATTRIBUTION.md](docs/LICENSING_AND_ATTRIBUTION.md). This is an independent, unofficial Android client for the open-source `mailx` server and is not affiliated with or endorsed by IVPN.
 
 ## Security
 
@@ -86,4 +86,4 @@ The official IVPN Mailx repository is GPL-3.0 licensed. This snapshot has no top
 
 ![Mailx geometric web and envelope mark](assets/branding/mailx-web-mark.png)
 
-The launcher icon uses a geometric spider-web motif with an envelope at its center. Editable source: `assets/branding/mailx-web-mark.svg`. Brand tokens: [docs/BRANDING.md](docs/BRANDING.md). The Night Fjord design system is described in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).
+The launcher icon uses a geometric spider-web motif with an envelope at its center. Editable source: `assets/branding/mailx-web-mark.svg`. Brand tokens: [docs/BRANDING.md](docs/BRANDING.md). The Graphite Mint design system is described in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).

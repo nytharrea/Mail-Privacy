@@ -40,8 +40,7 @@ private data class StoredPrefsSnapshot(
     val dynamicColorEnabled: Boolean = false,
     val amoledDarkEnabled: Boolean = false,
     val expressiveMotionEnabled: Boolean = false,
-    val reducedMotionEnabled: Boolean = false,
-    val colorPreset: String = "graphite_lime"
+    val reducedMotionEnabled: Boolean = false
 ) {
     val isConfigured: Boolean
         get() = bearerToken.isNotEmpty()
@@ -116,8 +115,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             dynamicColorEnabled = raw.optBoolean("dynamic_color_v6_enabled", false),
             amoledDarkEnabled = raw.optBoolean("amoled_dark_v3_enabled", false),
             expressiveMotionEnabled = raw.optBoolean("expressive_motion_v7_enabled", false),
-            reducedMotionEnabled = raw.optBoolean("reduced_motion_v1_enabled", false),
-            colorPreset = str("color_preset_v1", "graphite_lime").trim().ifEmpty { "graphite_lime" }
+            reducedMotionEnabled = raw.optBoolean("reduced_motion_v1_enabled", false)
         )
     }
 
@@ -260,8 +258,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             dynamicColorEnabled = false,
             amoledDarkEnabled = false,
             expressiveMotionEnabled = false,
-            reducedMotionEnabled = false,
-            colorPreset = "graphite_lime"
+            reducedMotionEnabled = false
         )
     )
     val themeState: StateFlow<ThemeUiState> = _themeState.asStateFlow()
@@ -337,8 +334,7 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
                     dynamicColorEnabled = snapshot.dynamicColorEnabled,
                     amoledDarkEnabled = snapshot.amoledDarkEnabled,
                     expressiveMotionEnabled = snapshot.expressiveMotionEnabled,
-                    reducedMotionEnabled = snapshot.reducedMotionEnabled,
-                    colorPreset = snapshot.colorPreset
+                    reducedMotionEnabled = snapshot.reducedMotionEnabled
                 )
                 _defaultsState.update { prev ->
                     prev.copy(
@@ -1225,13 +1221,6 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
         storedPrefs = storedPrefs.copy(expressiveMotionEnabled = enabled)
         _themeState.update { it.copy(expressiveMotionEnabled = enabled) }
         viewModelScope.launch { runCatching { persistValues(mapOf("expressive_motion_v7_enabled" to enabled)) } }
-    }
-
-    fun updateColorPreset(preset: String) {
-        val clean = preset.trim().ifEmpty { "graphite_lime" }
-        storedPrefs = storedPrefs.copy(colorPreset = clean)
-        _themeState.update { it.copy(colorPreset = clean) }
-        viewModelScope.launch { runCatching { persistValues(mapOf("color_preset_v1" to clean)) } }
     }
 
     fun toggleReducedMotion(enabled: Boolean) {

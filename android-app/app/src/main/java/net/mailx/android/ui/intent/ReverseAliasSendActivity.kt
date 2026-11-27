@@ -43,7 +43,6 @@ private data class ReverseAliasUiPrefs(
     val darkModeMode: Int = -1,
     val dynamicColorEnabled: Boolean = false,
     val amoledDarkEnabled: Boolean = false,
-    val colorPreset: String = "graphite_lime",
     val defaultDomain: String = "mailx.net",
     val cachedAliases: List<String> = emptyList()
 )
@@ -74,9 +73,6 @@ class ReverseAliasSendActivity : ComponentActivity() {
                             },
                             dynamicColorEnabled = stored.optBoolean("dynamic_color_v6_enabled", false),
                             amoledDarkEnabled = stored.optBoolean("amoled_dark_v3_enabled", false),
-                            colorPreset = stored.optString("color_preset_v1", "graphite_lime")
-                                .trim()
-                                .ifEmpty { "graphite_lime" },
                             defaultDomain = defaultDomain,
                             cachedAliases = aliases
                         )
@@ -100,8 +96,7 @@ class ReverseAliasSendActivity : ComponentActivity() {
             MailxTheme(
                 darkTheme = isDark,
                 dynamicColor = uiPrefs.dynamicColorEnabled,
-                amoledDark = uiPrefs.amoledDarkEnabled,
-                colorPreset = uiPrefs.colorPreset
+                amoledDark = uiPrefs.amoledDarkEnabled
             ) {
                 ReverseAliasDialogCard(
                     initialAlias = defaultAlias,
