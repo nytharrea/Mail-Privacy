@@ -79,14 +79,15 @@ class SecureStorageSecurityUnitTest {
             scope1.cancel()
         }
 
+        val tamperedFile = File(tempFolder.newFolder("corrupt_reopen"), "mailx_secure_store.bin")
         val raw = file.readBytes()
         assertTrue(raw.size > 16)
         raw[raw.lastIndex] = (raw[raw.lastIndex].toInt() xor 0xFF).toByte()
-        file.writeBytes(raw)
+        tamperedFile.writeBytes(raw)
 
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val reopened = openPrefs(file, aead, scope2)
+            val reopened = openPrefs(tamperedFile, aead, scope2)
             try {
                 reopened.readDurableSnapshot()
                 fail("Expected CorruptionException for tampered ciphertext")
@@ -111,9 +112,12 @@ class SecureStorageSecurityUnitTest {
             scope1.cancel()
         }
 
+        val wrongKeyFile = File(tempFolder.newFolder("wrong_key_reopen"), "mailx_secure_store.bin")
+        file.copyTo(wrongKeyFile, overwrite = true)
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val wrongPrefs = openPrefs(file, keyB, scope2)
+            val wrongPrefs = openPrefs(wrongKeyFile, keyB, scope2)
             try {
                 wrongPrefs.readDurableSnapshot()
                 fail("Expected CorruptionException when decrypting with a different key")
@@ -167,9 +171,12 @@ class SecureStorageSecurityUnitTest {
             scope1.cancel()
         }
 
+        val reopenedFile = File(tempFolder.newFolder("reopen_${System.nanoTime()}"), "mailx_secure_store.bin")
+        file.copyTo(reopenedFile, overwrite = true)
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val reopened = openPrefs(file, aead, scope2)
+            val reopened = openPrefs(reopenedFile, aead, scope2)
             val snap = reopened.readDurableSnapshot()
             assertEquals("", snap.optString("bearer_token", ""))
             assertEquals("", snap.optString("access_key", ""))
@@ -240,9 +247,12 @@ class SecureStorageSecurityUnitTest {
             scope1.cancel()
         }
 
+        val reopenedFile = File(tempFolder.newFolder("reopen_${System.nanoTime()}"), "mailx_secure_store.bin")
+        file.copyTo(reopenedFile, overwrite = true)
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val reopened = openPrefs(file, aead, scope2)
+            val reopened = openPrefs(reopenedFile, aead, scope2)
             val emitted = reopened.dataFlow.first()
             assertEquals("tok_persist", emitted.optString("bearer_token"))
             assertEquals("layermail.net", emitted.optString("default_domain"))

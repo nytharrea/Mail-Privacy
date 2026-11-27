@@ -80,9 +80,12 @@ class AndroidSecureStoreAdapterUnitTest {
             scope1.cancel()
         }
 
+        val reopenedFile = File(tempFolder.newFolder("reopen_${System.nanoTime()}"), "store.bin")
+        file.copyTo(reopenedFile, overwrite = true)
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val reopened = openAdapter(file, aead, scope2)
+            val reopened = openAdapter(reopenedFile, aead, scope2)
             assertArrayEquals(payload, reopened.get("bearer_token"))
         } finally {
             scope2.cancel()
@@ -121,9 +124,12 @@ class AndroidSecureStoreAdapterUnitTest {
         bytes[bytes.lastIndex] = (bytes[bytes.lastIndex].toInt() xor 0xFF).toByte()
         file.writeBytes(bytes)
 
+        val reopenedFile = File(tempFolder.newFolder("reopen_${System.nanoTime()}"), "store.bin")
+        file.copyTo(reopenedFile, overwrite = true)
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val reopened = openAdapter(file, aead, scope2)
+            val reopened = openAdapter(reopenedFile, aead, scope2)
             try {
                 reopened.get("bearer_token")
                 fail("Expected SecureStorePortException.CorruptData")
@@ -148,9 +154,12 @@ class AndroidSecureStoreAdapterUnitTest {
             scope1.cancel()
         }
 
+        val reopenedFile = File(tempFolder.newFolder("reopen_${System.nanoTime()}"), "store.bin")
+        file.copyTo(reopenedFile, overwrite = true)
+
         val scope2 = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val reopened = openAdapter(file, aead, scope2)
+            val reopened = openAdapter(reopenedFile, aead, scope2)
             assertArrayEquals(
                 "https://api.mailx.net".toByteArray(StandardCharsets.UTF_8),
                 reopened.get("base_url")
