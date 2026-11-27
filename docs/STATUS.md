@@ -31,7 +31,7 @@ This is the single current-state summary for **Mailx v0.5.0-rc1** (unofficial An
 | Rust workspace | `cargo fmt --check`, Clippy `-D warnings` (all/no-default features), 201/201 tests (`--locked`) | Live-account runtime behavior on device |
 | Android Debug & JVM tests | 12/12 JVM security & adapter unit tests, `assembleDebugAndroidTest`, Debug APKs, 16 KB alignment | Running `SecureStorageDeviceSecurityTest` on a physical Android device |
 | Android Signed Release | 4 ABIs + universal APK, R8 minification, v2+v3 signing, 16 KB ELF & `zipalign` | Physical-device install, login, widgets, Quick Settings Tile, and process-death checks |
-| Licensing & distribution | `GPL-3.0-only` added in top-level `LICENSE` and `Cargo.toml`; unofficial client notice in [LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md) | Verify third-party notices before store listing |
+| Licensing & distribution | 100% FOSS (`GPL-3.0-only` across root + all 7 crates, `NOTICE`, `THIRD_PARTY_LICENSES.md`, zero GMS, `dependenciesInfo = false`, Fastlane + F-Droid recipe) | Submit `fdroiddata` MR after physical device sign-off |
 
 ## Release Candidate gate (Phase 11)
 Complete the physical-device smoke tests and licensing sign-off in [RELEASE_CANDIDATE_CHECKLIST.md](RELEASE_CANDIDATE_CHECKLIST.md) before publishing public binaries.

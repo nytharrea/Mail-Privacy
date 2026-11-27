@@ -1,0 +1,4 @@
+- Graphite Mint single-brand design system (Dark, Light, AMOLED) with WCAG contrast CI verification.
+- 51 custom Mailx Line VectorDrawable icons and removal of material-icons-extended.
+- Typed Rust AliasRow/AliasChip UniFFI boundary with zero JSON conversions during search and filtering.
+- 100% FOSS F-Droid readiness: removed Google Play Services credential bridge and disabled APK dependency signing block.

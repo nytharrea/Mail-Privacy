@@ -1,0 +1,15 @@
+Mailx Android is an independent, unofficial open-source client for the mailx email-alias server (hosted or self-hosted).
+
+Features:
+- Create, search, pin, pause, filter, and manage email aliases on the go.
+- Generate contextual, random, word-based, UUID, or wildcard aliases locally using the OS CSPRNG.
+- Reverse-alias sending helper, custom domain management, recipients, routing rules, and blocklist controls.
+- Offline privacy tools: tracking URL sanitizer, email header analyzer, OpenPGP key inspector, phishing/lookalike checker, and local rule simulator.
+- Home-screen widgets (Quick Alias, Privacy Stats, Pinned Aliases) and Quick Settings Tile.
+
+Security & Privacy:
+- 100% FOSS: zero Google Play Services, zero analytics, zero trackers, and zero embedded third-party fonts.
+- Hardware-backed Android Keystore (StrongBox preferred, TEE fallback) wrapping Tink AES-256-GCM encrypted DataStore.
+- Rust core exposed through a single UniFFI boundary with HTTPS-only enforcement, same-origin redirect blocking, and single-flight token refresh.
+
+Note: This application is an independent community project and is not affiliated with or endorsed by IVPN.

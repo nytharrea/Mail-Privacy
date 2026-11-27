@@ -2,6 +2,7 @@
 name = "mailx-utils"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 mailx-domain = { path = "../mailx-domain" }

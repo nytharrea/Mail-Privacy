@@ -26,6 +26,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = false
@@ -123,9 +128,7 @@ dependencies {
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 
 
-    // Android Credential Manager for WebAuthn / Passkey support
     implementation("androidx.credentials:credentials:1.6.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
 
     // Encrypted DataStore: JSON payload protected by Tink AES-256-GCM.
     implementation("androidx.datastore:datastore-core:1.2.1")

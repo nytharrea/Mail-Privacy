@@ -1,0 +1,36 @@
+Categories:
+  - Internet
+  - Security
+License: GPL-3.0-only
+AuthorName: nytharrea
+SourceCode: https://github.com/nytharrea/Mail-Privacy
+IssueTracker: https://github.com/nytharrea/Mail-Privacy/issues
+Changelog: https://github.com/nytharrea/Mail-Privacy/releases
+
+AutoName: Mailx
+
+RepoType: git
+Repo: https://github.com/nytharrea/Mail-Privacy.git
+
+Builds:
+  - versionName: 0.5.0
+    versionCode: 5
+    commit: v0.5.0
+    subdir: android-app/app
+    gradle:
+      - yes
+    srclibs:
+      - rustup@1.28.2
+    ndk: 30.0.16248370
+    prebuild:
+      - pushd ../..
+      - rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+      - cargo install --locked cargo-ndk uniffi-bindgen-cli
+      - cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -t x86 -o android-app/app/src/main/jniLibs build --manifest-path rust-core/Cargo.toml --release --locked
+      - cargo run --manifest-path rust-core/Cargo.toml --bin uniffi-bindgen -- generate --library target/aarch64-linux-android/release/libmailx_core.so --language kotlin --out-dir android-app/app/src/main/java
+      - popd
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.5.0
+CurrentVersionCode: 5

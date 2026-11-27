@@ -31,3 +31,9 @@ Date: 2026-11-23
 ## 5. Licensing & Attribution (Owner Action Required Before Public Distribution)
 - Top-level `LICENSE` (`GPL-3.0-only`) added and declared in `Cargo.toml`; see [LICENSING_AND_ATTRIBUTION.md](LICENSING_AND_ATTRIBUTION.md).
 - Unofficial client attribution and non-endorsement notice retained.
+
+## 6. F-Droid & 100% FOSS Compliance (Phase 5)
+- `credentials-play-services-auth` removed from `android-app/app/build.gradle.kts` (zero `com.google.android.gms` classes in APK; native Android 14+ `androidx.credentials` retained).
+- `dependenciesInfo { includeInApk = false; includeInBundle = false }` enabled.
+- All 7 Rust workspace member crates inherit `license.workspace = true` (`GPL-3.0-only`).
+- `NOTICE`, `THIRD_PARTY_LICENSES.md`, `fastlane/metadata/android/en-US/`, and `docs/fdroid/net.mailx.android.yml` added.

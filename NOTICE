@@ -1,0 +1,19 @@
+Mailx Android (Mail-Privacy)
+Copyright (C) 2026 Mail-Privacy contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 3 only (GPL-3.0-only).
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the LICENSE file for details.
+
+Unofficial Client Notice:
+Mailx Android is an independent, unofficial client for the open-source mailx
+email-alias server (https://github.com/ivpn/mailx, GPL-3.0). It is not
+affiliated with, sponsored by, or endorsed by IVPN.
+
+Third-Party Notices:
+Release APKs strip duplicate /META-INF/{AL2.0,LGPL2.1} packaging files; full
+third-party license attributions are maintained in THIRD_PARTY_LICENSES.md.
