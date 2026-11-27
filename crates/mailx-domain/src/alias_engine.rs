@@ -322,10 +322,7 @@ pub fn parse_iso_utc_unix(raw: &str) -> Option<i64> {
     }
     let mut rest = &s[19..];
     if let Some(after_dot) = rest.strip_prefix('.') {
-        let frac_len = after_dot
-            .bytes()
-            .take_while(|b| b.is_ascii_digit())
-            .count();
+        let frac_len = after_dot.bytes().take_while(|b| b.is_ascii_digit()).count();
         rest = &after_dot[frac_len..];
     }
     let offset_secs: i64 = if rest.is_empty() || rest.eq_ignore_ascii_case("z") {
@@ -502,7 +499,10 @@ mod tests {
         let mut paused = sample_alias("3", "sand.drift52@mailx.net", false, false, 7);
         paused.wildcard = true;
         paused.paused_until = Some("2026-11-30T00:00:00Z".to_string());
-        assert_eq!(chip_for(&paused, now), Some(AliasChip::Paused { days_left: 3 }));
+        assert_eq!(
+            chip_for(&paused, now),
+            Some(AliasChip::Paused { days_left: 3 })
+        );
 
         let mut disabled = sample_alias("4", "off@mailx.net", false, false, 0);
         disabled.wildcard = true;
@@ -516,7 +516,9 @@ mod tests {
     fn test_deleted_alias_never_reports_high_spam() {
         let now = parse_iso_utc_unix("2026-11-27T00:00:00Z").unwrap();
         let mut deleted = sample_alias("1", "gone@mailx.net", false, false, 0);
-        deleted.deleted_at = Some(serde_json::Value::String("2026-11-20T00:00:00Z".to_string()));
+        deleted.deleted_at = Some(serde_json::Value::String(
+            "2026-11-20T00:00:00Z".to_string(),
+        ));
         deleted.stats.blocks = 10;
         assert_eq!(chip_for(&deleted, now), Some(AliasChip::Disabled));
     }
