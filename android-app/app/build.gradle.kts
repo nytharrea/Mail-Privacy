@@ -122,9 +122,6 @@ dependencies {
     implementation("androidx.compose.material3.adaptive:adaptive")
     implementation("androidx.graphics:graphics-shapes:1.1.0")
 
-    // Material Symbols Extended + the custom Mailx vector mark provide one consistent icon family.
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended")
 
     // Android Credential Manager for WebAuthn / Passkey support
     implementation("androidx.credentials:credentials:1.6.0")

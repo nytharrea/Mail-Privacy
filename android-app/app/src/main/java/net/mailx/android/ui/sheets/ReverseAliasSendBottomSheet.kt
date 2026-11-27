@@ -1,4 +1,5 @@
 package net.mailx.android.ui.sheets
+import net.mailx.android.ui.theme.MailxIcons
 
 import android.content.Intent
 import android.net.Uri
@@ -8,9 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -204,7 +202,7 @@ fun ReverseAliasSendBottomSheet(
                 ) {
                     MailxTonalButton(
                         text = "Copy",
-                        icon = Icons.Outlined.ContentCopy,
+                        icon = MailxIcons.Copy,
                         accentColor = MailxPalette.ReplySky,
                         enabled = generated.isNotEmpty(),
                         onClick = {
@@ -217,7 +215,7 @@ fun ReverseAliasSendBottomSheet(
 
                     MailxPrimaryButton(
                         text = "Send Email",
-                        icon = Icons.AutoMirrored.Outlined.OpenInNew,
+                        icon = MailxIcons.External,
                         enabled = generated.isNotEmpty(),
                         onClick = {
                             copyToClipboard(context, "Mailx Send Address", generated, "Reverse-alias address copied")

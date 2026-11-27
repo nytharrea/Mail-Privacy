@@ -1,4 +1,5 @@
 package net.mailx.android.ui.sheets
+import net.mailx.android.ui.theme.MailxIcons
 
 import android.Manifest
 import android.os.Build
@@ -14,10 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ForwardToInbox
-import androidx.compose.material.icons.automirrored.outlined.Reply
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -128,7 +125,7 @@ fun ManageAliasBottomSheet(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Outlined.Spellcheck,
+                            imageVector = MailxIcons.Check,
                             contentDescription = "NATO Phonetic",
                             tint = if (showNato) {
                                 MaterialTheme.colorScheme.primary
@@ -165,7 +162,7 @@ fun ManageAliasBottomSheet(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Outlined.PushPin,
+                            imageVector = MailxIcons.Pin,
                             contentDescription = "Pin",
                             tint = if (alias.pinned) {
                                 MailxPalette.PausedAmber
@@ -290,22 +287,22 @@ fun ManageAliasBottomSheet(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.Outlined.Inbox,
+                                        icon = MailxIcons.Inbox,
                                         tint = MailxPalette.ForwardedGreen,
                                         text = "${alias.forwards} fwd"
                                     )
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.AutoMirrored.Outlined.Reply,
+                                        icon = MailxIcons.Reply,
                                         tint = MailxPalette.ReplySky,
                                         text = "${alias.replies} rep"
                                     )
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.AutoMirrored.Outlined.ForwardToInbox,
+                                        icon = MailxIcons.Forward,
                                         tint = MailxPalette.SentSlate,
                                         text = "${alias.sends} sent"
                                     )
                                     ManageAliasStatLegendRow(
-                                        icon = Icons.Outlined.Block,
+                                        icon = MailxIcons.Ban,
                                         tint = MailxPalette.BlockedRose,
                                         text = "${alias.blocks} blk"
                                     )
@@ -319,7 +316,7 @@ fun ManageAliasBottomSheet(
                         ) {
                             MailxTonalButton(
                                 text = if (alias.wildcard) "Wildcard" else "Copy",
-                                icon = if (alias.wildcard) Icons.Outlined.AutoAwesome else Icons.Outlined.ContentCopy,
+                                icon = if (alias.wildcard) MailxIcons.Wildcard else MailxIcons.Copy,
                                 accentColor = MailxPalette.ReplySky,
                                 onClick = {
                                     if (alias.wildcard) {
@@ -334,7 +331,7 @@ fun ManageAliasBottomSheet(
 
                             MailxPrimaryButton(
                                 text = "Send Email",
-                                icon = Icons.AutoMirrored.Outlined.ForwardToInbox,
+                                icon = MailxIcons.Forward,
                                 onClick = onOpenSendFromAlias,
                                 modifier = Modifier.weight(1f),
                                 height = 46.dp
@@ -350,7 +347,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = "Restore Deleted Alias",
                             description = "Restore from Trash and resume forwarding",
-                            startIcon = Icons.Outlined.Restore,
+                            startIcon = MailxIcons.Refresh,
                             accentColor = MailxPalette.ForwardedGreen,
                             grouped = true,
                             onClick = onRestoreAlias
@@ -360,7 +357,7 @@ fun ManageAliasBottomSheet(
                             MailxSectionRow(
                                 title = "Permanently Forget",
                                 description = "Completely erase this custom-domain alias",
-                                startIcon = Icons.Outlined.DeleteForever,
+                                startIcon = MailxIcons.Trash,
                                 accentColor = MailxPalette.BlockedRose,
                                 grouped = true,
                                 onClick = onForgetAlias
@@ -370,7 +367,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = if (alias.enabled) "Forwarding Active" else "Forwarding Disabled",
                             description = "Toggle incoming email forwarding for this alias",
-                            startIcon = Icons.Outlined.CheckCircleOutline,
+                            startIcon = MailxIcons.CheckCircle,
                             iconTint = MailxPalette.ForwardedGreen,
                             showSwitch = true,
                             switchChecked = alias.enabled,
@@ -386,7 +383,7 @@ fun ManageAliasBottomSheet(
                             } else {
                                 "Pause incoming forwards for 1-10 hours, days, or weeks"
                             },
-                            startIcon = if (alias.isPaused) Icons.Outlined.PlayCircleOutline else Icons.Outlined.PauseCircleOutline,
+                            startIcon = if (alias.isPaused) MailxIcons.Play else MailxIcons.Pause,
                             iconTint = MailxPalette.PausedAmber,
                             grouped = true,
                             onClick = {
@@ -402,7 +399,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = "Watch alias activity",
                             description = "Notify me when the forwarded-email counter increases (up to 25 aliases)",
-                            startIcon = Icons.Outlined.Notifications,
+                            startIcon = MailxIcons.Bell,
                             showSwitch = true,
                             switchChecked = isWatched,
                             onSwitchChange = ::toggleWatch,
@@ -412,7 +409,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = "Pin to Top",
                             description = "Keep this alias in Quick Access and at the top of lists",
-                            startIcon = Icons.Outlined.PushPin,
+                            startIcon = MailxIcons.Pin,
                             iconTint = MailxPalette.PausedAmber,
                             showSwitch = true,
                             switchChecked = alias.pinned,
@@ -428,9 +425,9 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = "Description / Note",
                         description = alias.description.ifBlank { "No description set" },
-                        startIcon = Icons.Outlined.Notes,
+                        startIcon = MailxIcons.Notes,
                         iconTint = MailxPalette.ReplySky,
-                        endIcon = Icons.Outlined.Edit,
+                        endIcon = MailxIcons.Edit,
                         grouped = true,
                         onClick = { editingField = "description" }
                     )
@@ -439,9 +436,9 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = "Target Recipients",
                         description = alias.recipients.ifBlank { "Default account recipient" },
-                        startIcon = Icons.Outlined.Inbox,
+                        startIcon = MailxIcons.Inbox,
                         iconTint = MailxPalette.ForwardedGreen,
-                        endIcon = Icons.Outlined.Edit,
+                        endIcon = MailxIcons.Edit,
                         grouped = true,
                         onClick = { editingField = "recipients" }
                     )
@@ -450,9 +447,9 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = "Sender Display Name",
                         description = alias.fromName.ifBlank { "Uses alias address" },
-                        startIcon = Icons.Outlined.Badge,
+                        startIcon = MailxIcons.User,
                         iconTint = MailxPalette.SentSlate,
-                        endIcon = Icons.Outlined.Edit,
+                        endIcon = MailxIcons.Edit,
                         grouped = true,
                         onClick = { editingField = "from_name" }
                     )
@@ -461,7 +458,7 @@ fun ManageAliasBottomSheet(
                     MailxSectionRow(
                         title = "Timestamps",
                         description = "Created ${formatIsoDateShort(alias.createdAt)} • Updated ${formatIsoDateShort(alias.updatedAt)}",
-                        startIcon = Icons.Outlined.Schedule,
+                        startIcon = MailxIcons.Clock,
                         iconTint = MailxPalette.BrandTertiaryNeutralDark,
                         grouped = true
                     )
@@ -472,7 +469,7 @@ fun ManageAliasBottomSheet(
                         MailxSectionRow(
                             title = "Move to Trash",
                             description = "Reject incoming mail (restorable for 90 days)",
-                            startIcon = Icons.Outlined.DeleteOutline,
+                            startIcon = MailxIcons.Trash,
                             accentColor = MailxPalette.BlockedRose,
                             grouped = true,
                             onClick = onRequestDelete
@@ -482,7 +479,7 @@ fun ManageAliasBottomSheet(
                             MailxSectionRow(
                                 title = "Permanently Forget",
                                 description = "Immediately purge this custom-domain alias",
-                                startIcon = Icons.Outlined.DeleteForever,
+                                startIcon = MailxIcons.Trash,
                                 accentColor = MailxPalette.BlockedRose,
                                 grouped = true,
                                 onClick = onForgetAlias
@@ -507,7 +504,7 @@ fun ManageAliasBottomSheet(
         MailxModernDialog(
             title = "Snooze Alias",
             subtitle = "How long should incoming forwards be paused?",
-            icon = Icons.Outlined.PauseCircleOutline,
+            icon = MailxIcons.Pause,
             iconTint = MailxPalette.PausedAmber,
             confirmText = "Pause Alias",
             onConfirm = {
@@ -557,7 +554,7 @@ fun ManageAliasBottomSheet(
                 "from_name" -> "Edit Sender Name"
                 else -> "Edit Recipients"
             },
-            icon = Icons.Outlined.Edit,
+            icon = MailxIcons.Edit,
             confirmText = "Save",
             onConfirm = {
                 val d = if (field == "description") textVal.trim() else alias.description

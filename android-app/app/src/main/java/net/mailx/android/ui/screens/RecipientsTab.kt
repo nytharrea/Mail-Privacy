@@ -1,4 +1,5 @@
 package net.mailx.android.ui.screens
+import net.mailx.android.ui.theme.MailxIcons
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -10,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -196,7 +195,7 @@ fun RecipientsTab(
                         modifier = Modifier.height(36.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Add,
+                            imageVector = MailxIcons.Add,
                             contentDescription = null,
                             modifier = Modifier.size(15.dp)
                         )
@@ -218,7 +217,7 @@ fun RecipientsTab(
             if (displayedRecipients.isEmpty()) {
                 item(key = "recipients_empty") {
                     EmptyStateBox(
-                        icon = Icons.Outlined.Inbox,
+                        icon = MailxIcons.Inbox,
                         title = "No recipients found",
                         subtitle = "Add a new recipient email address or sync from the server.",
                         actionLabel = "Add Recipient",
@@ -283,9 +282,9 @@ fun RecipientsTab(
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = if (rec.hasPgpKey && rec.pgpEnabled) {
-                                                Icons.Outlined.Lock
+                                                MailxIcons.Lock
                                             } else {
-                                                Icons.Outlined.Mail
+                                                MailxIcons.Mail
                                             },
                                             contentDescription = null,
                                             tint = iconColor,
@@ -322,7 +321,7 @@ fun RecipientsTab(
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.ContentCopy,
+                                        imageVector = MailxIcons.Copy,
                                         contentDescription = "Copy Email",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                                         modifier = Modifier.size(16.dp)
@@ -335,7 +334,7 @@ fun RecipientsTab(
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.MoreVert,
+                                            imageVector = MailxIcons.More,
                                             contentDescription = "More Actions",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(18.dp)
@@ -353,7 +352,7 @@ fun RecipientsTab(
                                                 text = { Text("Set as Default", fontSize = 13.5.sp) },
                                                 leadingIcon = {
                                                     Icon(
-                                                        Icons.Outlined.Check,
+                                                        MailxIcons.Check,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
                                                         modifier = Modifier.size(18.dp)
@@ -374,7 +373,7 @@ fun RecipientsTab(
                                             },
                                             leadingIcon = {
                                                 Icon(
-                                                    Icons.Outlined.Key,
+                                                    MailxIcons.Key,
                                                     contentDescription = null,
                                                     tint = MailxPalette.ForwardEmerald,
                                                     modifier = Modifier.size(18.dp)
@@ -389,7 +388,7 @@ fun RecipientsTab(
                                             text = { Text("Copy Address", fontSize = 13.5.sp) },
                                             leadingIcon = {
                                                 Icon(
-                                                    Icons.Outlined.ContentCopy,
+                                                    MailxIcons.Copy,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -404,7 +403,7 @@ fun RecipientsTab(
                                                 text = { Text("Enter OTP Code", fontSize = 13.5.sp) },
                                                 leadingIcon = {
                                                     Icon(
-                                                        Icons.Outlined.VerifiedUser,
+                                                        MailxIcons.ShieldCheck,
                                                         contentDescription = null,
                                                         tint = MailxPalette.PausedAmber,
                                                         modifier = Modifier.size(18.dp)
@@ -430,7 +429,7 @@ fun RecipientsTab(
                                                 },
                                                 leadingIcon = {
                                                     Icon(
-                                                        Icons.Outlined.DeleteOutline,
+                                                        MailxIcons.Trash,
                                                         contentDescription = null,
                                                         tint = MailxPalette.BlockedRose,
                                                         modifier = Modifier.size(18.dp)
@@ -500,7 +499,7 @@ fun RecipientsTab(
                                 }
 
                                 Icon(
-                                    imageVector = if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                    imageVector = if (isExpanded) MailxIcons.ChevronUp else MailxIcons.ChevronDown,
                                     contentDescription = "Expand details",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                                     modifier = Modifier.size(18.dp)
@@ -578,7 +577,7 @@ fun RecipientsTab(
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(10.dp)
                                             ) {
-                                                Icon(Icons.Outlined.VerifiedUser, contentDescription = null, modifier = Modifier.size(15.dp))
+                                                Icon(MailxIcons.ShieldCheck, contentDescription = null, modifier = Modifier.size(15.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text("Verify OTP", fontSize = 12.5.sp)
                                             }
@@ -668,7 +667,7 @@ fun RecipientsTab(
                                                 .height(36.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Outlined.Key,
+                                                imageVector = MailxIcons.Key,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(15.dp)
@@ -694,7 +693,7 @@ fun RecipientsTab(
                                                 modifier = Modifier.height(36.dp)
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Outlined.Check,
+                                                    imageVector = MailxIcons.Check,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(15.dp)
                                                 )
@@ -727,7 +726,7 @@ fun RecipientsTab(
             if (customDomains.isEmpty()) {
                 item(key = "custom_domains_empty") {
                     EmptyStateBox(
-                        icon = Icons.Outlined.Language,
+                        icon = MailxIcons.Globe,
                         title = "No custom domains yet",
                         subtitle = "Add your own domain (e.g. mydomain.com) and verify TXT, MX, SPF, and DKIM records to use custom aliases.",
                         actionLabel = "Add Custom Domain",
@@ -766,7 +765,7 @@ fun RecipientsTab(
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
-                                                imageVector = Icons.Outlined.Language,
+                                                imageVector = MailxIcons.Globe,
                                                 contentDescription = null,
                                                 tint = domColor,
                                                 modifier = Modifier.size(18.dp)
@@ -856,7 +855,7 @@ fun RecipientsTab(
                                     shape = RoundedCornerShape(10.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
-                                    Icon(Icons.Outlined.Dns, contentDescription = null, modifier = Modifier.size(15.dp))
+                                    Icon(MailxIcons.Server, contentDescription = null, modifier = Modifier.size(15.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("DNS & Verify", fontSize = 12.sp, maxLines = 1)
                                 }
@@ -865,7 +864,7 @@ fun RecipientsTab(
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
+                                    Icon(MailxIcons.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
                                 }
                                 FilledTonalIconButton(
                                     onClick = { onDeleteCustomDomain(dom.id) },
@@ -876,7 +875,7 @@ fun RecipientsTab(
                                     ),
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                                    Icon(MailxIcons.Trash, contentDescription = "Delete", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -910,10 +909,10 @@ fun RecipientsTab(
                                 } else {
                                     "$domainAliasCount aliases • Tap to set as default"
                                 },
-                                startIcon = Icons.Outlined.Language,
+                                startIcon = MailxIcons.Globe,
                                 iconTint = if (isSelected) MaterialTheme.colorScheme.primary else MailxPalette.ReplySky,
                                 trailingBadge = if (isSelected) "Default" else null,
-                                endIcon = if (isSelected) Icons.Outlined.Check else null,
+                                endIcon = if (isSelected) MailxIcons.Check else null,
                                 accentColor = if (isSelected) MaterialTheme.colorScheme.primary else null,
                                 grouped = true,
                                 onClick = { onUpdateDefaultDomain(domain) }
@@ -942,7 +941,7 @@ fun RecipientsTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Info,
+                        imageVector = MailxIcons.Info,
                         contentDescription = "Info",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
@@ -963,7 +962,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "New Recipient",
             subtitle = "Enter the real email address where your aliases should forward messages. A 6-digit OTP verification code will be sent.",
-            icon = Icons.Outlined.Mail,
+            icon = MailxIcons.Mail,
             confirmText = "Add Recipient",
             confirmEnabled = newEmail.contains("@"),
             onConfirm = {
@@ -991,7 +990,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "Verify Recipient",
             subtitle = "Enter the 6-digit verification code (OTP) sent to ${rec.email}:",
-            icon = Icons.Outlined.VerifiedUser,
+            icon = MailxIcons.ShieldCheck,
             confirmText = "Verify",
             confirmEnabled = otpCode.trim().length == 6,
             onConfirm = {
@@ -1027,7 +1026,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "OpenPGP Public Key",
             subtitle = "Paste your public PGP key for ${rec.email} starting with '-----BEGIN PGP PUBLIC KEY BLOCK-----':",
-            icon = Icons.Outlined.Key,
+            icon = MailxIcons.Key,
             iconTint = MailxPalette.ForwardEmerald,
             confirmText = "Save Key",
             onConfirm = {
@@ -1112,7 +1111,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "Delete Recipient",
             subtitle = "Are you sure you want to delete recipient ${rec.email}?",
-            icon = Icons.Outlined.DeleteOutline,
+            icon = MailxIcons.Trash,
             iconTint = MailxPalette.BlockedRose,
             confirmText = "Delete",
             isDestructive = true,
@@ -1147,7 +1146,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "Add Custom Domain",
             subtitle = "Enter your domain name and add the TXT ownership verification record in your DNS settings.",
-            icon = Icons.Outlined.Language,
+            icon = MailxIcons.Globe,
             confirmText = "Add & Configure DNS",
             confirmEnabled = domainInput.contains("."),
             onConfirm = {
@@ -1207,7 +1206,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "DNS Records: ${dom.name}",
             subtitle = "Add these DNS records at your domain registrar (tap any card to copy):",
-            icon = Icons.Outlined.Dns,
+            icon = MailxIcons.Server,
             confirmText = "Verify DNS",
             onConfirm = { onVerifyDomainDns(dom.id) },
             dismissText = "Close",
@@ -1274,7 +1273,7 @@ fun RecipientsTab(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = if (chk.passed) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
+                                imageVector = if (chk.passed) MailxIcons.CheckCircle else MailxIcons.Alert,
                                 contentDescription = null,
                                 tint = if (chk.passed) MailxPalette.ForwardEmerald else MailxPalette.BlockedRose,
                                 modifier = Modifier.size(15.dp)
@@ -1299,7 +1298,7 @@ fun RecipientsTab(
         MailxModernDialog(
             title = "${dom.name} Settings",
             subtitle = "Configure routing metadata and catch-all behavior.",
-            icon = Icons.Outlined.Language,
+            icon = MailxIcons.Globe,
             confirmText = "Save",
             onConfirm = {
                 editingCustomDomain = null

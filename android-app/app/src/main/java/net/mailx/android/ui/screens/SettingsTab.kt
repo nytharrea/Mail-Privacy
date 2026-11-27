@@ -6,13 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Badge
-import androidx.compose.material.icons.outlined.Contrast
-import androidx.compose.material.icons.outlined.MailOutline
-import androidx.compose.material.icons.outlined.MotionPhotosOff
-import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.Unsubscribe
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -140,7 +133,7 @@ fun SettingsTab(
                 MailxSectionRow(
                     title = "Pure Black Surface (AMOLED)",
                     description = "True #000000 OLED background with high-contrast carbon cards",
-                    startIcon = Icons.Outlined.Contrast,
+                    startIcon = MailxIcons.Contrast,
                     showSwitch = true,
                     switchChecked = themeState.amoledDarkEnabled,
                     onSwitchChange = onToggleAmoledDark,
@@ -176,7 +169,7 @@ fun SettingsTab(
                 MailxSectionRow(
                     title = "Reduced Motion",
                     description = "Minimize transitions and disable pulsing animations",
-                    startIcon = Icons.Outlined.MotionPhotosOff,
+                    startIcon = MailxIcons.MotionOff,
                     showSwitch = true,
                     switchChecked = themeState.reducedMotionEnabled,
                     onSwitchChange = onToggleReducedMotion,
@@ -278,7 +271,7 @@ fun SettingsTab(
                     description = defaultsState.defaultFromName.ifBlank {
                         "Uses the alias address when left blank"
                     },
-                    startIcon = Icons.Outlined.Badge,
+                    startIcon = MailxIcons.User,
                     iconTint = MailxPalette.ReplySky,
                     endIcon = MailxIcons.Edit3,
                     grouped = true,
@@ -290,7 +283,7 @@ fun SettingsTab(
                 MailxSectionRow(
                     title = "Include Relay Banner Header",
                     description = "Show 'Sent to <alias> from <sender>' header in forwarded emails",
-                    startIcon = Icons.Outlined.MailOutline,
+                    startIcon = MailxIcons.Mail,
                     iconTint = MailxPalette.BrandAccentTeal,
                     showSwitch = true,
                     switchChecked = includeHeader,
@@ -314,7 +307,7 @@ fun SettingsTab(
                 MailxSectionRow(
                     title = "List-Unsubscribe Action",
                     description = MailxRuleCatalog.unsubscribeLabel(defaultsState.unsubscribeBehaviour),
-                    startIcon = Icons.Outlined.Unsubscribe,
+                    startIcon = MailxIcons.Ban,
                     iconTint = MailxPalette.PausedAmber,
                     endIcon = MailxIcons.Edit3,
                     grouped = true,
@@ -346,7 +339,7 @@ fun SettingsTab(
                 MailxSectionRow(
                     title = "Inspect Delivery & Bounce Logs",
                     description = "View MTA delivery logs, raw bounce files & server health",
-                    startIcon = Icons.Outlined.ReceiptLong,
+                    startIcon = MailxIcons.Notes,
                     iconTint = MailxPalette.ReplySky,
                     endIcon = MailxIcons.ChevronRight,
                     grouped = true,
@@ -522,7 +515,7 @@ fun SettingsTab(
                         MailxSectionRow(
                             title = "Pure Black Surface (AMOLED)",
                             description = "True black background with WCAG AA contrast",
-                            startIcon = Icons.Outlined.Contrast,
+                            startIcon = MailxIcons.Contrast,
                             iconTint = MailxPalette.BrandAccentTeal,
                             showSwitch = true,
                             switchChecked = themeState.amoledDarkEnabled,
@@ -534,7 +527,7 @@ fun SettingsTab(
                         MailxSectionRow(
                             title = "Reduced Motion",
                             description = "Disable non-essential animations",
-                            startIcon = Icons.Outlined.MotionPhotosOff,
+                            startIcon = MailxIcons.MotionOff,
                             iconTint = MailxPalette.SentSlate,
                             showSwitch = true,
                             switchChecked = themeState.reducedMotionEnabled,

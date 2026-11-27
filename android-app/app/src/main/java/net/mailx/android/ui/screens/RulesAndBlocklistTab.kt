@@ -1,4 +1,5 @@
 package net.mailx.android.ui.screens
+import net.mailx.android.ui.theme.MailxIcons
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
@@ -9,8 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -105,7 +104,7 @@ fun RulesAndBlocklistTab(
             if (rules.isEmpty()) {
                 item(key = "rules_empty") {
                     EmptyStateBox(
-                        icon = Icons.Outlined.FilterAlt,
+                        icon = MailxIcons.Filter,
                         title = "No rules configured yet",
                         subtitle = "Create rules to automatically block, forward, replace subjects, or strip attachments based on sender, subject, or alias conditions.",
                         actionLabel = "Create Rule",
@@ -189,7 +188,7 @@ fun RulesAndBlocklistTab(
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Outlined.MoreVert,
+                                                imageVector = MailxIcons.More,
                                                 contentDescription = "Rule Actions",
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(18.dp)
@@ -205,7 +204,7 @@ fun RulesAndBlocklistTab(
                                                 text = { Text("Simulate Rule in Rust", fontSize = 13.5.sp) },
                                                 leadingIcon = {
                                                     Icon(
-                                                        Icons.Outlined.PlayArrow,
+                                                        MailxIcons.Play,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.secondary,
                                                         modifier = Modifier.size(18.dp)
@@ -219,7 +218,7 @@ fun RulesAndBlocklistTab(
                                             DropdownMenuItem(
                                                 text = { Text("Edit Rule", fontSize = 13.5.sp) },
                                                 leadingIcon = {
-                                                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                    Icon(MailxIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                                                 },
                                                 onClick = {
                                                     showRuleMenu = false
@@ -230,7 +229,7 @@ fun RulesAndBlocklistTab(
                                             DropdownMenuItem(
                                                 text = { Text("Duplicate Rule", fontSize = 13.5.sp) },
                                                 leadingIcon = {
-                                                    Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                    Icon(MailxIcons.Copy, contentDescription = null, modifier = Modifier.size(18.dp))
                                                 },
                                                 onClick = {
                                                     showRuleMenu = false
@@ -242,7 +241,7 @@ fun RulesAndBlocklistTab(
                                                 DropdownMenuItem(
                                                     text = { Text("Move Up Priority", fontSize = 13.5.sp) },
                                                     leadingIcon = {
-                                                        Icon(Icons.Outlined.ArrowUpward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                        Icon(MailxIcons.ArrowUp, contentDescription = null, modifier = Modifier.size(18.dp))
                                                     },
                                                     onClick = {
                                                         showRuleMenu = false
@@ -254,7 +253,7 @@ fun RulesAndBlocklistTab(
                                                 DropdownMenuItem(
                                                     text = { Text("Move Down Priority", fontSize = 13.5.sp) },
                                                     leadingIcon = {
-                                                        Icon(Icons.Outlined.ArrowDownward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                        Icon(MailxIcons.ArrowDown, contentDescription = null, modifier = Modifier.size(18.dp))
                                                     },
                                                     onClick = {
                                                         showRuleMenu = false
@@ -275,7 +274,7 @@ fun RulesAndBlocklistTab(
                                                 },
                                                 leadingIcon = {
                                                     Icon(
-                                                        Icons.Outlined.DeleteOutline,
+                                                        MailxIcons.Trash,
                                                         contentDescription = null,
                                                         tint = MailxPalette.BlockedRose,
                                                         modifier = Modifier.size(18.dp)
@@ -366,7 +365,7 @@ fun RulesAndBlocklistTab(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.Science,
+                                            imageVector = MailxIcons.Science,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.secondary,
                                             modifier = Modifier.size(13.dp)
@@ -397,7 +396,7 @@ fun RulesAndBlocklistTab(
             if (blocklist.isEmpty()) {
                 item(key = "blocklist_empty") {
                     EmptyStateBox(
-                        icon = Icons.Outlined.Block,
+                        icon = MailxIcons.Ban,
                         title = "Your blocklist is empty",
                         subtitle = "Block unwanted sender email addresses (e.g. spam@example.com) or entire domains (e.g. spammer.com).",
                         actionLabel = "Block Email or Domain",
@@ -431,7 +430,7 @@ fun RulesAndBlocklistTab(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            imageVector = if (item.type == "domain") Icons.Outlined.Language else Icons.Outlined.AlternateEmail,
+                                            imageVector = if (item.type == "domain") MailxIcons.Globe else MailxIcons.AtSign,
                                             contentDescription = null,
                                             tint = MailxPalette.BlockedRose,
                                             modifier = Modifier.size(18.dp)
@@ -462,7 +461,7 @@ fun RulesAndBlocklistTab(
 
                             IconButton(onClick = { onDeleteBlocklistItem(item.id) }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.DeleteOutline,
+                                    imageVector = MailxIcons.Trash,
                                     contentDescription = "Remove",
                                     tint = MailxPalette.BlockedRose,
                                     modifier = Modifier.size(18.dp)
@@ -495,7 +494,7 @@ fun RulesAndBlocklistTab(
         MailxModernDialog(
             title = "Block Email or Domain",
             subtitle = "Incoming emails matching this sender or domain will be rejected automatically.",
-            icon = Icons.Outlined.Block,
+            icon = MailxIcons.Ban,
             iconTint = MailxPalette.BlockedRose,
             confirmText = "Block",
             confirmEnabled = blockValue.trim().isNotEmpty(),
@@ -605,7 +604,7 @@ fun RulesAndBlocklistTab(
         MailxModernDialog(
             title = "Rust Rule Simulator: ${rule.name}",
             subtitle = "Test how this rule evaluates a sample incoming email offline in Rust:",
-            icon = Icons.Outlined.Science,
+            icon = MailxIcons.Science,
             iconTint = MaterialTheme.colorScheme.secondary,
             dismissText = "Close",
             onDismiss = { simulatingRule = null }
@@ -920,7 +919,7 @@ private fun RuleEditorBottomSheet(
                                     onClick = { conditions = conditions.filterIndexed { i, _ -> i != idx } },
                                     modifier = Modifier.size(26.dp)
                                 ) {
-                                    Icon(Icons.Outlined.Close, contentDescription = "Remove Condition", modifier = Modifier.size(16.dp))
+                                    Icon(MailxIcons.Close, contentDescription = "Remove Condition", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -946,7 +945,7 @@ private fun RuleEditorBottomSheet(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Icon(
-                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    imageVector = MailxIcons.ChevronDown,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -975,7 +974,7 @@ private fun RuleEditorBottomSheet(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Icon(
-                                        imageVector = Icons.Outlined.ArrowDropDown,
+                                        imageVector = MailxIcons.ChevronDown,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1043,7 +1042,7 @@ private fun RuleEditorBottomSheet(
                                     onClick = { actions = actions.filterIndexed { i, _ -> i != idx } },
                                     modifier = Modifier.size(26.dp)
                                 ) {
-                                    Icon(Icons.Outlined.Close, contentDescription = "Remove Action", modifier = Modifier.size(16.dp))
+                                    Icon(MailxIcons.Close, contentDescription = "Remove Action", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -1069,7 +1068,7 @@ private fun RuleEditorBottomSheet(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Icon(
-                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    imageVector = MailxIcons.ChevronDown,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

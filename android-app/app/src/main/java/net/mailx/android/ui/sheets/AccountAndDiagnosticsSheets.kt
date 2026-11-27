@@ -18,9 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -266,9 +263,9 @@ fun AccountBottomSheet(
                 MailxSectionRow(
                     title = "Change Primary Email",
                     description = userAccount.email.ifBlank { "Update account email address" },
-                    startIcon = Icons.Outlined.Email,
+                    startIcon = MailxIcons.Mail,
                     iconTint = MailxPalette.ReplySky,
-                    endIcon = Icons.Outlined.Edit,
+                    endIcon = MailxIcons.Edit,
                     grouped = true,
                     onClick = { showChangeEmailDialog = true }
                 )
@@ -276,9 +273,9 @@ fun AccountBottomSheet(
                 MailxSectionRow(
                     title = "Change Password",
                     description = "Update your account login password",
-                    startIcon = Icons.Outlined.LockReset,
+                    startIcon = MailxIcons.Lock,
                     iconTint = MailxPalette.SentSlate,
-                    endIcon = Icons.Outlined.Edit,
+                    endIcon = MailxIcons.Edit,
                     grouped = true,
                     onClick = { showChangePasswordDialog = true }
                 )
@@ -478,7 +475,7 @@ fun AccountBottomSheet(
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.ContentCopy,
+                                        imageVector = MailxIcons.Copy,
                                         contentDescription = "Copy Secret Key",
                                         modifier = Modifier.size(15.dp)
                                     )
@@ -505,7 +502,7 @@ fun AccountBottomSheet(
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                                imageVector = MailxIcons.External,
                                 contentDescription = null,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -627,7 +624,7 @@ fun AccountBottomSheet(
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.ContentCopy,
+                                            imageVector = MailxIcons.Copy,
                                             contentDescription = null,
                                             modifier = Modifier.size(15.dp)
                                         )
@@ -642,7 +639,7 @@ fun AccountBottomSheet(
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.Download,
+                                            imageVector = MailxIcons.Download,
                                             contentDescription = null,
                                             modifier = Modifier.size(15.dp)
                                         )
@@ -737,7 +734,7 @@ fun AccountBottomSheet(
                             }
                             IconButton(onClick = { deletingPasskey = pk }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.DeleteOutline,
+                                    imageVector = MailxIcons.Trash,
                                     contentDescription = "Delete Passkey",
                                     tint = MailxPalette.BlockedRose
                                 )
@@ -835,7 +832,7 @@ fun AccountBottomSheet(
                         }
                         IconButton(onClick = { deletingAccessKey = keyItem }) {
                             Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
+                                imageVector = MailxIcons.Trash,
                                 contentDescription = "Delete Key",
                                 tint = MailxPalette.BlockedRose
                             )
@@ -850,7 +847,7 @@ fun AccountBottomSheet(
                 MailxSectionRow(
                     title = "Export All Aliases as CSV",
                     description = "Export $aliasCount aliases with status, recipients, and descriptions",
-                    startIcon = Icons.Outlined.Download,
+                    startIcon = MailxIcons.Download,
                     iconTint = MailxPalette.BrandAccentTeal,
                     endIcon = MailxIcons.ChevronRight,
                     grouped = true,
@@ -864,7 +861,7 @@ fun AccountBottomSheet(
                 MailxSectionRow(
                     title = "Import Aliases from CSV",
                     description = "Import custom-domain aliases using CSV rows (alias,description,enabled,recipients)",
-                    startIcon = Icons.Outlined.UploadFile,
+                    startIcon = MailxIcons.Upload,
                     iconTint = MailxPalette.ReplySky,
                     endIcon = MailxIcons.ChevronRight,
                     grouped = true,
@@ -877,7 +874,7 @@ fun AccountBottomSheet(
             MailxSectionRow(
                 title = "Delete Account Permanently",
                 description = "Permanently delete your Mailx account and all associated aliases",
-                startIcon = Icons.Outlined.DeleteForever,
+                startIcon = MailxIcons.Trash,
                 accentColor = MailxPalette.BlockedRose,
                 onClick = { showDeleteAccountDialog = true }
             )
@@ -890,7 +887,7 @@ fun AccountBottomSheet(
         MailxModernDialog(
             title = "Change Password",
             subtitle = "Enter your current password and choose a strong new password (12+ characters).",
-            icon = Icons.Outlined.LockReset,
+            icon = MailxIcons.Lock,
             confirmText = "Update Password",
             confirmEnabled = oldPw.isNotEmpty() && newPw.length >= 8,
             onConfirm = {
@@ -928,7 +925,7 @@ fun AccountBottomSheet(
         MailxModernDialog(
             title = "Change Primary Email",
             subtitle = "Update the primary email address associated with your account.",
-            icon = Icons.Outlined.Email,
+            icon = MailxIcons.Mail,
             confirmText = "Update",
             confirmEnabled = newEm.contains("@"),
             onConfirm = {
@@ -1081,7 +1078,7 @@ fun AccountBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Icon(
-                            imageVector = Icons.Outlined.ArrowDropDown,
+                            imageVector = MailxIcons.ChevronDown,
                             contentDescription = "Select Expiration",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1171,7 +1168,7 @@ fun AccountBottomSheet(
         MailxModernDialog(
             title = "Aliases CSV Export",
             subtitle = "Copy your exported aliases CSV below:",
-            icon = Icons.Outlined.Download,
+            icon = MailxIcons.Download,
             confirmText = "Copy CSV",
             onConfirm = {
                 copyToClipboard(context, "Mailx Aliases CSV", csv, "CSV content copied to clipboard")
@@ -1210,7 +1207,7 @@ fun AccountBottomSheet(
         MailxModernDialog(
             title = "Import Aliases from CSV",
             subtitle = "Paste CSV lines in format: alias,description,enabled,recipients",
-            icon = Icons.Outlined.UploadFile,
+            icon = MailxIcons.Upload,
             confirmText = "Import",
             confirmEnabled = csvInput.isNotBlank(),
             onConfirm = {
@@ -1243,7 +1240,7 @@ fun AccountBottomSheet(
         MailxModernDialog(
             title = "Delete Account",
             subtitle = "WARNING: This operation cannot be undone. Deleting your account permanently removes all your aliases and data.",
-            icon = Icons.Outlined.DeleteForever,
+            icon = MailxIcons.Trash,
             iconTint = MailxPalette.BlockedRose,
             confirmText = if (expectedCode.isBlank()) "Request Code" else "Permanently Delete",
             confirmEnabled = if (expectedCode.isBlank()) stepPassword.isNotEmpty() else confirmCode.trim().length == 8,
@@ -1332,7 +1329,7 @@ fun DiagnosticsBottomSheet(
                     fontWeight = FontWeight.SemiBold
                 )
                 IconButton(onClick = onRefreshLogs) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = "Refresh")
+                    Icon(MailxIcons.Refresh, contentDescription = "Refresh")
                 }
             }
 
@@ -1345,7 +1342,7 @@ fun DiagnosticsBottomSheet(
                 MailxSectionRow(
                     title = "Server Health Check (/livez & /readyz)",
                     description = serverHealthStatus.ifBlank { "Tap to verify live connectivity with the Mailx API server" },
-                    startIcon = Icons.Outlined.Dns,
+                    startIcon = MailxIcons.Server,
                     iconTint = MailxPalette.ReplySky,
                     grouped = true,
                     onClick = onCheckServerHealth
@@ -1354,7 +1351,7 @@ fun DiagnosticsBottomSheet(
                 MailxSectionRow(
                     title = "Enable Diagnostics Logging",
                     description = "Record delivery errors, bounced messages, and rule-blocked emails",
-                    startIcon = Icons.Outlined.BugReport,
+                    startIcon = MailxIcons.Bug,
                     iconTint = MailxPalette.PausedAmber,
                     showSwitch = true,
                     switchChecked = logIssuesEnabled,
@@ -1373,7 +1370,7 @@ fun DiagnosticsBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Outlined.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(MailxIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Delete All Logs")
                 }
@@ -1381,7 +1378,7 @@ fun DiagnosticsBottomSheet(
 
             if (logs.isEmpty()) {
                 EmptyStateBox(
-                    icon = Icons.Outlined.Verified,
+                    icon = MailxIcons.ShieldCheck,
                     title = "No diagnostic logs found",
                     subtitle = "There are no recorded delivery failures, bounces, or blocked message logs."
                 )
@@ -1515,7 +1512,7 @@ fun DiagnosticsBottomSheet(
         }
         MailxModernDialog(
             title = "Raw Bounce Log (Rust RFC-3463)",
-            icon = Icons.Outlined.ReceiptLong,
+            icon = MailxIcons.Notes,
             dismissText = "Close",
             onDismiss = { viewingRawBounceText = null }
         ) {
@@ -1603,7 +1600,7 @@ fun AnnouncementsBottomSheet(
 
             if (announcements.isEmpty()) {
                 EmptyStateBox(
-                    icon = Icons.Outlined.Campaign,
+                    icon = MailxIcons.Megaphone,
                     title = "No announcements",
                     subtitle = "Service updates and announcements from Mailx will appear here."
                 )
@@ -1718,7 +1715,7 @@ fun TrackersReportBottomSheet(
                             }
                         }
                     ) {
-                        Icon(Icons.Outlined.ContentPaste, contentDescription = "Paste")
+                        Icon(MailxIcons.Paste, contentDescription = "Paste")
                     }
                 },
                 singleLine = true,

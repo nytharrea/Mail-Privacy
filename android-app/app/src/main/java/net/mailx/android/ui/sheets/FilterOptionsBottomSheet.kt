@@ -1,15 +1,11 @@
 package net.mailx.android.ui.sheets
+import net.mailx.android.ui.theme.MailxIcons
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.FilterAltOff
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,7 +87,7 @@ fun FilterOptionsBottomSheet(
                         modifier = Modifier.height(30.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.FilterAltOff,
+                            imageVector = MailxIcons.FilterOff,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -126,7 +122,7 @@ fun FilterOptionsBottomSheet(
                 MailxSectionRow(
                     title = "Pin Priority",
                     description = "Keep pinned aliases at the top regardless of sort order",
-                    startIcon = Icons.Outlined.PushPin,
+                    startIcon = MailxIcons.Pin,
                     showSwitch = true,
                     switchChecked = tempPinnedFirst,
                     onSwitchChange = { tempPinnedFirst = it }
@@ -151,7 +147,7 @@ fun FilterOptionsBottomSheet(
                         modifier = Modifier.height(30.dp)
                     ) {
                         Icon(
-                            imageVector = if (tempDesc) Icons.Outlined.ArrowDownward else Icons.Outlined.ArrowUpward,
+                            imageVector = if (tempDesc) MailxIcons.ArrowDown else MailxIcons.ArrowUp,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )

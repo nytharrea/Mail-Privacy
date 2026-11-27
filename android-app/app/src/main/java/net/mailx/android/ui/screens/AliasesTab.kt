@@ -9,9 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckBox
-import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -107,7 +104,7 @@ fun AliasesTab(
                         modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.CheckBox,
+                            imageVector = MailxIcons.CheckBox,
                             contentDescription = "Bulk Select",
                             tint = if (selectionMode) {
                                 MaterialTheme.colorScheme.primary
@@ -259,7 +256,7 @@ fun AliasesTab(
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Icon(
-                                    Icons.Outlined.DoneAll,
+                                    MailxIcons.DoneAll,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(15.dp)

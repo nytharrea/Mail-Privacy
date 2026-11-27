@@ -25,7 +25,7 @@ pub fn get_skeleton_info() -> SkeletonInfo {
         page_alignment_kb: 16,
         zeroize_memory_drop: true,
         ui_design_system: "Jetpack Compose Material 3 (Graphite Mint)".to_string(),
-        icon_system: "Material Icons Extended + custom Mailx vector mark".to_string(),
+        icon_system: "Mailx Line (51 custom 24dp VectorDrawable icons)".to_string(),
     }
 }
 

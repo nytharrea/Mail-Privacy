@@ -1,4 +1,5 @@
 package net.mailx.android.ui.intent
+import net.mailx.android.ui.theme.MailxIcons
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -16,11 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.AlternateEmail
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -264,7 +260,7 @@ private fun ReverseAliasDialogCard(
                         recompute(it, targetEmail)
                     },
                     label = { Text("Sender Alias") },
-                    leadingIcon = { Icon(Icons.Outlined.AlternateEmail, contentDescription = null) },
+                    leadingIcon = { Icon(MailxIcons.AtSign, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -277,7 +273,7 @@ private fun ReverseAliasDialogCard(
                         recompute(senderAlias, it)
                     },
                     label = { Text("Recipient Email") },
-                    leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
+                    leadingIcon = { Icon(MailxIcons.User, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -321,7 +317,7 @@ private fun ReverseAliasDialogCard(
                         shape = CircleShape
                     ) {
                         Icon(
-                            Icons.Outlined.ContentCopy,
+                            MailxIcons.Copy,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -336,7 +332,7 @@ private fun ReverseAliasDialogCard(
                         shape = CircleShape
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.OpenInNew,
+                            MailxIcons.External,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
