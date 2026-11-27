@@ -175,7 +175,7 @@ fun AliasesTab(
                     shape = RoundedCornerShape(50),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
@@ -201,8 +201,8 @@ fun AliasesTab(
                 shape = RoundedCornerShape(50),
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = Color.White,
-                    selectedLeadingIconColor = Color.White,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),

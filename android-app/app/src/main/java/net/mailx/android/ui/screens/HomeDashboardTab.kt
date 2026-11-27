@@ -35,7 +35,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -278,7 +277,7 @@ fun HomeDashboardTab(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     ),
                     tonalElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -286,14 +285,6 @@ fun HomeDashboardTab(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                                        Color.Transparent
-                                    )
-                                )
-                            )
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
@@ -309,15 +300,14 @@ fun HomeDashboardTab(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                     modifier = Modifier.size(42.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = MailxIcons.ShieldCheck,
                                             contentDescription = null,
-                                            tint = MailxPalette.BrandPrimaryAccent,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -933,7 +923,7 @@ private fun ExpressiveMetricTile(
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(
             width = 1.dp,
-            color = accentColor.copy(alpha = 0.28f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
         ),
         modifier = modifier
     ) {

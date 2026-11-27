@@ -43,11 +43,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,8 +92,6 @@ class MainActivity : FragmentActivity() {
 
     private fun authenticate(afterSuccess: () -> Unit = { appLocked = false }) {
         if (promptShowing) return
-        // Android 11+ supports biometric-or-device-credential. On API 26–29,
-        // this authenticator combination is unsupported; use biometrics only.
         val authenticators = if (android.os.Build.VERSION.SDK_INT >= 30) {
             BiometricManager.Authenticators.BIOMETRIC_STRONG or
                 BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -901,17 +899,7 @@ private fun MailxModernBottomBar(
                                 }
                                 .clip(RoundedCornerShape(50))
                                 .background(pillColor)
-                                .then(
-                                    if (selected) {
-                                        Modifier.border(
-                                            width = 1.dp,
-                                            color = Color.White.copy(alpha = 0.24f),
-                                            shape = RoundedCornerShape(50)
-                                        )
-                                    } else {
-                                        Modifier
-                                    }
-                                ),
+,
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -995,31 +983,33 @@ private fun MailxCleanTopBar(
                     }
                 }
 
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Surface(
-                    onClick = onProfileClick,
-                    shape = RoundedCornerShape(50),
-                    color = MailxPalette.ReplySky.copy(alpha = 0.14f),
-                    border = BorderStroke(
-                        width = 0.75.dp,
-                        color = MailxPalette.ReplySky.copy(alpha = 0.35f)
-                    )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = onProfileClick),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     Text(
-                        text = "@$defaultDomain",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MailxPalette.ReplySky,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.5.dp)
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    if (defaultDomain.isNotBlank()) {
+                        Text(
+                            text = "@$defaultDomain",
+                            fontSize = 11.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 
@@ -1097,19 +1087,12 @@ private fun MailxCleanTopBar(
 
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    MailxPalette.BrandPrimaryDark,
-                                    MailxPalette.BrandPrimaryDeep
-                                )
-                            )
-                        )
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
                         .border(
                             width = 1.dp,
-                            color = Color.White.copy(alpha = 0.25f),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             shape = CircleShape
                         )
                         .clickable(onClick = onProfileClick),
@@ -1119,7 +1102,7 @@ private fun MailxCleanTopBar(
                         text = userInitials,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
@@ -1185,22 +1168,15 @@ private fun MailxCommandBottomSheet(
                         modifier = Modifier
                             .size(46.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        MailxPalette.BrandPrimaryDark,
-                                        MailxPalette.BrandPrimaryDeep
-                                    )
-                                )
-                            )
-                            .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape),
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = userInitials,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
 

@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,7 +50,7 @@ import net.mailx.android.ui.theme.MailxPalette
 
 @Composable
 fun mailxSwitchColors() = SwitchDefaults.colors(
-    checkedThumbColor = Color.White,
+    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
     checkedTrackColor = MaterialTheme.colorScheme.primary,
     checkedBorderColor = MaterialTheme.colorScheme.primary,
     uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -102,8 +101,12 @@ fun MailxPrimaryButton(
         label = "primary_btn_scale"
     )
 
-    val baseStart = if (isDestructive) MailxPalette.BlockedRose else accentColor
-    val baseEnd = if (isDestructive) Color(0xFFE11D48) else MailxPalette.BrandPrimaryDeep
+    val containerColor = if (isDestructive) MaterialTheme.colorScheme.error else accentColor
+    val contentColor = if (isDestructive) {
+        MaterialTheme.colorScheme.onError
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
     val shape = RoundedCornerShape(cornerRadius)
 
     Box(
@@ -115,17 +118,7 @@ fun MailxPrimaryButton(
                 alpha = if (enabled) 1f else 0.48f
             }
             .clip(shape)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(baseStart, baseEnd)
-                ),
-                shape = shape
-            )
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.22f),
-                shape = shape
-            )
+            .background(color = containerColor, shape = shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -142,14 +135,14 @@ fun MailxPrimaryButton(
             if (icon != null) {
                 Surface(
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.18f),
+                    color = contentColor.copy(alpha = 0.14f),
                     modifier = Modifier.size(26.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = contentColor,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -160,7 +153,7 @@ fun MailxPrimaryButton(
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.2.sp,
-                color = Color.White,
+                color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -217,10 +210,10 @@ fun MailxTonalButton(
                 onClick = onClick
             ),
         shape = shape,
-        color = accentColor.copy(alpha = 0.14f),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(
             width = 1.dp,
-            color = accentColor.copy(alpha = 0.34f)
+            color = MaterialTheme.colorScheme.outlineVariant
         ),
         tonalElevation = 0.dp
     ) {
@@ -307,17 +300,13 @@ fun MailxSegmentedControl(
                     label = "seg_bg_$idx"
                 )
                 val borderColor by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        Color.White.copy(alpha = 0.22f)
-                    } else {
-                        Color.Transparent
-                    },
+                    targetValue = Color.Transparent,
                     animationSpec = if (reducedMotion) snap() else tween(180),
                     label = "seg_border_$idx"
                 )
                 val textColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        Color.White
+                        MaterialTheme.colorScheme.onPrimary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
@@ -373,7 +362,7 @@ fun MailxSegmentedControl(
                             Surface(
                                 shape = RoundedCornerShape(50),
                                 color = if (isSelected) {
-                                    Color.White.copy(alpha = 0.22f)
+                                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f)
                                 } else {
                                     MaterialTheme.colorScheme.surfaceContainerHighest
                                 }
@@ -383,7 +372,7 @@ fun MailxSegmentedControl(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) {
-                                        Color.White
+                                        MaterialTheme.colorScheme.onPrimary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -1054,7 +1043,7 @@ fun <T> MailxOptionPickerDialog(
                                             Icon(
                                                 imageVector = MailxIcons.Check,
                                                 contentDescription = "Selected",
-                                                tint = Color.White,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.size(13.dp)
                                             )
                                         }
