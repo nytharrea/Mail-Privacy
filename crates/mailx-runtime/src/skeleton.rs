@@ -3,7 +3,6 @@ use mailx_domain::models::{
     TelemetrySummary,
 };
 use mailx_utils::generate_random_suffix;
-use std::cmp::Ordering;
 use std::sync::{OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -25,7 +24,7 @@ pub fn get_skeleton_info() -> SkeletonInfo {
         engine: "Mailx Rust Native Application Runtime".to_string(),
         page_alignment_kb: 16,
         zeroize_memory_drop: true,
-        ui_design_system: "Jetpack Compose Material 3 Expressive (1.5.0-rc01)".to_string(),
+        ui_design_system: "Jetpack Compose Material 3 (Graphite Mint)".to_string(),
         icon_system: "Material Icons Extended + custom Mailx vector mark".to_string(),
     }
 }
@@ -54,7 +53,13 @@ pub fn filter_and_sort_aliases(
             .unwrap_or(0);
     }
 
-    let query_lower = search_query.trim().to_ascii_lowercase();
+    let spec = mailx_domain::alias_engine::AliasQuerySpec {
+        chip_key: selected_chip.to_string(),
+        search_query: search_query.to_string(),
+        sort_field: sort_field.to_string(),
+        sort_descending,
+        pinned_first,
+    };
 
     let mut filtered: Vec<(Alias, serde_json::Value)> = Vec::with_capacity(raw_items.len());
     for val in raw_items {
@@ -62,76 +67,14 @@ pub fn filter_and_sort_aliases(
             Ok(a) => a,
             Err(_) => continue,
         };
-
-        let is_deleted = parsed.is_deleted();
-        let matches_chip = match selected_chip {
-            "pinned_only" => parsed.pinned && !is_deleted,
-            "wildcard_only" => parsed.wildcard && !is_deleted,
-            "active" => parsed.enabled && !is_deleted,
-            "inactive" => !parsed.enabled && !is_deleted,
-            "deleted" => is_deleted,
-            _ => !is_deleted,
-        };
-        if !matches_chip {
-            continue;
+        if mailx_domain::alias_engine::matches_chip_filter(&parsed, &spec.chip_key)
+            && mailx_domain::alias_engine::matches_search_query(&parsed, &spec.search_query)
+        {
+            filtered.push((parsed, val));
         }
-
-        if !query_lower.is_empty() {
-            let matches_query = parsed.name.to_ascii_lowercase().contains(&query_lower)
-                || parsed
-                    .description
-                    .to_ascii_lowercase()
-                    .contains(&query_lower)
-                || parsed
-                    .recipients
-                    .to_ascii_lowercase()
-                    .contains(&query_lower)
-                || parsed.from_name.to_ascii_lowercase().contains(&query_lower);
-            if !matches_query {
-                continue;
-            }
-        }
-
-        filtered.push((parsed, val));
     }
 
-    filtered.sort_by(|(a, _), (b, _)| {
-        if pinned_first && a.pinned != b.pinned {
-            return if a.pinned {
-                Ordering::Less
-            } else {
-                Ordering::Greater
-            };
-        }
-
-        let cmp = match sort_field {
-            "updated_at" | "UPDATED_AT" => a
-                .updated_at
-                .as_deref()
-                .unwrap_or("")
-                .cmp(b.updated_at.as_deref().unwrap_or("")),
-            "name" | "NAME" => a
-                .name
-                .to_ascii_lowercase()
-                .cmp(&b.name.to_ascii_lowercase()),
-            "forwards" | "FORWARDS" => a.stats.forwards.cmp(&b.stats.forwards),
-            "blocks" | "BLOCKS" => a.stats.blocks.cmp(&b.stats.blocks),
-            "replies" | "REPLIES" => a.stats.replies.cmp(&b.stats.replies),
-            "sends" | "SENDS" => a.stats.sends.cmp(&b.stats.sends),
-            _ => a
-                .created_at
-                .as_deref()
-                .unwrap_or("")
-                .cmp(b.created_at.as_deref().unwrap_or("")),
-        };
-
-        if sort_descending {
-            cmp.reverse()
-        } else {
-            cmp
-        }
-    });
-
+    filtered.sort_by(|(a, _), (b, _)| mailx_domain::alias_engine::compare_aliases(a, b, &spec));
     Ok(filtered.into_iter().map(|(_, v)| v).collect())
 }
 

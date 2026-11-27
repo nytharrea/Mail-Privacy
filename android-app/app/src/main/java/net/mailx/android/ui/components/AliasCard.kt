@@ -37,6 +37,8 @@ import kotlinx.coroutines.delay
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.model.formatIsoDateShort
 import net.mailx.android.ui.theme.LocalReducedMotion
+import net.mailx.android.core.uniffi.AliasChip
+import net.mailx.android.core.uniffi.AliasRow
 import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
 
@@ -44,6 +46,7 @@ import net.mailx.android.ui.theme.MailxPalette
 fun AliasCard(
     alias: UiAlias,
     modifier: Modifier = Modifier,
+    aliasRow: AliasRow? = null,
     selectionMode: Boolean = false,
     isSelected: Boolean = false,
     onClick: () -> Unit,
@@ -61,7 +64,7 @@ fun AliasCard(
         }
     }
 
-    val isHighSpamRisk = alias.deletedAt.isBlank() && alias.blocks >= 3 && alias.blocks >= alias.forwards
+    val isHighSpamRisk = aliasRow?.chip is AliasChip.HighSpam
 
     val statusColor = when {
         alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose

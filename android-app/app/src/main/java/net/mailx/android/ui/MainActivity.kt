@@ -58,6 +58,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.mailx.android.core.SecurePrefsManager
+import net.mailx.android.core.uniffi.AliasQuery
+import net.mailx.android.core.uniffi.AliasRow
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.ui.components.MailxGroupDivider
 import net.mailx.android.ui.components.MailxModernDialog
@@ -306,25 +308,41 @@ fun MailxAppScreen(
         }
     }
 
-    val displayedAliases = remember(aliases, filterState) {
+    val aliasLookup = remember(aliases) {
         runCatching {
             val rawArray = JSONArray().apply { aliases.forEach { put(it.rawJson) } }.toString()
-            val res = JSONObject(
-                MailxRustBridge.nativeFilterAndSortAliases(
-                    rawArray,
-                    filterState.searchQuery,
-                    filterState.selectedChip,
-                    filterState.sortField.key,
-                    filterState.sortDescending,
-                    filterState.pinnedFirst
-                )
+            vm.syncAliasesToRustCore(rawArray)
+        }
+        aliases.associateBy { it.id }
+    }
+
+    val typedAliasPage = remember(aliasLookup, filterState) {
+        val nowUnix = System.currentTimeMillis() / 1000L
+        runCatching {
+            vm.queryTypedAliasRows(
+                AliasQuery(
+                    chipKey = filterState.selectedChip,
+                    searchQuery = filterState.searchQuery,
+                    sortField = filterState.sortField.key,
+                    sortDescending = filterState.sortDescending,
+                    pinnedFirst = filterState.pinnedFirst
+                ),
+                nowUnix
             )
-            if (res.optBoolean("ok", false)) {
-                UiAlias.listFromJsonArray(res.optJSONArray("data"))
-            } else {
-                null
-            }
-        }.getOrNull() ?: aliases
+        }.getOrNull()
+    }
+
+    val aliasRowsById: Map<String, AliasRow> = remember(typedAliasPage) {
+        typedAliasPage?.rows?.associateBy { it.id } ?: emptyMap()
+    }
+
+    val displayedAliases = remember(typedAliasPage, aliasLookup, aliases) {
+        val rows = typedAliasPage?.rows
+        if (rows != null) {
+            rows.mapNotNull { aliasLookup[it.id] }
+        } else {
+            aliases
+        }
     }
 
     LaunchedEffect(authState.isLoggedIn) {
@@ -472,6 +490,7 @@ fun MailxAppScreen(
 
                     MainNavTab.ALIASES -> AliasesTab(
                         aliases = displayedAliases,
+                        aliasRowsById = aliasRowsById,
                         isLoading = isLoading,
                         filterState = filterState,
                         onRefresh = { vm.refreshAliases(showIndicator = true) },

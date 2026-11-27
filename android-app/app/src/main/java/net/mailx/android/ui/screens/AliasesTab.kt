@@ -26,6 +26,7 @@ import net.mailx.android.ui.components.EmptyStateBox
 import net.mailx.android.ui.components.MailxAliasSkeletonList
 import net.mailx.android.ui.components.MailxSectionHeader
 import net.mailx.android.ui.model.FilterUiState
+import net.mailx.android.core.uniffi.AliasRow
 import net.mailx.android.ui.model.UiAlias
 import net.mailx.android.ui.theme.MailxIcons
 import net.mailx.android.ui.theme.MailxPalette
@@ -34,6 +35,7 @@ import net.mailx.android.ui.theme.MailxPalette
 @Composable
 fun AliasesTab(
     aliases: List<UiAlias>,
+    aliasRowsById: Map<String, AliasRow> = emptyMap(),
     isLoading: Boolean,
     filterState: FilterUiState,
     onRefresh: () -> Unit,
@@ -453,6 +455,7 @@ fun AliasesTab(
                         val isSelected = selectedIds.contains(alias.id)
                         AliasCard(
                             alias = alias,
+                            aliasRow = aliasRowsById[alias.id],
                             selectionMode = selectionMode,
                             isSelected = isSelected,
                             onClick = { onSelectAlias(alias) },

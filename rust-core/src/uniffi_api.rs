@@ -5,6 +5,7 @@
 //! is an exhaustive `match`, so adding a variant on either side fails to compile
 //! until the mirror is updated.
 use crate::secure_store_port::{SecureStorePort, SecureStorePortError};
+use mailx_domain::alias_engine as domain_alias;
 use mailx_runtime::app_shell as shell;
 use mailx_security::secure_store::validate_secure_store_key;
 use mailx_utils::SecretString;
@@ -281,11 +282,117 @@ fn empty_session_snapshot(base_url: String) -> SessionSnapshot {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum AliasChip {
+    HighSpam,
+    Paused { days_left: u32 },
+    Disabled,
+    Wildcard,
+}
+
+impl From<domain_alias::AliasChip> for AliasChip {
+    fn from(chip: domain_alias::AliasChip) -> Self {
+        match chip {
+            domain_alias::AliasChip::HighSpam => Self::HighSpam,
+            domain_alias::AliasChip::Paused { days_left } => Self::Paused { days_left },
+            domain_alias::AliasChip::Disabled => Self::Disabled,
+            domain_alias::AliasChip::Wildcard => Self::Wildcard,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum AliasKind {
+    Standard,
+    Wildcard,
+}
+
+impl From<domain_alias::AliasKind> for AliasKind {
+    fn from(kind: domain_alias::AliasKind) -> Self {
+        match kind {
+            domain_alias::AliasKind::Standard => Self::Standard,
+            domain_alias::AliasKind::Wildcard => Self::Wildcard,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AliasRow {
+    pub id: String,
+    pub local: String,
+    pub domain: String,
+    pub description: String,
+    pub kind: AliasKind,
+    pub chip: Option<AliasChip>,
+    pub pinned: bool,
+    pub tint: u8,
+    pub forwards: u32,
+    pub blocks: u32,
+    pub replies: u32,
+    pub sends: u32,
+}
+
+impl From<domain_alias::AliasRow> for AliasRow {
+    fn from(row: domain_alias::AliasRow) -> Self {
+        Self {
+            id: row.id,
+            local: row.local,
+            domain: row.domain,
+            description: row.description,
+            kind: row.kind.into(),
+            chip: row.chip.map(AliasChip::from),
+            pinned: row.pinned,
+            tint: row.tint,
+            forwards: row.forwards,
+            blocks: row.blocks,
+            replies: row.replies,
+            sends: row.sends,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AliasQuery {
+    pub chip_key: String,
+    pub search_query: String,
+    pub sort_field: String,
+    pub sort_descending: bool,
+    pub pinned_first: bool,
+}
+
+impl From<AliasQuery> for domain_alias::AliasQuerySpec {
+    fn from(query: AliasQuery) -> Self {
+        Self {
+            chip_key: query.chip_key,
+            search_query: query.search_query,
+            sort_field: query.sort_field,
+            sort_descending: query.sort_descending,
+            pinned_first: query.pinned_first,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AliasPage {
+    pub rows: Vec<AliasRow>,
+    pub total: u32,
+}
+
+impl From<domain_alias::AliasPage> for AliasPage {
+    fn from(page: domain_alias::AliasPage) -> Self {
+        Self {
+            rows: page.rows.into_iter().map(AliasRow::from).collect(),
+            total: page.total,
+        }
+    }
+}
+
 #[derive(uniffi::Object)]
 pub struct MailxCore {
     inner: mailx_runtime::MailxCore,
     secure_store: Mutex<Option<Arc<dyn SecureStorePort>>>,
     session: Mutex<Option<ActiveSession>>,
+    aliases_cache: Mutex<Vec<mailx_domain::models::Alias>>,
 }
 
 #[uniffi::export]
@@ -296,7 +403,30 @@ impl MailxCore {
             inner: mailx_runtime::MailxCore::new(),
             secure_store: Mutex::new(None),
             session: Mutex::new(None),
+            aliases_cache: Mutex::new(Vec::new()),
         })
+    }
+
+    pub fn set_cached_aliases_json(&self, aliases_json: String) -> u32 {
+        let trimmed = aliases_json.trim();
+        let parsed: Vec<mailx_domain::models::Alias> = if trimmed.is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_str(trimmed).unwrap_or_default()
+        };
+        let count = parsed.len().min(u32::MAX as usize) as u32;
+        *self.aliases_slot() = parsed;
+        count
+    }
+
+    pub fn alias_rows(&self, query: AliasQuery, now_unix: i64) -> AliasPage {
+        let guard = self.aliases_slot();
+        let spec: domain_alias::AliasQuerySpec = query.into();
+        domain_alias::build_alias_page(&guard, &spec, now_unix).into()
+    }
+
+    pub fn clear_cached_aliases(&self) {
+        self.aliases_slot().clear();
     }
 
     pub fn state(&self) -> AppState {
@@ -451,6 +581,7 @@ impl MailxCore {
         store.delete(KEY_BEARER_TOKEN.to_string())?;
         store.delete(KEY_ACCOUNT_EMAIL.to_string())?;
         *self.session_slot() = None;
+        self.aliases_slot().clear();
         let _ = self.inner.dispatch(shell::AppEvent::SignOut);
         Ok(empty_session_snapshot(base_url))
     }
@@ -842,6 +973,12 @@ impl MailxCore {
 
     fn session_slot(&self) -> MutexGuard<'_, Option<ActiveSession>> {
         self.session.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn aliases_slot(&self) -> MutexGuard<'_, Vec<mailx_domain::models::Alias>> {
+        self.aliases_cache
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     fn attached_store(&self) -> Result<Arc<dyn SecureStorePort>, SecureStorePortError> {
@@ -1627,5 +1764,46 @@ mod tests {
             serde_json::from_str(&uniffi_generate_totp_token("JBSWY3DPEHPK3PXP".into(), 59))
                 .unwrap();
         assert_eq!(totp["ok"], true);
+    }
+
+    #[test]
+    fn uniffi_alias_rows_filters_sorts_and_computes_chips() {
+        let core = MailxCore::new();
+        let sample = concat!(
+            r#"[{"id":"a1","name":"quiet.haze16@mailx.net","enabled":true,"pinned":true,"#,
+            r#""description":"Orders","stats":{"forwards":12,"blocks":0,"replies":1,"sends":0}},"#,
+            r#"{"id":"a2","name":"spam.trap@mailx.net","enabled":true,"pinned":false,"#,
+            r#""description":"Forum","stats":{"forwards":2,"blocks":5,"replies":0,"sends":0}}]"#
+        );
+        assert_eq!(core.set_cached_aliases_json(sample.into()), 2);
+
+        let page = core.alias_rows(
+            AliasQuery {
+                chip_key: "active_inactive".into(),
+                search_query: String::new(),
+                sort_field: "forwards".into(),
+                sort_descending: true,
+                pinned_first: true,
+            },
+            1_795_700_000,
+        );
+        assert_eq!(page.total, 2);
+        assert_eq!(page.rows[0].id, "a1");
+        assert_eq!(page.rows[0].chip, None);
+        assert_eq!(page.rows[1].id, "a2");
+        assert_eq!(page.rows[1].chip, Some(AliasChip::HighSpam));
+
+        core.clear_cached_aliases();
+        let empty = core.alias_rows(
+            AliasQuery {
+                chip_key: "active_inactive".into(),
+                search_query: String::new(),
+                sort_field: "created_at".into(),
+                sort_descending: true,
+                pinned_first: true,
+            },
+            1_795_700_000,
+        );
+        assert_eq!(empty.total, 0);
     }
 }

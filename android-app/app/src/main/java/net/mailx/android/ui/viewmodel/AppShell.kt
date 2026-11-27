@@ -3,6 +3,8 @@ package net.mailx.android.ui.viewmodel
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import net.mailx.android.core.uniffi.AliasPage
+import net.mailx.android.core.uniffi.AliasQuery
 import net.mailx.android.core.uniffi.ApiCallResult
 import net.mailx.android.core.uniffi.AppEvent
 import net.mailx.android.core.uniffi.AppState
@@ -40,6 +42,16 @@ internal class AppShell(authenticated: Boolean) : AutoCloseable {
     }
 
     fun sessionSnapshot(): SessionSnapshot = core.sessionSnapshot()
+
+    fun syncCachedAliasesJson(aliasesJson: String): UInt =
+        core.setCachedAliasesJson(aliasesJson)
+
+    fun aliasRows(query: AliasQuery, nowUnix: Long): AliasPage =
+        core.aliasRows(query, nowUnix)
+
+    fun clearCachedAliases() {
+        core.clearCachedAliases()
+    }
 
     fun restoreSession(): SessionSnapshot {
         val snapshot = core.restoreSession()

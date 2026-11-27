@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.mailx.android.core.AndroidSecureStoreAdapter
 import net.mailx.android.core.SecurePrefsManager
+import net.mailx.android.core.uniffi.AliasPage
+import net.mailx.android.core.uniffi.AliasQuery
 import net.mailx.android.core.MailxRustBridge
 import net.mailx.android.core.PasskeyManager
 import net.mailx.android.ui.model.*
@@ -1198,6 +1200,13 @@ class MailxViewModel(val prefs: SecurePrefsManager) : ViewModel() {
             }
         }
     }
+
+    fun syncAliasesToRustCore(rawAliasesJson: String) {
+        shell.syncCachedAliasesJson(rawAliasesJson)
+    }
+
+    fun queryTypedAliasRows(query: AliasQuery, nowUnix: Long): AliasPage =
+        shell.aliasRows(query, nowUnix)
 
     fun updateDarkModeMode(mode: Int) {
         storedPrefs = storedPrefs.copy(darkModeMode = mode)
