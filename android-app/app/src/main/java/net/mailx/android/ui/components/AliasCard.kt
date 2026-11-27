@@ -4,43 +4,122 @@ package net.mailx.android.ui.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import net.mailx.android.ui.model.UiAlias
-import net.mailx.android.ui.model.formatIsoDateShort
-import net.mailx.android.ui.theme.LocalReducedMotion
 import net.mailx.android.core.uniffi.AliasChip
+import net.mailx.android.core.uniffi.AliasKind
 import net.mailx.android.core.uniffi.AliasRow
+import net.mailx.android.ui.model.UiAlias
+import net.mailx.android.ui.theme.LocalMailxSemanticColors
+import net.mailx.android.ui.theme.LocalReducedMotion
+import net.mailx.android.ui.theme.MailxAddressStyle
 import net.mailx.android.ui.theme.MailxIcons
-import net.mailx.android.ui.theme.MailxPalette
+
+private val DarkAvatarTones = listOf(
+    Color(0xFF223A28) to Color(0xFFC7E4CD),
+    Color(0xFF133B34) to Color(0xFFB4EFE3),
+    Color(0xFF183842) to Color(0xFFBBE4F2),
+    Color(0xFF22344A) to Color(0xFFC6DDF7),
+    Color(0xFF302E4A) to Color(0xFFDAD6F7),
+    Color(0xFF3C2B46) to Color(0xFFEBD2F7),
+    Color(0xFF293836) to Color(0xFFC8E0DD),
+    Color(0xFF2B3540) to Color(0xFFCCD9E8)
+)
+
+private val LightAvatarTones = listOf(
+    Color(0xFFCDEAD3) to Color(0xFF2F4835),
+    Color(0xFFC0EBE1) to Color(0xFF224941),
+    Color(0xFFC7E7F2) to Color(0xFF21434F),
+    Color(0xFFD1E2F6) to Color(0xFF263B54),
+    Color(0xFFDFDCF6) to Color(0xFF343154),
+    Color(0xFFECD7F6) to Color(0xFF422F4D),
+    Color(0xFFD0E3E0) to Color(0xFF2B3F3C),
+    Color(0xFFD5E0EC) to Color(0xFF2F3B47)
+)
+
+private data class AliasChipVisual(
+    val icon: ImageVector,
+    val label: String,
+    val container: Color,
+    val content: Color
+)
+
+@Composable
+private fun resolveChipVisual(chip: AliasChip): AliasChipVisual {
+    val scheme = MaterialTheme.colorScheme
+    val semantic = LocalMailxSemanticColors.current
+    return when (chip) {
+        is AliasChip.HighSpam -> AliasChipVisual(
+            icon = MailxIcons.Alert,
+            label = "High spam",
+            container = scheme.errorContainer,
+            content = scheme.onErrorContainer
+        )
+        is AliasChip.Paused -> AliasChipVisual(
+            icon = MailxIcons.Clock,
+            label = if (chip.daysLeft == 0u) "Paused" else "Paused · ${chip.daysLeft}d",
+            container = semantic.pausedContainer,
+            content = semantic.onPausedContainer
+        )
+        is AliasChip.Disabled -> AliasChipVisual(
+            icon = MailxIcons.EyeOff,
+            label = "Disabled",
+            container = scheme.surfaceContainerHigh,
+            content = scheme.onSurfaceVariant
+        )
+        is AliasChip.Wildcard -> AliasChipVisual(
+            icon = MailxIcons.Wildcard,
+            label = "Wildcard",
+            container = scheme.tertiaryContainer,
+            content = scheme.onTertiaryContainer
+        )
+    }
+}
 
 @Composable
 fun AliasCard(
@@ -55,6 +134,7 @@ fun AliasCard(
     onToggleEnabled: (Boolean) -> Unit = {}
 ) {
     val reducedMotion = LocalReducedMotion.current
+    val haptic = LocalHapticFeedback.current
     var justCopied by remember { mutableStateOf(false) }
 
     LaunchedEffect(justCopied) {
@@ -64,299 +144,242 @@ fun AliasCard(
         }
     }
 
-    val isHighSpamRisk = aliasRow?.chip is AliasChip.HighSpam
-
-    val statusColor = when {
-        alias.deletedAt.isNotBlank() -> MailxPalette.BlockedRose
-        isHighSpamRisk -> MailxPalette.BlockedRose
-        alias.isPaused -> MailxPalette.PausedAmber
-        alias.enabled -> MailxPalette.ForwardedGreen
-        else -> MailxPalette.Slate500
+    val isWildcard = aliasRow?.kind == AliasKind.WILDCARD || alias.wildcard
+    val localPart = aliasRow?.local?.ifEmpty { alias.localPart } ?: alias.localPart
+    val domainPart = aliasRow?.domain?.ifEmpty { alias.domainPart } ?: alias.domainPart
+    val description = aliasRow?.description ?: alias.description
+    val forwards = aliasRow?.forwards?.toInt() ?: alias.forwards
+    val blocks = aliasRow?.blocks?.toInt() ?: alias.blocks
+    val outbound = if (aliasRow != null) {
+        (aliasRow.replies + aliasRow.sends).toInt()
+    } else {
+        alias.replies + alias.sends
+    }
+    val tintIndex = ((aliasRow?.tint?.toInt() ?: 0) and 7)
+    val isDarkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val avatarPair = if (isDarkSurface) DarkAvatarTones[tintIndex] else LightAvatarTones[tintIndex]
+    val avatarChar = if (isWildcard) {
+        "*"
+    } else {
+        localPart.firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "@"
     }
 
-    val subtitleText = remember(alias) {
-        when {
-            alias.description.isNotBlank() -> alias.description
-            alias.deletedAt.isNotBlank() -> "Deleted ${formatIsoDateShort(alias.deletedAt)}"
-            alias.recipients.isNotBlank() -> "→ ${alias.recipients} • ${formatIsoDateShort(alias.createdAt)}"
-            else -> "Created ${formatIsoDateShort(alias.createdAt)}"
-        }
-    }
-
-    val cardCorner by animateDpAsState(
-        targetValue = if (isSelected) 24.dp else 20.dp,
-        animationSpec = if (reducedMotion) snap() else spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "alias_card_selected_corner"
-    )
-    val containerColor by animateColorAsState(
+    val rowBg by animateColorAsState(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.surfaceContainerHigh
         } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            MaterialTheme.colorScheme.surface
         },
-        animationSpec = if (reducedMotion) snap() else tween(durationMillis = 160),
-        label = "alias_card_bg"
-    )
-    val copyScale by animateFloatAsState(
-        targetValue = if (justCopied && !reducedMotion) 1.10f else 1f,
-        animationSpec = if (reducedMotion) snap() else spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "copy_btn_scale"
+        animationSpec = if (reducedMotion) snap() else tween(durationMillis = 150),
+        label = "alias_row_bg"
     )
 
-    val cardShape = RoundedCornerShape(cardCorner)
+    val chip = aliasRow?.chip
+    val chipVisual = chip?.let { resolveChipVisual(it) }
 
-    Surface(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(cardShape)
-            .clickable(onClick = if (selectionMode) onToggleSelect else onClick),
-        shape = cardShape,
-        color = containerColor,
-        border = BorderStroke(
-            width = 1.dp,
-            color = when {
-                isSelected -> MaterialTheme.colorScheme.primary
-                isHighSpamRisk -> MailxPalette.BlockedRose.copy(alpha = 0.45f)
-                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
-            }
-        ),
-        tonalElevation = 0.dp
+            .defaultMinSize(minHeight = 72.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(rowBg)
+            .clickable(onClick = if (selectionMode) onToggleSelect else onClick)
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 15.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (selectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onToggleSelect() },
-                    modifier = Modifier.padding(end = 10.dp)
+        if (selectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onToggleSelect() },
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(avatarPair.first),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = avatarChar,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = avatarPair.second
                 )
             }
+            Spacer(modifier = Modifier.width(12.dp))
+        }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.5.dp)
-                            .clip(CircleShape)
-                            .background(statusColor)
-                    )
-
-                    Text(
-                        text = alias.localPart,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MailxPalette.ReplySky.copy(alpha = 0.13f),
-                        border = BorderStroke(
-                            width = 0.75.dp,
-                            color = MailxPalette.ReplySky.copy(alpha = 0.34f)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(
+                        SpanStyle(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 15.sp
                         )
                     ) {
-                        Text(
-                            text = "@${alias.domainPart}",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MailxPalette.ReplySky,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 7.5.dp, vertical = 2.dp)
-                        )
+                        append(localPart)
                     }
+                    if (domainPart.isNotEmpty()) {
+                        withStyle(
+                            SpanStyle(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 13.sp
+                            )
+                        ) {
+                            append("@")
+                            append(domainPart)
+                        }
+                    }
+                },
+                style = MailxAddressStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-                    if (alias.pinned) {
-                        Icon(
-                            imageVector = MailxIcons.Pin,
-                            contentDescription = "Pinned",
-                            tint = MailxPalette.PausedAmber,
-                            modifier = Modifier.size(13.5.dp)
-                        )
-                    }
-                    if (alias.wildcard) {
-                        Icon(
-                            imageVector = MailxIcons.Sparkles,
-                            contentDescription = "Wildcard",
-                            tint = MailxPalette.BrandTertiaryNeutralDark,
-                            modifier = Modifier.size(13.5.dp)
-                        )
-                    }
-                    if (alias.isPaused) {
-                        Icon(
-                            imageVector = MailxIcons.PauseCircle,
-                            contentDescription = "Paused",
-                            tint = MailxPalette.PausedAmber,
-                            modifier = Modifier.size(13.5.dp)
-                        )
-                    }
-                }
-
+            if (description.isNotBlank()) {
                 Text(
-                    text = subtitleText,
-                    fontSize = 12.2.sp,
-                    lineHeight = 16.sp,
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
 
+            if (chipVisual != null || forwards > 0 || blocks > 0 || outbound > 0) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 2.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (alias.forwards > 0) {
-                            MailxPalette.ForwardedGreen.copy(alpha = 0.14f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainer
-                        }
-                    ) {
-                        Text(
-                            text = "${alias.forwards} fwd",
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (alias.forwards > 0) {
-                                MailxPalette.ForwardedGreen
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
-                        )
-                    }
-
-                    if (alias.blocks > 0) {
+                    if (chipVisual != null) {
                         Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MailxPalette.BlockedRose.copy(alpha = 0.15f)
+                            shape = RoundedCornerShape(8.dp),
+                            color = chipVisual.container
                         ) {
-                            Text(
-                                text = "${alias.blocks} blocked",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MailxPalette.BlockedRose,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = chipVisual.icon,
+                                    contentDescription = null,
+                                    tint = chipVisual.content,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = chipVisual.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = chipVisual.content
+                                )
+                            }
                         }
                     }
 
-                    if (alias.replies > 0 || alias.sends > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MailxPalette.ReplySky.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = "${alias.replies + alias.sends} sent",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MailxPalette.ReplySky,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
-                            )
-                        }
+                    if (forwards > 0) {
+                        AliasInlineStat(icon = MailxIcons.Forward, count = forwards)
                     }
-
-                    if (isHighSpamRisk) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MailxPalette.BlockedRose.copy(alpha = 0.18f)
-                        ) {
-                            Text(
-                                text = "High Spam",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MailxPalette.BlockedRose,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp)
-                            )
-                        }
-                    } else if (!alias.enabled) {
-                        Text(
-                            text = "• Disabled",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
-                        )
-                    } else if (alias.isPaused) {
-                        Text(
-                            text = "• Paused",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MailxPalette.PausedAmber
-                        )
+                    if (blocks > 0) {
+                        AliasInlineStat(icon = MailxIcons.Ban, count = blocks)
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            val btnAccent = when {
-                justCopied -> MailxPalette.ForwardedGreen
-                alias.wildcard -> MailxPalette.BrandTertiaryNeutralDark
-                else -> MaterialTheme.colorScheme.primary
-            }
-
-            Surface(
-                onClick = {
-                    if (!alias.wildcard) justCopied = true
-                    onCopyOrWildcard()
-                },
-                shape = CircleShape,
-                color = btnAccent.copy(alpha = 0.16f),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = btnAccent.copy(alpha = 0.38f)
-                ),
-                modifier = Modifier
-                    .size(38.dp)
-                    .graphicsLayer {
-                        scaleX = copyScale
-                        scaleY = copyScale
-                    }
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    AnimatedContent(
-                        targetState = justCopied,
-                        transitionSpec = {
-                            (fadeIn(tween(140)) + scaleIn(initialScale = 0.75f))
-                                .togetherWith(fadeOut(tween(100)) + scaleOut(targetScale = 0.75f))
-                        },
-                        label = "copy_icon_anim"
-                    ) { copied ->
-                        Icon(
-                            imageVector = when {
-                                copied -> MailxIcons.Check
-                                alias.wildcard -> MailxIcons.Sparkles
-                                else -> MailxIcons.Copy
-                            },
-                            contentDescription = "Copy alias",
-                            tint = btnAccent,
-                            modifier = Modifier.size(16.dp)
-                        )
+                    if (outbound > 0) {
+                        AliasInlineStat(icon = MailxIcons.Reply, count = outbound)
                     }
                 }
             }
         }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        val actionBg by animateColorAsState(
+            targetValue = if (justCopied) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                Color.Transparent
+            },
+            animationSpec = if (reducedMotion) snap() else tween(durationMillis = 160),
+            label = "copy_action_bg"
+        )
+        val actionTint by animateColorAsState(
+            targetValue = if (justCopied) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            animationSpec = if (reducedMotion) snap() else tween(durationMillis = 160),
+            label = "copy_action_tint"
+        )
+
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(actionBg)
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (!isWildcard) {
+                        justCopied = true
+                    }
+                    onCopyOrWildcard()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = justCopied,
+                transitionSpec = {
+                    fadeIn(tween(120)).togetherWith(fadeOut(tween(100)))
+                },
+                label = "copy_icon_anim"
+            ) { copied ->
+                Icon(
+                    imageVector = when {
+                        copied -> MailxIcons.Check
+                        isWildcard -> MailxIcons.Dice
+                        else -> MailxIcons.Copy
+                    },
+                    contentDescription = if (isWildcard) {
+                        "Generate from ${alias.name}"
+                    } else {
+                        "Copy ${alias.name}"
+                    },
+                    tint = actionTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AliasInlineStat(
+    icon: ImageVector,
+    count: Int
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

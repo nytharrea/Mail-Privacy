@@ -443,12 +443,55 @@ fun AliasesTab(
                     onActionClick = onOpenCreateSheet
                 )
             } else {
+                val pinnedAliases = remember(aliases) { aliases.filter { it.pinned } }
+                val regularAliases = remember(aliases) { aliases.filterNot { it.pinned } }
+                val showSections = pinnedAliases.isNotEmpty() && regularAliases.isNotEmpty()
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(top = 2.dp, bottom = 84.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)
                 ) {
-                    items(aliases, key = { it.id }, contentType = { "alias_card" }) { alias ->
+                    if (showSections) {
+                        item(key = "section_pinned", contentType = "section_header") {
+                            Text(
+                                text = "PINNED",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                    }
+                    items(pinnedAliases, key = { it.id }, contentType = { "alias_card" }) { alias ->
+                        val isSelected = selectedIds.contains(alias.id)
+                        AliasCard(
+                            alias = alias,
+                            aliasRow = aliasRowsById[alias.id],
+                            selectionMode = selectionMode,
+                            isSelected = isSelected,
+                            onClick = { onSelectAlias(alias) },
+                            onToggleSelect = {
+                                selectedIds = if (isSelected) {
+                                    selectedIds - alias.id
+                                } else {
+                                    selectedIds + alias.id
+                                }
+                            },
+                            onCopyOrWildcard = { onCopyOrWildcard(alias) },
+                            onToggleEnabled = { newState -> onToggleEnabled(alias, newState) }
+                        )
+                    }
+                    if (showSections) {
+                        item(key = "section_all", contentType = "section_header") {
+                            Text(
+                                text = "ALL ALIASES",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
+                            )
+                        }
+                    }
+                    items(regularAliases, key = { it.id }, contentType = { "alias_card" }) { alias ->
                         val isSelected = selectedIds.contains(alias.id)
                         AliasCard(
                             alias = alias,

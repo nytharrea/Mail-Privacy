@@ -523,9 +523,27 @@ fun AddAliasBottomSheet(
                 }
             }
 
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            ) {
+                Icon(
+                    imageVector = MailxIcons.Server,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Created on $selectedDomain when you tap Create",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             MailxPrimaryButton(
-                text = if (isSubmitting) "Creating..." else "Create & Copy Alias",
-                icon = MailxIcons.Plus,
+                text = if (isSubmitting) "Creating..." else "Create & copy",
+                icon = MailxIcons.Copy,
                 enabled = !isSubmitting &&
                     (selectedFormat != "custom" || customLocalPart.isNotBlank()) &&
                     (selectedFormat != "wildcard" || wildcardSuffixValid),

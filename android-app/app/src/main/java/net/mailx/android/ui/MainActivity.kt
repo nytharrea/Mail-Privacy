@@ -817,10 +817,10 @@ private fun MailxModernBottomBar(
             shape = RoundedCornerShape(32.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 0.dp,
-            shadowElevation = 14.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.70f)
+                color = MaterialTheme.colorScheme.outlineVariant
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -851,7 +851,7 @@ private fun MailxModernBottomBar(
                     )
                     val pillColor by animateColorAsState(
                         targetValue = if (selected) {
-                            MaterialTheme.colorScheme.primary
+                            MaterialTheme.colorScheme.secondaryContainer
                         } else {
                             Color.Transparent
                         },
@@ -860,7 +860,7 @@ private fun MailxModernBottomBar(
                     )
                     val iconColor by animateColorAsState(
                         targetValue = if (selected) {
-                            Color.White
+                            MaterialTheme.colorScheme.onSecondaryContainer
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
